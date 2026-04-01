@@ -13,6 +13,7 @@ authors = [
 ]
 dependencies = [
     "aiosqlite>=0.20.0", # For asynchronous SQLite support
+    "alembic>=1.13.0",
     "bcrypt",
     "fastapi>=0.110.0",
     "pydantic[email]>=2.6.0",
