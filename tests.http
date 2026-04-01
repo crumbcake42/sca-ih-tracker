@@ -1,0 +1,16 @@
+@hostname = http://127.0.0.1:8000
+@username = admin
+@password = pw
+
+### 1. Login to get Token
+# @name login
+POST {{hostname}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{username}}&password={{password}}
+
+### 2. Access Protected Route
+@token = {{login.response.body.access_token}}
+
+GET {{hostname}}/users/me
+Authorization: Bearer {{token}}

@@ -22,6 +22,6 @@ class Project(Base):
     manager_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"))
 
     # Relationships (Type hinted as strings to avoid import loops)
-    school: Mapped["School"] = relationship()
-    contractor: Mapped["Contractor | None"] = relationship()
-    manager: Mapped["Employee | None"] = relationship()
+    school: Mapped["School"] = relationship("School")
+    contractor: Mapped["Contractor | None"] = relationship("Contractor")
+    manager: Mapped["Employee | None"] = relationship("Employee")

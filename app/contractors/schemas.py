@@ -15,4 +15,4 @@ class ContractorCreate(ContractorBase):
 
 class Contractor(ContractorBase):
     id: int
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)

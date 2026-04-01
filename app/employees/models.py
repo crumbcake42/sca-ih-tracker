@@ -12,5 +12,5 @@ class Employee(Base):
     last_name: Mapped[str] = mapped_column(String(100))
     title: Mapped[TitleEnum | None] = mapped_column(SQLEnum(TitleEnum))
     email: Mapped[str | None] = mapped_column(String(255), index=True)
-    phone: Mapped[str | None] = mapped_column(String(20))
+    phone: Mapped[str | None] = mapped_column(String(14))
     adp_id: Mapped[str | None] = mapped_column(String(9), unique=True)

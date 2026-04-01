@@ -2,14 +2,21 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "dev",
+            "label": "Run Dev Server",
             "type": "shell",
             "command": "${workspaceFolder}/.venv/Scripts/python.exe -m uvicorn app.main:app --reload",
             "problemMatcher": [],
             "group": {
                 "kind": "test",
                 "isDefault": true
-            },
+            }
+        },
+        {
+            "label": "Initialize DB (Seed)",
+            "type": "shell",
+            // This now uses your custom script command!
+            "command": "${workspaceFolder}/.venv/Scripts/setup-db.exe",
+            "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
