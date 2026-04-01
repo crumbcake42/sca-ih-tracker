@@ -16,6 +16,11 @@ class Project(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), index=True)
+    # We use String(20) because your regex maxes out around 12-15 characters.
+    # index=True is critical for your Batch Import performance.
+    project_number: Mapped[str] = mapped_column(
+        String(20), unique=True, index=True, nullable=False
+    )
 
     # Foreign Keys
     school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"))
