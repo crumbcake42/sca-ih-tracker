@@ -1,6 +1,10 @@
+from typing import TYPE_CHECKING
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.projects.models.links import ProjectContractor
 
 
 class Contractor(Base):
@@ -12,3 +16,13 @@ class Contractor(Base):
     city: Mapped[str] = mapped_column(String(100))
     state: Mapped[str] = mapped_column(String(2))
     zip_code: Mapped[str] = mapped_column(String(10))
+
+    # The reverse link to projects
+    project_links: Mapped[list["ProjectContractor"]] = relationship(
+        back_populates="contractor"
+    )
+
+    @property
+    def active_projects(self):
+        """Returns only the projects where this contractor is currently active."""
+        return [link.project for link in self.project_links if link.is_current]
