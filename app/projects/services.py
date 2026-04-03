@@ -1,6 +1,6 @@
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-from app.projects.models import Project, ProjectContractor
+from app.projects.models import Project, ProjectContractorLink
 from app.contractors.models import Contractor
 
 
@@ -26,21 +26,21 @@ def process_project_import(db: Session, project_data: dict):
         if contractor:
             # Look for the CURRENT active link
             current_link = db.execute(
-                select(ProjectContractor)
-                .where(ProjectContractor.project_id == project.id)
-                .where(ProjectContractor.is_current == True)
+                select(ProjectContractorLink)
+                .where(ProjectContractorLink.project_id == project.id)
+                .where(ProjectContractorLink.is_current == True)
             ).scalar_one_or_none()
 
             # If no link exists, or the contractor has changed:
             if not current_link or current_link.contractor_id != contractor.id:
                 # Set all old links to False
                 db.execute(
-                    update(ProjectContractor)
-                    .where(ProjectContractor.project_id == project.id)
+                    update(ProjectContractorLink)
+                    .where(ProjectContractorLink.project_id == project.id)
                     .values(is_current=False)
                 )
                 # Create the new "Active" link
-                new_link = ProjectContractor(
+                new_link = ProjectContractorLink(
                     project_id=project.id, contractor_id=contractor.id, is_current=True
                 )
                 db.add(new_link)

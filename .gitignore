@@ -24,6 +24,7 @@ pyvenv.cfg
 # IDEs
 # Ignore the whole folder by default
 .vscode/*
+*code-workspace
 
 # But allow these specific files
 !.vscode/tasks.json

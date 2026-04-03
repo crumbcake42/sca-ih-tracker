@@ -4,7 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.projects.models.links import ProjectContractor
+    from app.projects.models.links import ProjectContractorLink
 
 
 class Contractor(Base):
@@ -18,7 +18,7 @@ class Contractor(Base):
     zip_code: Mapped[str] = mapped_column(String(10))
 
     # The reverse link to projects
-    project_links: Mapped[list["ProjectContractor"]] = relationship(
+    project_links: Mapped[list["ProjectContractorLink"]] = relationship(
         back_populates="contractor"
     )
 

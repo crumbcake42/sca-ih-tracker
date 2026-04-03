@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
+from app.database import Base, AuditMixin
 
 # This block is ONLY seen by your IDE/Type Checker
 if TYPE_CHECKING:
@@ -9,8 +9,8 @@ if TYPE_CHECKING:
     from app.contractors.models import Contractor
 
 
-class ProjectContractor(Base):
-    __tablename__ = "project_contractors"
+class ProjectContractorLink(Base, AuditMixin):
+    __tablename__ = "project_contractors_links"
 
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), primary_key=True)
     contractor_id: Mapped[int] = mapped_column(

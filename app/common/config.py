@@ -49,7 +49,7 @@ class Settings(BaseSettings):
 
         abs_path = PROJECT_ROOT / self.LOCAL_DATABASE_PATH
         abs_path.parent.mkdir(parents=True, exist_ok=True)
-        return f"sqlite:///{abs_path}"
+        return f"sqlite+aiosqlite:///{abs_path}"
 
 
 settings = Settings()

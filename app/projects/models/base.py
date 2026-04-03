@@ -1,17 +1,16 @@
 from typing import TYPE_CHECKING
 from sqlalchemy import String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
+from app.database import Base, AuditMixin
 
 # These imports only happen for the Type Checker/IDE
 if TYPE_CHECKING:
     from app.schools.models import School
-    from app.contractors.models import Contractor
-    from app.employees.models import Employee
-    from .links import ProjectContractor
+    from app.users.models import User
+    from .links import ProjectContractorLink
 
 
-class Project(Base):
+class Project(Base, AuditMixin):
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -24,22 +23,21 @@ class Project(Base):
 
     # Foreign Keys
     school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"))
-    contractor_id: Mapped[int | None] = mapped_column(ForeignKey("contractors.id"))
-    manager_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"))
+    # contractor_id: Mapped[int | None] = mapped_column(ForeignKey("contractors.id"))
+    # manager_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"))
 
     # Relationships (Type hinted as strings to avoid import loops)
     school: Mapped["School"] = relationship("School")
-    contractor: Mapped["Contractor | None"] = relationship("Contractor")
-    manager: Mapped["Employee | None"] = relationship("Employee")
+    # manager: Mapped["User | None"] = relationship("User")
 
-    # All contractors
-    contractor_links: Mapped[list["ProjectContractor"]] = relationship(
-        back_populates="project", cascade="all, delete-orphan"
-    )
-
-    # Shortcut to the current one
-    current_link: Mapped["ProjectContractor | None"] = relationship(
-        primaryjoin="and_(Project.id == ProjectContractor.project_id, ProjectContractor.is_current == True)",
+    # Single contractor
+    contractor: Mapped["ProjectContractorLink | None"] = relationship(
+        primaryjoin="and_(Project.id == ProjectContractorLink.project_id, ProjectContractorLink.is_current == True)",
         viewonly=True,
         uselist=False,
+    )
+
+    # All contractors
+    contractor_links: Mapped[list["ProjectContractorLink"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
     )

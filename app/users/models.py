@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import String, DateTime, func, ForeignKey, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base
+from app.database import Base, AuditMixin
 
 
 # Association Table: Links Roles to Permissions
@@ -31,7 +31,7 @@ class Role(Base):
 
 
 # Update User model to link to Role
-class User(Base):
+class User(Base, AuditMixin):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
     first_name: Mapped[str] = mapped_column(String(100))

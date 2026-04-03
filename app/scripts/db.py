@@ -1,113 +1,202 @@
-from sqlalchemy.orm import Session
+import asyncio
+import csv
+from pathlib import Path
+from typing import Type, TypeVar, Any, Sequence
+from pydantic import BaseModel, ValidationError
 
-# Import all model modules to ensure they are registered with Base
-from app.projects import models as project_models
-from app.users import models as user_models
-from app.projects import models as project_models
-from app.schools import models as school_models
-from app.contractors import models as contractor_models
-from app.employees import models as employee_models
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.database import SessionLocal, engine, Base
-
 from app.users.models import Role, Permission, User
+
+from app.schools.models import School as SchoolModel
+from app.schools.schemas import SchoolCreate as SchoolSchema
+
+from app.contractors.models import Contractor as ContractorModel
+from app.contractors.schemas import ContractorCreate as ContractorSchema
+
+from app.employees.models import Employee as EmployeeModel
+from app.employees.schemas import EmployeeCreate as EmployeeSchema
+
+
 from app.common.enums import PermissionName, RoleName
 from app.common.security import hash_password
 from app.common.config import settings
 
+# Type Variables for Generic support
+ModelT = TypeVar("ModelT", bound=Base)
+SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
-def initialize():
+# Path to your seed files
+SEED_DATA_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "seed"
+
+
+async def seed_from_csv(
+    db: AsyncSession,
+    model_class: Type[ModelT],
+    schema_class: Type[SchemaT],
+    filename: str,
+    unique_field: str,
+) -> None:
+    """
+    Generic helper to validate and seed models from CSV files.
+
+    Args:
+        db: The active async database session.
+        model_class: The SQLAlchemy model class (e.g., School).
+        schema_class: The Pydantic schema for validation (e.g., SchoolCreate).
+        filename: Name of the CSV file in the seed directory.
+        unique_field: The attribute name used to check for existing records.
+    """
+    file_path: Path = SEED_DATA_PATH / filename
+    if not file_path.exists():
+        print(f"  [SKIP] {filename} not found.")
+        return
+
+    print(f"[*] Seeding {model_class.__name__}s from {filename}...")
+
+    with open(file_path, mode="r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+
+        # Track counts for the final report
+        added_count: int = 0
+        error_count: int = 0
+
+        for line_num, row in enumerate(reader, start=2):
+            try:
+                # 1. Validate with Pydantic
+                validated_data: SchemaT = schema_class(**row)
+
+                # 2. Check for existence
+                unique_val: Any = getattr(validated_data, unique_field)
+                stmt = select(model_class).where(
+                    getattr(model_class, unique_field) == unique_val
+                )
+                result = await db.execute(stmt)
+                existing: ModelT | None = result.scalars().first()
+
+                if not existing:
+                    # 3. Create SQLAlchemy instance
+                    new_obj: ModelT = model_class(**validated_data.model_dump())
+                    db.add(new_obj)
+                    added_count += 1
+
+            except ValidationError as e:
+                error_count += 1
+                print(
+                    f"  [ERROR] Line {line_num} in {filename}: {e.errors()[0]['msg']}"
+                )
+            except Exception as e:
+                error_count += 1
+                print(f"  [FATAL] Line {line_num}: {str(e)}")
+
+        await db.flush()
+        print(
+            f"  [+] Finished {model_class.__name__}: {added_count} added, {error_count} failed."
+        )
+
+
+async def initialize():
     print("\n" + "=" * 40)
-    print(" 🏗️  DATABASE PREPARATION STARTING")
+    print(" 🏗️  DATABASE PREPARATION (ASYNC)")
     print("=" * 40)
 
-    # 1. Schema Check
-    print(f"[*] Checking schema for {len(Base.metadata.tables)} tables...")
-    Base.metadata.create_all(bind=engine)
-    print("[+] Schema is up to date.")
+    # 1. Schema Creation
+    async with engine.begin() as conn:
+        print(f"[*] Syncing tables for {len(Base.metadata.tables)} models...")
+        # In production, use Alembic. In local dev/reset, this is fine.
+        await conn.run_sync(Base.metadata.create_all)
 
-    db: Session = SessionLocal()
+    async with SessionLocal() as db:
+        try:
+            # 2. Permissions Sync
+            print("\n[*] Syncing Permissions...")
+            permissions_map = {}
+            for perm_enum in PermissionName:
+                stmt = select(Permission).where(Permission.name == perm_enum.value)
+                result = await db.execute(stmt)
+                db_perm = result.scalars().first()
 
+                if not db_perm:
+                    db_perm = Permission(name=perm_enum.value)
+                    db.add(db_perm)
+                    await db.flush()
+                    print(f"  [NEW] Permission: {perm_enum.value}")
+                permissions_map[perm_enum.value] = db_perm
+
+            # 3. Role Configuration
+            print("\n[*] Configuring Roles...")
+            role_definitions = {
+                RoleName.SUPERADMIN: [p.value for p in PermissionName],
+                RoleName.ADMIN: [
+                    PermissionName.PROJECT_CREATE,
+                    PermissionName.SCHOOL_EDIT,
+                ],
+                # Add others...
+            }
+
+            for role_enum, allowed_perms in role_definitions.items():
+                stmt = select(Role).where(Role.name == role_enum.value)
+                result = await db.execute(stmt)
+                db_role = result.scalars().first()
+
+                if not db_role:
+                    db_role = Role(name=role_enum.value)
+                    db.add(db_role)
+                    await db.flush()
+
+                # Link permissions
+                db_role.permissions = [permissions_map[p] for p in allowed_perms]
+                print(f"  [OK] Role: {role_enum.value:12}")
+
+            # 4. User Check
+            print("\n[*] Verifying System Administrator...")
+            stmt = select(User).where(User.username == settings.FIRST_ADMIN_USERNAME)
+            result = await db.execute(stmt)
+            if not result.scalars().first():
+                admin_role_stmt = select(Role).where(
+                    Role.name == RoleName.SUPERADMIN.value
+                )
+                admin_role = (await db.execute(admin_role_stmt)).scalar_one()
+
+                new_admin = User(
+                    first_name="System",
+                    last_name="Administrator",
+                    username=settings.FIRST_ADMIN_USERNAME,
+                    email=settings.FIRST_ADMIN_EMAIL,
+                    hashed_password=hash_password(settings.FIRST_ADMIN_PASSWORD),
+                    role=admin_role,
+                )
+                db.add(new_admin)
+                print(f"  [CREATE] User '{settings.FIRST_ADMIN_USERNAME}' added.")
+
+            # 5. Seed Base Truth Data (CSV)
+            print("\n[*] Seeding Business Data...")
+            seed_files = [
+                (db, SchoolModel, SchoolSchema, "schools.csv", "code"),
+                (db, ContractorModel, ContractorSchema, "contractors.csv", "name"),
+                (db, EmployeeModel, EmployeeSchema, "employees.csv", "adp_id"),
+            ]
+            for seed_args in seed_files:
+                await seed_from_csv(*seed_args)
+
+            await db.commit()
+            print("\n" + "=" * 40)
+            print(" ✅ DATABASE READY")
+            print("=" * 40 + "\n")
+
+        except Exception as e:
+            await db.rollback()
+            print(f"\n[!] FATAL ERROR: {e}")
+            raise e
+
+
+def run_setup():
+    """Synchronous entry point for pyproject.toml scripts"""
     try:
-        # 2. Permissions Sync
-        print("\n[*] Syncing Permissions...")
-        permissions_map = {}
-        for perm_enum in PermissionName:
-            db_perm = (
-                db.query(Permission).filter(Permission.name == perm_enum.value).first()
-            )
-            if not db_perm:
-                db_perm = Permission(name=perm_enum.value)
-                db.add(db_perm)
-                db.flush()
-                print(f"  [NEW] Permission: {perm_enum.value}")
-            permissions_map[perm_enum.value] = db_perm
-        print(f"[+] Total permissions synchronized: {len(permissions_map)}")
-
-        # 3. Role Configuration
-        print("\n[*] Configuring Roles...")
-        role_definitions = {
-            RoleName.SUPERADMIN: [p.value for p in PermissionName],
-            RoleName.ADMIN: [
-                PermissionName.PROJECT_CREATE,
-                PermissionName.PROJECT_EDIT,
-                PermissionName.PROJECT_DELETE,
-                PermissionName.SCHOOL_EDIT,
-            ],
-            RoleName.COORDINATOR: [
-                PermissionName.PROJECT_CREATE,
-                PermissionName.PROJECT_EDIT,
-            ],
-            RoleName.INSPECTOR: [],
-        }
-
-        for role_enum, allowed_perms in role_definitions.items():
-            db_role = db.query(Role).filter(Role.name == role_enum.value).first()
-
-            if not db_role:
-                db_role = Role(name=role_enum.value)
-                db.add(db_role)
-                db.flush()
-                status = "NEW"
-            else:
-                status = "EXISTING"
-
-            # Update the permissions list (syncs the many-to-many table)
-            db_role.permissions = [permissions_map[p] for p in allowed_perms]
-            print(
-                f"  [{status}] Role: {role_enum.value:12} | Permissions: {len(allowed_perms)}"
-            )
-
-        # 4. User Check
-        print("\n[*] Verifying System Administrator...")
-        admin_username = admin_username = settings.FIRST_ADMIN_USERNAME
-        existing_admin = db.query(User).filter(User.username == admin_username).first()
-
-        if not existing_admin:
-            superadmin_role = (
-                db.query(Role).filter(Role.name == RoleName.SUPERADMIN.value).first()
-            )
-
-            hashed_password = hash_password(settings.FIRST_ADMIN_PASSWORD)
-            new_admin = User(
-                first_name="System",
-                last_name="Administrator",
-                username=admin_username,
-                email=settings.FIRST_ADMIN_EMAIL,
-                hashed_password=hashed_password,
-                role=superadmin_role,
-            )
-            db.add(new_admin)
-            print(f"  [CREATE] User '{admin_username}' added with SuperAdmin role.")
-        else:
-            print(f"  [OK] User '{admin_username}' already exists.")
-
-        db.commit()
-        print("\n" + "=" * 40)
-        print(" ✅ DATABASE READY FOR DEVELOPMENT")
-        print("=" * 40 + "\n")
-
+        asyncio.run(initialize())
+    except KeyboardInterrupt:
+        print("\n[!] Setup interrupted by user.")
     except Exception as e:
-        db.rollback()
-        print(f"\n[!] FATAL ERROR DURING PREPARATION: {e}")
-    finally:
-        db.close()
+        print(f"\n[!] Setup failed: {e}")

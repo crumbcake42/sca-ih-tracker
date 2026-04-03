@@ -24,9 +24,17 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "aiosqlite", # For in-memory testing
+]
+
 [project.scripts]
 dev = "uvicorn.main:main"
-setup-db = "app.scripts.db:initialize"
+setup-db = "app.scripts.db:run_setup"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -36,3 +44,7 @@ include = ["app*"]
 # Helps VS Code's type checking ignore your L: drive source
 venvPath = "."
 venv = ".venv"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

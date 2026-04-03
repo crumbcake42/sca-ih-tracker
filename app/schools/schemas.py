@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 from app.common.enums import Boro
 
@@ -17,4 +18,5 @@ class SchoolCreate(SchoolBase):
 
 class School(SchoolBase):
     id: int
+    created_at: datetime
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
