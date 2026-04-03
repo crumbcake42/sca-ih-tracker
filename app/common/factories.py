@@ -1,6 +1,5 @@
 from enum import Enum
-from typing import Type, TypeVar
-from typing import Callable, Any, Awaitable
+from typing import Callable, Type, TypeVar, Any, Optional
 import csv
 import io
 from pydantic import BaseModel
@@ -9,27 +8,31 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.database import get_db
-from app.users.dependencies import get_current_user
-from app.common.responses import BatchImportResponse
+from app.common.crud import get_paginated_list
 from app.common.errors import ImportErrorReport
+from app.common.responses import BatchImportResponse
+from app.common.schemas import PaginatedResponse
 
+from app.users.dependencies import get_current_user
+
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+from app.database.base import Base
+
+ModelT = TypeVar("ModelT", bound=Base)
+SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 # Define a Type Alias for the callback for better readability
 # It takes (db, validated_pydantic_model, raw_csv_row)
 ImportValidator = Callable[[Session, Any, dict[str, Any]], Any]
 
-# Type variables for our generic models
-ModelT = TypeVar("ModelT")  # The SQLAlchemy Model
-SchemaT = TypeVar("SchemaT")  # The "Response" Schema (e.g. School)
-CreateSchemaT = TypeVar(
-    "CreateSchemaT", bound=BaseModel
-)  # The "Create" Schema (e.g. SchoolCreate)
-
 
 def create_batch_import_router(
     model: Type[ModelT],
     schema: Type[SchemaT],
-    create_schema: Type[CreateSchemaT],
+    create_schema: Type[SchemaT],
     unique_col_name: str | None,
     prefix: str,
     tags: list[str | Enum],
@@ -104,5 +107,36 @@ def create_batch_import_router(
             "created_items": created_items,
             "errors": errors,
         }
+
+    return router
+
+
+def create_readonly_router(
+    model: Type[ModelT],
+    read_schema: Type[SchemaT],
+    prefix: str = "",
+    tags: list[str | Enum] | None = None,
+    default_sort: Any = None,
+    search_attr: Optional[Any] = None,
+) -> APIRouter:
+    router = APIRouter(prefix=prefix, tags=tags)
+
+    @router.get("/", response_model=PaginatedResponse[read_schema])
+    async def list_entries(
+        skip: int = Query(0, ge=0),
+        limit: int = Query(50, ge=1, le=100),
+        search: Optional[str] = Query(None),
+        db: AsyncSession = Depends(get_db),
+    ):
+        items, total = await get_paginated_list(
+            db=db,
+            model=model,
+            skip=skip,
+            limit=limit,
+            sort_by=default_sort,
+            search_attr=search_attr,
+            search_query=search,
+        )
+        return {"items": items, "total": total, "skip": skip, "limit": limit}
 
     return router

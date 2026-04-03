@@ -1,5 +1,6 @@
-from typing import Annotated, Any, TypeVar, TypeAlias
-from pydantic import BeforeValidator
+from typing import Annotated, Any, TypeVar, TypeAlias, Generic
+from pydantic import BeforeValidator, BaseModel
+
 
 T = TypeVar("T")
 
@@ -17,3 +18,10 @@ OptionalField: TypeAlias = Annotated[T | None, BeforeValidator(empty_to_none)]
 
 # Pre-defined aliases for common use cases
 OptionalString = OptionalField[str]
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    skip: int
+    limit: int

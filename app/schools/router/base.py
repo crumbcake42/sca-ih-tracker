@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.common.factories import create_readonly_router
 from app.database import get_db
 from app.schools.models import School
 from app.schools.schemas import SchoolCreate, School as SchoolRead
@@ -9,25 +10,21 @@ from app.schools.schemas import SchoolCreate, School as SchoolRead
 router = APIRouter()
 
 
-@router.post("/", response_model=SchoolRead)
-async def create_school(school_in: SchoolCreate, db: AsyncSession = Depends(get_db)):
-    # Check for existing school code
-    query = select(School).where(School.code == school_in.code)
-    result = await db.execute(query)
-    if result.scalars().first():
-        raise HTTPException(status_code=400, detail="School code already exists")
-
-    new_school = School(**school_in.model_dump())
-    db.add(new_school)
-    await db.commit()
-    await db.refresh(new_school)
-    return new_school
+router.include_router(
+    create_readonly_router(
+        model=School,
+        read_schema=SchoolRead,
+        # prefix="/list",
+        default_sort=School.code.asc(),
+        search_attr=School.code,
+    )
+)
 
 
-@router.get("/", response_model=list[SchoolRead])
-async def list_schools(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(School))
-    return result.scalars().all()
+# @router.get("/", response_model=list[SchoolRead])
+# async def list_schools(db: AsyncSession = Depends(get_db)):
+#     result = await db.execute(select(School))
+#     return result.scalars().all()
 
 
 @router.get("/{identifier}", response_model=SchoolRead)
