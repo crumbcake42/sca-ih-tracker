@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING
-from sqlalchemy import ForeignKey, Boolean, DateTime, func
+from sqlalchemy import Table, Column, ForeignKey, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base, AuditMixin
 
@@ -7,6 +7,15 @@ from app.database import Base, AuditMixin
 if TYPE_CHECKING:
     from .base import Project
     from app.contractors.models import Contractor
+
+
+# Simple association table — no extra columns needed for school links
+project_school_links = Table(
+    "project_school_links",
+    Base.metadata,
+    Column("project_id", ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+    Column("school_id", ForeignKey("schools.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class ProjectContractorLink(Base, AuditMixin):

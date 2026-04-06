@@ -6,7 +6,7 @@ router = create_batch_import_router(
     model=SchoolModel,
     schema=SchoolSchema,
     create_schema=SchoolCreate,
-    unique_col_name="adp_id",
+    unique_col_name="code",
     prefix="/batch",
     tags=["Schools", "Batch"],
 )

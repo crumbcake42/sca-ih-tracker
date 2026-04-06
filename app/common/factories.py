@@ -1,11 +1,12 @@
+import inspect
 from enum import Enum
-from typing import Callable, Type, TypeVar, Any, Optional
+from typing import Callable, Coroutine, Type, TypeVar, Any, Optional
 import csv
 import io
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.common.crud import get_paginated_list
@@ -16,9 +17,6 @@ from app.common.schemas import PaginatedResponse
 from app.users.dependencies import get_current_user
 
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-
 from app.database.base import Base
 
 ModelT = TypeVar("ModelT", bound=Base)
@@ -26,7 +24,8 @@ SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 # Define a Type Alias for the callback for better readability
 # It takes (db, validated_pydantic_model, raw_csv_row)
-ImportValidator = Callable[[Session, Any, dict[str, Any]], Any]
+# May be sync or async.
+ImportValidator = Callable[[AsyncSession, Any, dict[str, Any]], Any | Coroutine[Any, Any, Any]]
 
 
 def create_batch_import_router(
@@ -47,7 +46,7 @@ def create_batch_import_router(
     async def import_batch(
         file: UploadFile = File(...),
         has_headers: bool = Query(True),
-        db: Session = Depends(get_db),
+        db: AsyncSession = Depends(get_db),
     ):
         if not file.filename or not file.filename.lower().endswith(".csv"):
             raise HTTPException(status_code=400, detail="File must be a CSV.")
@@ -75,8 +74,8 @@ def create_batch_import_router(
                 if unique_col_name:
                     unique_val = getattr(obj_in, unique_col_name)
                     model_col = getattr(model, unique_col_name)
-                    exists = db.execute(
-                        select(model).where(model_col == unique_val)
+                    exists = (
+                        await db.execute(select(model).where(model_col == unique_val))
                     ).scalar_one_or_none()
                     if exists:
                         raise ValueError(
@@ -85,9 +84,8 @@ def create_batch_import_router(
 
                 # 3. Custom Validation Callback (The "Brain")
                 if custom_validator:
-                    # The validator can perform calculations or multi-column checks
-                    # It can even return a modified version of obj_in
-                    obj_in = custom_validator(db, obj_in, row_dict)
+                    result = custom_validator(db, obj_in, row_dict)
+                    obj_in = await result if inspect.isawaitable(result) else result
 
                 # 4. Final Create
                 new_obj = model(**obj_in.model_dump())
@@ -97,9 +95,9 @@ def create_batch_import_router(
             except Exception as e:
                 errors.append(ImportErrorReport(row=line_num, msg=str(e)))
 
-        db.commit()
+        await db.commit()
         for item in created_items:
-            db.refresh(item)
+            await db.refresh(item)
 
         return {
             "message": f"Import of {len(created_items)} items complete.",

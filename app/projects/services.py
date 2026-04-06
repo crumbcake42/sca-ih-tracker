@@ -1,40 +1,45 @@
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.projects.models import Project, ProjectContractorLink
 from app.contractors.models import Contractor
 
 
-def process_project_import(db: Session, project_data: dict):
+async def process_project_import(db: AsyncSession, project_data: dict):
     # 1. Handle the Project itself (Create or Update)
-    # This uses your existing factory logic...
-    project = db.execute(
-        select(Project).where(Project.project_number == project_data["project_number"])
+    project = (
+        await db.execute(
+            select(Project).where(Project.project_number == project_data["project_number"])
+        )
     ).scalar_one_or_none()
 
     if not project:
         project = Project(**project_data)
         db.add(project)
-        db.flush()  # Get the ID without committing yet
+        await db.flush()  # Get the ID without committing yet
 
     # 2. Handle the Contractor Link
     new_contractor_name = project_data.get("contractor_name")
     if new_contractor_name:
-        contractor = db.execute(
-            select(Contractor).where(Contractor.name == new_contractor_name)
+        contractor = (
+            await db.execute(
+                select(Contractor).where(Contractor.name == new_contractor_name)
+            )
         ).scalar_one_or_none()
 
         if contractor:
             # Look for the CURRENT active link
-            current_link = db.execute(
-                select(ProjectContractorLink)
-                .where(ProjectContractorLink.project_id == project.id)
-                .where(ProjectContractorLink.is_current == True)
+            current_link = (
+                await db.execute(
+                    select(ProjectContractorLink)
+                    .where(ProjectContractorLink.project_id == project.id)
+                    .where(ProjectContractorLink.is_current == True)
+                )
             ).scalar_one_or_none()
 
             # If no link exists, or the contractor has changed:
             if not current_link or current_link.contractor_id != contractor.id:
                 # Set all old links to False
-                db.execute(
+                await db.execute(
                     update(ProjectContractorLink)
                     .where(ProjectContractorLink.project_id == project.id)
                     .values(is_current=False)

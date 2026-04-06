@@ -1,9 +1,39 @@
-from typing import Type, TypeVar, Sequence, Any
+from typing import Protocol, Type, TypeVar, Sequence, Any
+from fastapi import HTTPException
 from sqlalchemy import select, func
+from sqlalchemy.orm import Mapped
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import Base
 
+
+class HasIntPK(Protocol):
+    id: Mapped[int]
+
+
+IntPKModelT = TypeVar("IntPKModelT", bound=HasIntPK)
 ModelT = TypeVar("ModelT", bound=Base)
+
+
+async def get_by_ids(
+    db: AsyncSession,
+    model: Type[IntPKModelT],
+    ids: list[int],
+) -> list[IntPKModelT]:
+    """
+    Fetch records by a list of primary key IDs.
+    Raises 404 if any IDs are not found.
+    """
+    result = await db.execute(select(model).where(model.id.in_(ids)))  # type: ignore[attr-defined]
+    items = result.scalars().all()
+
+    if len(items) != len(ids):
+        found_ids = {item.id for item in items}
+        missing = [i for i in ids if i not in found_ids]
+        raise HTTPException(
+            status_code=404,
+            detail=f"{model.__name__}(s) not found: {missing}",
+        )
+    return list(items)
 
 
 async def get_paginated_list(

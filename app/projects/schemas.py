@@ -4,8 +4,7 @@ PROJECT_NUMBER_REGEX = r"^\d{2}\-[1-3]{3}-\d{2}([:;]\d{2})?$"
 
 
 class ProjectBase(BaseModel):
-    title: str
-    school_id: int
+    name: str
     project_number: str = Field(
         ...,
         pattern=PROJECT_NUMBER_REGEX,
@@ -14,9 +13,11 @@ class ProjectBase(BaseModel):
 
 
 class ProjectCreate(ProjectBase):
-    pass
+    school_ids: list[int] = Field(..., min_length=1)
 
 
 class Project(ProjectBase):
     id: int
+    school_ids: list[int] = Field(default_factory=list)
+
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)

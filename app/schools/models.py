@@ -5,7 +5,7 @@ from app.database import Base, AuditMixin
 from app.common.enums import Boro
 
 if TYPE_CHECKING:
-    from app.projects.schemas import Project
+    from app.projects.models.base import Project
 
 
 class School(Base, AuditMixin):
@@ -19,4 +19,9 @@ class School(Base, AuditMixin):
     state: Mapped[str] = mapped_column(String(2), default="NY")
     zip_code: Mapped[str] = mapped_column(String(10))
 
-    projects: Mapped[list["Project"]] = relationship("Project", back_populates="school")
+    # Many-to-many back-reference to projects
+    projects: Mapped[list["Project"]] = relationship(
+        "Project",
+        secondary="project_school_links",
+        back_populates="schools",
+    )

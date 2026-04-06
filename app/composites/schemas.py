@@ -4,8 +4,8 @@ from app.projects.schemas import Project
 
 # This folder is the ONLY place allowed to import from
 # multiple domain schema files at once.
-class ProjectWithSchool(Project):
-    school: School
+class ProjectWithSchools(Project):
+    schools: list[School] = []
 
 
 class SchoolWithProjects(School):
