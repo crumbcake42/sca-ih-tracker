@@ -1,7 +1,9 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, BeforeValidator
+from datetime import date
+from decimal import Decimal
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, BeforeValidator, model_validator
 from typing import Annotated
 
-from app.common.enums import TitleEnum
+from app.common.enums import TitleEnum, EmployeeRoleType
 from app.common.formatters import format_phone_number
 from app.common.schemas import OptionalField
 
@@ -32,3 +34,31 @@ class EmployeeCreate(EmployeeBase):
 class Employee(EmployeeBase):
     id: int
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
+
+
+class EmployeeRoleBase(BaseModel):
+    role_type: EmployeeRoleType
+    start_date: date
+    end_date: date | None = None
+    hourly_rate: Decimal = Field(..., ge=0, decimal_places=2)
+
+    @model_validator(mode="after")
+    def end_after_start(self) -> "EmployeeRoleBase":
+        if self.end_date is not None and self.end_date <= self.start_date:
+            raise ValueError("end_date must be after start_date")
+        return self
+
+
+class EmployeeRoleCreate(EmployeeRoleBase):
+    pass
+
+
+class EmployeeRoleUpdate(BaseModel):
+    end_date: date | None = None
+    hourly_rate: Decimal | None = Field(None, ge=0, decimal_places=2)
+
+
+class EmployeeRole(EmployeeRoleBase):
+    id: int
+    employee_id: int
+    model_config = ConfigDict(from_attributes=True)

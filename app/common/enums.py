@@ -39,3 +39,15 @@ class UserRole(str, Enum):
     ADMIN = "admin"  # Can edit/add/delete projects, schools, contractors
     COORDINATOR = "coordinator"  # Can assign projects, view all results
     INSPECTOR = "inspector"  # Can create lab results and notes
+
+
+class WACodeLevel(str, Enum):
+    PROJECT = "project"
+    BUILDING = "building"
+
+
+class EmployeeRoleType(str, Enum):
+    AIR_MONITOR = "Air Monitor"
+    AIR_TECH = "Air Technician"
+    PROJECT_MONITOR = "Project Monitor"
+    LEAD_RISK_ASSESSOR = "Lead Risk Assessor"

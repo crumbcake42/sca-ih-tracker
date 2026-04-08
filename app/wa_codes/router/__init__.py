@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends
-
 from app.users.dependencies import get_current_user
 from .base import router as base_router
 from .batch import router as batch_router
 
 router = APIRouter(
-    prefix="/employees", tags=["Employees"], dependencies=[Depends(get_current_user)]
+    prefix="/wa-codes", tags=["WA Codes"], dependencies=[Depends(get_current_user)]
 )
 
 router.include_router(base_router)

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ValidationError
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import SessionLocal, engine, Base
 from app.users.models import Role, Permission, User
@@ -16,8 +17,17 @@ from app.schools.schemas import SchoolCreate as SchoolSchema
 from app.contractors.models import Contractor as ContractorModel
 from app.contractors.schemas import ContractorCreate as ContractorSchema
 
+from app.deliverables.models import Deliverable as DeliverableModel
+from app.deliverables.schemas import DeliverableCreate as DeliverableSchema
+
 from app.employees.models import Employee as EmployeeModel
 from app.employees.schemas import EmployeeCreate as EmployeeSchema
+
+from app.hygienists.models import Hygienist as HygienistModel
+from app.hygienists.schemas import HygienistCreate as HygienistSchema
+
+from app.wa_codes.models import WACode as WACodeModel
+from app.wa_codes.schemas import WACodeCreate as WACodeSchema
 
 
 from app.common.enums import PermissionName, RoleName
@@ -137,7 +147,11 @@ async def initialize():
             }
 
             for role_enum, allowed_perms in role_definitions.items():
-                stmt = select(Role).where(Role.name == role_enum.value)
+                stmt = (
+                    select(Role)
+                    .where(Role.name == role_enum.value)
+                    .options(selectinload(Role.permissions))
+                )
                 result = await db.execute(stmt)
                 db_role = result.scalars().first()
 
@@ -145,6 +159,15 @@ async def initialize():
                     db_role = Role(name=role_enum.value)
                     db.add(db_role)
                     await db.flush()
+                    # Re-fetch so the permissions collection is initialized via
+                    # selectinload before we assign to it. Assigning to an
+                    # unloaded lazy="joined" collection triggers IO in async.
+                    result = await db.execute(
+                        select(Role)
+                        .where(Role.id == db_role.id)
+                        .options(selectinload(Role.permissions))
+                    )
+                    db_role = result.scalar_one()
 
                 # Link permissions
                 db_role.permissions = [permissions_map[p] for p in allowed_perms]
@@ -154,11 +177,11 @@ async def initialize():
             print("\n[*] Verifying System Administrator...")
             stmt = select(User).where(User.username == settings.FIRST_ADMIN_USERNAME)
             result = await db.execute(stmt)
-            if not result.scalars().first():
+            if not result.unique().scalars().first():
                 admin_role_stmt = select(Role).where(
                     Role.name == RoleName.SUPERADMIN.value
                 )
-                admin_role = (await db.execute(admin_role_stmt)).scalar_one()
+                admin_role = (await db.execute(admin_role_stmt)).unique().scalar_one()
 
                 new_admin = User(
                     first_name="System",
@@ -177,6 +200,9 @@ async def initialize():
                 (db, SchoolModel, SchoolSchema, "schools.csv", "code"),
                 (db, ContractorModel, ContractorSchema, "contractors.csv", "name"),
                 (db, EmployeeModel, EmployeeSchema, "employees.csv", "adp_id"),
+                (db, HygienistModel, HygienistSchema, "hygienists.csv", "email"),
+                (db, WACodeModel, WACodeSchema, "wa_codes.csv", "code"),
+                (db, DeliverableModel, DeliverableSchema, "deliverables.csv", "name"),
             ]
             for seed_args in seed_files:
                 await seed_from_csv(*seed_args)
