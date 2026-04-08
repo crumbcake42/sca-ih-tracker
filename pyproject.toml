@@ -28,6 +28,7 @@ dependencies = [
 dev = [
     "pytest",
     "pytest-asyncio",
+    "pytest-cov",
     "httpx",
     "aiosqlite", # For in-memory testing
 ]
@@ -35,6 +36,8 @@ dev = [
 [project.scripts]
 dev = "uvicorn.main:main"
 setup-db = "app.scripts.db:run_setup"
+test = "pytest"
+test-cov = "pytest --cov=app --cov-report=term-missing --cov-fail-under=70"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -47,4 +50,16 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["tests", "app"]
+
+[tool.coverage.run]
+source = ["app"]
+# Migrations and the setup script aren't business logic — exclude them so
+# they don't skew your coverage numbers in either direction.
+omit = ["app/scripts/*", "app/migrations/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
