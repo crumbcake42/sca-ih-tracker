@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -57,7 +57,7 @@ async def assign_manager(
                 status_code=409,
                 detail="This user is already the active manager for this project.",
             )
-        active.unassigned_at = datetime.now(timezone.utc)
+        active.unassigned_at = datetime.now(UTC)
 
     new_assignment = models.ProjectManagerAssignment(
         project_id=project_id,
@@ -105,6 +105,6 @@ async def unassign_manager(project_id: int, db: AsyncSession = Depends(get_db)):
             status_code=404, detail="No manager assigned to this project"
         )
 
-    project.active_manager.unassigned_at = datetime.now(timezone.utc)
+    project.active_manager.unassigned_at = datetime.now(UTC)
     await db.commit()
     return None

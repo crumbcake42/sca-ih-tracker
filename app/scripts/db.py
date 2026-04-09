@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+import app.projects.models  # noqa: F401 — registers Project/links mappers
 from app.common.config import settings
 from app.common.enums import PermissionName, RoleName
 from app.common.security import hash_password
@@ -24,7 +25,6 @@ from app.hygienists.models import Hygienist as HygienistModel
 from app.hygienists.schemas import HygienistCreate as HygienistSchema
 from app.schools.models import School as SchoolModel
 from app.schools.schemas import SchoolCreate as SchoolSchema
-import app.projects.models  # noqa: F401 — registers Project/links mappers
 from app.users.models import Permission, Role, User
 from app.wa_codes.models import WACode as WACodeModel
 from app.wa_codes.schemas import WACodeCreate as WACodeSchema

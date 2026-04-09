@@ -22,7 +22,6 @@ from app.projects.models import Project
 from app.schools.models import School
 from app.users.models import Role, User
 
-
 # ---------------------------------------------------------------------------
 # Seed helpers
 # ---------------------------------------------------------------------------

@@ -5,7 +5,6 @@ from sqlalchemy.orm import selectinload
 
 from app.common.crud import get_by_ids
 from app.database import get_db
-from app.hygienists.models import Hygienist
 from app.projects import models, schemas
 from app.schools.models import School
 from app.users.dependencies import PermissionChecker, PermissionName

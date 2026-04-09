@@ -12,11 +12,10 @@ it correctly surfaces the hygienist field via the model_validator mapping.
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.enums import Boro
 from app.hygienists.models import Hygienist
 from app.projects.models import Project
 from app.schools.models import School
-from app.common.enums import Boro
-
 
 # ---------------------------------------------------------------------------
 # Helpers
