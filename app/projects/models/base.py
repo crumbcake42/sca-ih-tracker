@@ -11,7 +11,7 @@ from .links import project_school_links
 if TYPE_CHECKING:
     from app.schools.models import School
 
-    from .links import ProjectHygienistLink, ProjectContractorLink
+    from .links import ProjectContractorLink, ProjectHygienistLink, ProjectManagerAssignment
 
 
 class Project(Base, AuditMixin):
@@ -50,3 +50,15 @@ class Project(Base, AuditMixin):
     hygienist_link: Mapped["ProjectHygienistLink | None"] = relationship(
         back_populates="project", cascade="all, delete-orphan", uselist=False
     )
+
+    # Append-only manager assignment history. Use the active_manager
+    # property for the current assignment.
+    manager_assignments: Mapped[list["ProjectManagerAssignment"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+
+    @property
+    def active_manager(self) -> "ProjectManagerAssignment | None":
+        return next(
+            (a for a in self.manager_assignments if a.unassigned_at is None), None
+        )

@@ -1,9 +1,13 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Table, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import AuditMixin, Base
+
+if TYPE_CHECKING:
+    from app.projects.models.links import ProjectManagerAssignment
 
 # Association Table: Links Roles to Permissions
 role_permissions = Table(
@@ -49,3 +53,8 @@ class User(Base, AuditMixin):
 
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
     role: Mapped["Role"] = relationship(lazy="joined")
+
+    project_assignments: Mapped[list["ProjectManagerAssignment"]] = relationship(
+        back_populates="manager",
+        foreign_keys="ProjectManagerAssignment.user_id",
+    )

@@ -34,6 +34,24 @@ class AssignHygienist(BaseModel):
     hygienist_id: int
 
 
+class ManagerAssignment(BaseModel):
+    """Read schema for a single manager assignment record."""
+
+    id: int
+    user_id: int
+    assigned_by_id: int | None
+    assigned_at: datetime
+    unassigned_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AssignManager(BaseModel):
+    """Write schema for POST /projects/{id}/manager."""
+
+    user_id: int
+
+
 class Project(ProjectBase):
     id: int
     school_ids: list[int] = Field(default_factory=list)

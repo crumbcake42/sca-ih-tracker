@@ -30,7 +30,7 @@ async def _get_project_or_404(project_id: int, db: AsyncSession) -> models.Proje
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.HygienistAssignment,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
@@ -73,7 +73,7 @@ async def get_hygienist_assignment(project_id: int, db: AsyncSession = Depends(g
 
 
 @router.delete(
-    "/",
+    "",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )

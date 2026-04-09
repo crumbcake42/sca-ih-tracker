@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Table, func
@@ -9,6 +10,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.contractors.models import Contractor
     from app.hygienists.models import Hygienist
+    from app.users.models import User
 
     from .base import Project
 
@@ -33,7 +35,7 @@ class ProjectContractorLink(Base):
     )
 
     is_current: Mapped[bool] = mapped_column(Boolean, default=True)
-    assigned_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     # String reference "Project" matches the class name in base.py
     project: Mapped["Project"] = relationship(back_populates="contractor_links")
@@ -56,7 +58,42 @@ class ProjectHygienistLink(Base):
     hygienist_id: Mapped[int] = mapped_column(
         ForeignKey("hygienists.id", ondelete="RESTRICT")
     )
-    assigned_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     project: Mapped["Project"] = relationship(back_populates="hygienist_link")
     hygienist: Mapped["Hygienist"] = relationship(back_populates="project_links")
+
+
+class ProjectManagerAssignment(Base):
+    """
+    Append-only audit trail of manager assignments per project.
+
+    Rules (enforced at the service layer):
+    - At most one active assignment per project (unassigned_at IS NULL).
+    - Reassigning closes the current row (sets unassigned_at) then inserts
+      a new one — never update in-place.
+    - Rows are never deleted; the full history is always preserved.
+    """
+
+    __tablename__ = "project_manager_assignments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
+    assigned_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    unassigned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    project: Mapped["Project"] = relationship(back_populates="manager_assignments")
+    manager: Mapped["User"] = relationship(
+        foreign_keys="ProjectManagerAssignment.user_id"
+    )
+    assigned_by: Mapped["User | None"] = relationship(
+        foreign_keys="ProjectManagerAssignment.assigned_by_id"
+    )

@@ -1,4 +1,4 @@
 from .base import Project
-from .links import ProjectHygienistLink, ProjectContractorLink
+from .links import ProjectContractorLink, ProjectHygienistLink, ProjectManagerAssignment
 
-__all__ = ["Project", "ProjectContractorLink", "ProjectHygienistLink"]
+__all__ = ["Project", "ProjectContractorLink", "ProjectHygienistLink", "ProjectManagerAssignment"]
