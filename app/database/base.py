@@ -2,11 +2,10 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from sqlalchemy import MetaData
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from app.common.config import settings
-
 
 # 1. Create the Engine
 # Apply SQLite-specific fix only if needed

@@ -1,7 +1,9 @@
-from sqlalchemy import String, Enum as SQLEnum
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
-from app.database import Base
+
 from app.common.enums import WACodeLevel
+from app.database import Base
 
 
 class WACode(Base):

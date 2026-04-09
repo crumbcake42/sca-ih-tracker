@@ -1,13 +1,16 @@
 from typing import TYPE_CHECKING
+
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base, AuditMixin
+
+from app.database import AuditMixin, Base
+
 from .links import project_school_links
 
 # These imports only happen for the Type Checker/IDE
 if TYPE_CHECKING:
     from app.schools.models import School
-    from app.users.models import User
+
     from .links import ProjectContractorLink
 
 
@@ -32,7 +35,7 @@ class Project(Base, AuditMixin):
 
     # Single contractor (currently active)
     contractor: Mapped["ProjectContractorLink | None"] = relationship(
-        primaryjoin="and_(Project.id == ProjectContractorLink.project_id, ProjectContractorLink.is_current == True)",
+        primaryjoin="and_(Project.id == ProjectContractorLink.project_id, ProjectContractorLink.is_current)",
         viewonly=True,
         uselist=False,
     )

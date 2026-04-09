@@ -1,6 +1,7 @@
 from app.common.factories import create_batch_import_router
 from app.contractors.models import Contractor as ContractorModel
-from app.contractors.schemas import ContractorCreate, Contractor as ContractorSchema
+from app.contractors.schemas import Contractor as ContractorSchema
+from app.contractors.schemas import ContractorCreate
 
 router = create_batch_import_router(
     model=ContractorModel,

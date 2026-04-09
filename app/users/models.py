@@ -1,8 +1,9 @@
 from datetime import datetime
-from sqlalchemy import String, DateTime, func, ForeignKey, Table, Column
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base, AuditMixin
 
+from sqlalchemy import Column, DateTime, ForeignKey, String, Table, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import AuditMixin, Base
 
 # Association Table: Links Roles to Permissions
 role_permissions = Table(

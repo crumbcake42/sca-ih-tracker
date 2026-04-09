@@ -1,8 +1,9 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
-from app.common.schemas import OptionalField
-from app.common.formatters import format_phone_number
 from typing import Annotated
-from pydantic import BeforeValidator
+
+from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr
+
+from app.common.formatters import format_phone_number
+from app.common.schemas import OptionalField
 
 PHONE_REGEX = r"^\(\d{3}\) \d{3}-\d{4}$"
 

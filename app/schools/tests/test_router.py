@@ -11,13 +11,13 @@ authenticated client. Both come from the root conftest.py.
 """
 
 import io
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schools.models import School
 from app.common.enums import Boro
-
+from app.schools.models import School
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -187,12 +187,13 @@ class TestGetSchool:
 
 
 # ---------------------------------------------------------------------------
-# Batch import — POST /schools/import
+# Batch import — POST /schools/batch/import
 # ---------------------------------------------------------------------------
 
 def _make_csv(*rows: dict) -> bytes:
     """Build a CSV bytes payload from a list of dicts."""
-    import csv, io
+    import csv
+    import io
     buf = io.StringIO()
     if rows:
         writer = csv.DictWriter(buf, fieldnames=rows[0].keys())
@@ -217,7 +218,7 @@ class TestBatchImport:
     ):
         payload = _make_csv(_VALID_ROW)
         response = await auth_client.post(
-            "/schools/import",
+            "/schools/batch/import",
             files={"file": ("schools.csv", io.BytesIO(payload), "text/csv")},
         )
         assert response.status_code == 200
@@ -232,7 +233,7 @@ class TestBatchImport:
         bad_row = {**_VALID_ROW, "code": "K998", "city": "NOT_A_BORO"}
         payload = _make_csv(bad_row)
         response = await auth_client.post(
-            "/schools/import",
+            "/schools/batch/import",
             files={"file": ("schools.csv", io.BytesIO(payload), "text/csv")},
         )
         assert response.status_code == 200
@@ -250,7 +251,7 @@ class TestBatchImport:
         bad_row = {**_VALID_ROW, "code": "K998", "city": "INVALID"}
         payload = _make_csv(good_row, bad_row)
         response = await auth_client.post(
-            "/schools/import",
+            "/schools/batch/import",
             files={"file": ("schools.csv", io.BytesIO(payload), "text/csv")},
         )
         assert response.status_code == 200
@@ -264,7 +265,7 @@ class TestBatchImport:
         await _seed(db_session, _make_school(code="K999"))
         payload = _make_csv(_VALID_ROW)  # K999 already exists
         response = await auth_client.post(
-            "/schools/import",
+            "/schools/batch/import",
             files={"file": ("schools.csv", io.BytesIO(payload), "text/csv")},
         )
         data = response.json()
@@ -273,7 +274,7 @@ class TestBatchImport:
 
     async def test_non_csv_file_rejected(self, auth_client: AsyncClient):
         response = await auth_client.post(
-            "/schools/import",
+            "/schools/batch/import",
             files={"file": ("schools.txt", io.BytesIO(b"data"), "text/plain")},
         )
         assert response.status_code == 400

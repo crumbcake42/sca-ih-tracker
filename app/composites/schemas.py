@@ -1,5 +1,5 @@
-from app.schools.schemas import School
 from app.projects.schemas import Project
+from app.schools.schemas import School
 
 
 # This folder is the ONLY place allowed to import from

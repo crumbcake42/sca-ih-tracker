@@ -1,9 +1,12 @@
 from datetime import date
 from decimal import Decimal
-from sqlalchemy import String, Enum as SQLEnum, Date, Numeric, ForeignKey
+
+from sqlalchemy import Date, ForeignKey, Numeric, String
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.common.enums import EmployeeRoleType, TitleEnum
 from app.database import Base
-from app.common.enums import TitleEnum, EmployeeRoleType
 
 
 class Employee(Base):

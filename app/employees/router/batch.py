@@ -1,6 +1,7 @@
-from app.employees.models import Employee as EmployeeModel
-from app.employees.schemas import EmployeeCreate, Employee as EmployeeSchema
 from app.common.factories import create_batch_import_router
+from app.employees.models import Employee as EmployeeModel
+from app.employees.schemas import Employee as EmployeeSchema
+from app.employees.schemas import EmployeeCreate
 
 router = create_batch_import_router(
     model=EmployeeModel,

@@ -1,6 +1,6 @@
-from typing import Annotated, Any, TypeVar, TypeAlias, Generic
-from pydantic import BeforeValidator, BaseModel
+from typing import Annotated, Any, Generic, TypeAlias, TypeVar
 
+from pydantic import BaseModel, BeforeValidator
 
 T = TypeVar("T")
 

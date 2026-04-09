@@ -11,17 +11,19 @@ Each test case here maps to a distinct branch of the overlap SQL condition:
   AND (end_date IS NULL OR end_date >= new.start_date)  -- existing role ends after new role starts
 """
 
-import pytest
+from datetime import date
+from decimal import Decimal
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.employees.models import Employee, EmployeeRole
 from app.common.enums import EmployeeRoleType
-
+from app.employees.models import Employee, EmployeeRole
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _seed_employee(db: AsyncSession, **overrides) -> Employee:
     defaults = dict(first_name="Jane", last_name="Doe")
@@ -32,12 +34,17 @@ async def _seed_employee(db: AsyncSession, **overrides) -> Employee:
 
 
 async def _seed_role(db: AsyncSession, employee_id: int, **overrides) -> EmployeeRole:
-    defaults = dict(
+    defaults: dict = dict(
         role_type=EmployeeRoleType.AIR_MONITOR,
-        start_date="2024-01-01",
+        start_date=date(2024, 1, 1),
         end_date=None,
-        hourly_rate="25.00",
+        hourly_rate=Decimal("25.00"),
     )
+    # Callers may pass ISO strings for readability — coerce them here so
+    # SQLAlchemy's SQLite dialect doesn't reject them.
+    for field in ("start_date", "end_date"):
+        if field in overrides and isinstance(overrides[field], str):
+            overrides[field] = date.fromisoformat(overrides[field])
     role = EmployeeRole(employee_id=employee_id, **{**defaults, **overrides})
     db.add(role)
     await db.flush()
@@ -58,6 +65,7 @@ def _role_payload(**overrides) -> dict:
 # Basic CRUD
 # ---------------------------------------------------------------------------
 
+
 class TestEmployeeRoleCRUD:
     async def test_create_role_returns_201(
         self, auth_client: AsyncClient, db_session: AsyncSession
@@ -75,8 +83,16 @@ class TestEmployeeRoleCRUD:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         emp = await _seed_employee(db_session)
-        await _seed_role(db_session, emp.id, start_date="2024-06-01", end_date="2024-09-01")
-        await _seed_role(db_session, emp.id, role_type=EmployeeRoleType.AIR_TECH, start_date="2023-01-01", end_date="2023-12-31")
+        await _seed_role(
+            db_session, emp.id, start_date="2024-06-01", end_date="2024-09-01"
+        )
+        await _seed_role(
+            db_session,
+            emp.id,
+            role_type=EmployeeRoleType.AIR_TECH,
+            start_date="2023-01-01",
+            end_date="2023-12-31",
+        )
         response = await auth_client.get(f"/employees/{emp.id}/roles")
         assert response.status_code == 200
         dates = [r["start_date"] for r in response.json()]
@@ -85,9 +101,7 @@ class TestEmployeeRoleCRUD:
     async def test_create_role_for_missing_employee_returns_404(
         self, auth_client: AsyncClient
     ):
-        response = await auth_client.post(
-            "/employees/9999/roles", json=_role_payload()
-        )
+        response = await auth_client.post("/employees/9999/roles", json=_role_payload())
         assert response.status_code == 404
 
     async def test_delete_role(
@@ -110,6 +124,7 @@ class TestEmployeeRoleCRUD:
 #
 # Each test name describes the geometric relationship between the two ranges.
 
+
 class TestRoleOverlap:
     """
     All tests in this class seed one closed role [Jan–Mar] of type AIR_MONITOR,
@@ -122,7 +137,9 @@ class TestRoleOverlap:
         # [=======Jan–Mar=======]
         #       <--Feb-->
         emp = await _seed_employee(db_session)
-        await _seed_role(db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31")
+        await _seed_role(
+            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        )
         payload = _role_payload(start_date="2024-02-01", end_date="2024-02-28")
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 409
@@ -133,7 +150,9 @@ class TestRoleOverlap:
         # [=====Jan–Mar=====]
         #                <--Mar–May-->
         emp = await _seed_employee(db_session)
-        await _seed_role(db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31")
+        await _seed_role(
+            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        )
         payload = _role_payload(start_date="2024-03-01", end_date="2024-05-31")
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 409
@@ -145,7 +164,9 @@ class TestRoleOverlap:
         #                   <--Mar 31–May-->
         # The overlap condition uses >= on end_date, so Mar 31 == Mar 31 overlaps.
         emp = await _seed_employee(db_session)
-        await _seed_role(db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31")
+        await _seed_role(
+            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        )
         payload = _role_payload(start_date="2024-03-31", end_date="2024-05-31")
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 409
@@ -167,7 +188,9 @@ class TestRoleOverlap:
         # [=====Jan–Mar=====]
         #                       <--May–Jul-->
         emp = await _seed_employee(db_session)
-        await _seed_role(db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31")
+        await _seed_role(
+            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        )
         payload = _role_payload(start_date="2024-05-01", end_date="2024-07-31")
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 201
@@ -178,7 +201,9 @@ class TestRoleOverlap:
         #                   [=====Jul–Dec=====]
         # <--Jan–Mar-->
         emp = await _seed_employee(db_session)
-        await _seed_role(db_session, emp.id, start_date="2024-07-01", end_date="2024-12-31")
+        await _seed_role(
+            db_session, emp.id, start_date="2024-07-01", end_date="2024-12-31"
+        )
         payload = _role_payload(start_date="2024-01-01", end_date="2024-03-31")
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 201
@@ -203,12 +228,15 @@ class TestRoleOverlap:
 # PATCH /employees/roles/{role_id}
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateRole:
     async def test_patch_end_date(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         emp = await _seed_employee(db_session)
-        role = await _seed_role(db_session, emp.id, start_date="2024-01-01", end_date=None)
+        role = await _seed_role(
+            db_session, emp.id, start_date="2024-01-01", end_date=None
+        )
         response = await auth_client.patch(
             f"/employees/roles/{role.id}",
             json={"end_date": "2024-06-30"},
@@ -220,7 +248,9 @@ class TestUpdateRole:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         emp = await _seed_employee(db_session)
-        role = await _seed_role(db_session, emp.id, start_date="2024-06-01", end_date=None)
+        role = await _seed_role(
+            db_session, emp.id, start_date="2024-06-01", end_date=None
+        )
         response = await auth_client.patch(
             f"/employees/roles/{role.id}",
             json={"end_date": "2024-01-01"},

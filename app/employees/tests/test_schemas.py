@@ -19,7 +19,6 @@ from pydantic import ValidationError
 from app.common.enums import EmployeeRoleType
 from app.employees.schemas import EmployeeBase, EmployeeRoleCreate
 
-
 # ---------------------------------------------------------------------------
 # EmployeeBase — field validation
 # ---------------------------------------------------------------------------

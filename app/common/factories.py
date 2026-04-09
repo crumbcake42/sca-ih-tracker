@@ -1,23 +1,22 @@
-import inspect
-from enum import Enum
-from typing import Callable, Coroutine, Type, TypeVar, Any, Optional
 import csv
+import inspect
 import io
+from collections.abc import Callable, Coroutine
+from enum import Enum
+from typing import Any, TypeVar
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.common.crud import get_paginated_list
 from app.common.errors import ImportErrorReport
 from app.common.responses import BatchImportResponse
 from app.common.schemas import PaginatedResponse
-
-from app.users.dependencies import get_current_user
-
-
+from app.database import get_db
 from app.database.base import Base
+from app.users.dependencies import get_current_user
 
 ModelT = TypeVar("ModelT", bound=Base)
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
@@ -29,9 +28,9 @@ ImportValidator = Callable[[AsyncSession, Any, dict[str, Any]], Any | Coroutine[
 
 
 def create_batch_import_router(
-    model: Type[ModelT],
-    schema: Type[SchemaT],
-    create_schema: Type[SchemaT],
+    model: type[ModelT],
+    schema: type[SchemaT],
+    create_schema: type[SchemaT],
     unique_col_name: str | None,
     prefix: str,
     tags: list[str | Enum],
@@ -110,12 +109,12 @@ def create_batch_import_router(
 
 
 def create_readonly_router(
-    model: Type[ModelT],
-    read_schema: Type[SchemaT],
+    model: type[ModelT],
+    read_schema: type[SchemaT],
     prefix: str = "",
     tags: list[str | Enum] | None = None,
     default_sort: Any = None,
-    search_attr: Optional[Any] = None,
+    search_attr: Any | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix=prefix, tags=tags)
 
@@ -123,7 +122,7 @@ def create_readonly_router(
     async def list_entries(
         skip: int = Query(0, ge=0),
         limit: int = Query(50, ge=1, le=100),
-        search: Optional[str] = Query(None),
+        search: str | None = Query(None),
         db: AsyncSession = Depends(get_db),
     ):
         items, total = await get_paginated_list(

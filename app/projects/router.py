@@ -1,19 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from typing import List
 
-from app.database import get_db
-from app.users.dependencies import PermissionChecker, PermissionName
 from app.common.crud import get_by_ids
-from app.schools.models import School
+from app.database import get_db
 from app.projects import models, schemas
+from app.schools.models import School
+from app.users.dependencies import PermissionChecker, PermissionName
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
-@router.get("/", response_model=List[schemas.Project])
+@router.get("/", response_model=list[schemas.Project])
 async def get_projects(
     skip: int = 0,
     limit: int = 100,

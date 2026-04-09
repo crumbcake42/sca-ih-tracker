@@ -1,12 +1,15 @@
 from typing import TYPE_CHECKING
-from sqlalchemy import Table, Column, ForeignKey, Boolean, DateTime, func
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Table, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base, AuditMixin
+
+from app.database import AuditMixin, Base
 
 # This block is ONLY seen by your IDE/Type Checker
 if TYPE_CHECKING:
-    from .base import Project
     from app.contractors.models import Contractor
+
+    from .base import Project
 
 
 # Simple association table — no extra columns needed for school links

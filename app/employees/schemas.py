@@ -1,9 +1,10 @@
 from datetime import date
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, BeforeValidator, model_validator
 from typing import Annotated
 
-from app.common.enums import TitleEnum, EmployeeRoleType
+from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field, model_validator
+
+from app.common.enums import EmployeeRoleType, TitleEnum
 from app.common.formatters import format_phone_number
 from app.common.schemas import OptionalField
 

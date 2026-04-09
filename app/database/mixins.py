@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+
 from sqlalchemy import ForeignKey, func
-from sqlalchemy.orm import Mapped, mapped_column, declarative_mixin
+from sqlalchemy.orm import Mapped, declarative_mixin, mapped_column
 
 
 @declarative_mixin
@@ -16,9 +16,9 @@ class AuditMixin:
     )
 
     # Using 'int' assuming your User model uses integer PKs
-    created_by_id: Mapped[Optional[int]] = mapped_column(
+    created_by_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    updated_by_id: Mapped[Optional[int]] = mapped_column(
+    updated_by_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

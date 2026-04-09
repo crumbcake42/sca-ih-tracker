@@ -1,16 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.employees.models import Employee as EmployeeModel, EmployeeRole as EmployeeRoleModel
-from app.employees.schemas import Employee, EmployeeRole, EmployeeRoleCreate, EmployeeRoleUpdate
+from app.employees.models import Employee as EmployeeModel
+from app.employees.models import EmployeeRole as EmployeeRoleModel
+from app.employees.schemas import (
+    Employee,
+    EmployeeRole,
+    EmployeeRoleCreate,
+    EmployeeRoleUpdate,
+)
 
 router = APIRouter()
 
 
 # --- Employee read endpoints ---
+
 
 @router.get("/", response_model=list[Employee])
 async def list_employees(db: AsyncSession = Depends(get_db)):
@@ -34,6 +41,7 @@ async def get_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
 
 
 # --- Employee role endpoints ---
+
 
 @router.get("/{employee_id}/roles", response_model=list[EmployeeRole])
 async def list_employee_roles(employee_id: int, db: AsyncSession = Depends(get_db)):
@@ -66,8 +74,10 @@ async def create_employee_role(
         and_(
             EmployeeRoleModel.employee_id == employee_id,
             EmployeeRoleModel.role_type == data.role_type,
-            EmployeeRoleModel.start_date <= (data.end_date or data.start_date.replace(year=9999)),
-            (EmployeeRoleModel.end_date == None) | (EmployeeRoleModel.end_date >= data.start_date),
+            EmployeeRoleModel.start_date
+            <= (data.end_date or data.start_date.replace(year=9999)),
+            (EmployeeRoleModel.end_date is None)
+            | (EmployeeRoleModel.end_date >= data.start_date),
         )
     )
     overlap = (await db.execute(overlap_stmt)).scalar_one_or_none()

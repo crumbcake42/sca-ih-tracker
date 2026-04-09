@@ -1,14 +1,17 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.projects.models import Project, ProjectContractorLink
+
 from app.contractors.models import Contractor
+from app.projects.models import Project, ProjectContractorLink
 
 
 async def process_project_import(db: AsyncSession, project_data: dict):
     # 1. Handle the Project itself (Create or Update)
     project = (
         await db.execute(
-            select(Project).where(Project.project_number == project_data["project_number"])
+            select(Project).where(
+                Project.project_number == project_data["project_number"]
+            )
         )
     ).scalar_one_or_none()
 
@@ -32,7 +35,7 @@ async def process_project_import(db: AsyncSession, project_data: dict):
                 await db.execute(
                     select(ProjectContractorLink)
                     .where(ProjectContractorLink.project_id == project.id)
-                    .where(ProjectContractorLink.is_current == True)
+                    .where(ProjectContractorLink.is_current)
                 )
             ).scalar_one_or_none()
 

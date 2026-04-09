@@ -1,38 +1,30 @@
 import asyncio
 import csv
 from pathlib import Path
-from typing import Type, TypeVar, Any, Sequence
-from pydantic import BaseModel, ValidationError
+from typing import Any, TypeVar
 
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database import SessionLocal, engine, Base
-from app.users.models import Role, Permission, User
-
-from app.schools.models import School as SchoolModel
-from app.schools.schemas import SchoolCreate as SchoolSchema
-
-from app.contractors.models import Contractor as ContractorModel
-from app.contractors.schemas import ContractorCreate as ContractorSchema
-
-from app.deliverables.models import Deliverable as DeliverableModel
-from app.deliverables.schemas import DeliverableCreate as DeliverableSchema
-
-from app.employees.models import Employee as EmployeeModel
-from app.employees.schemas import EmployeeCreate as EmployeeSchema
-
-from app.hygienists.models import Hygienist as HygienistModel
-from app.hygienists.schemas import HygienistCreate as HygienistSchema
-
-from app.wa_codes.models import WACode as WACodeModel
-from app.wa_codes.schemas import WACodeCreate as WACodeSchema
-
-
+from app.common.config import settings
 from app.common.enums import PermissionName, RoleName
 from app.common.security import hash_password
-from app.common.config import settings
+from app.contractors.models import Contractor as ContractorModel
+from app.contractors.schemas import ContractorCreate as ContractorSchema
+from app.database import Base, SessionLocal, engine
+from app.deliverables.models import Deliverable as DeliverableModel
+from app.deliverables.schemas import DeliverableCreate as DeliverableSchema
+from app.employees.models import Employee as EmployeeModel
+from app.employees.schemas import EmployeeCreate as EmployeeSchema
+from app.hygienists.models import Hygienist as HygienistModel
+from app.hygienists.schemas import HygienistCreate as HygienistSchema
+from app.schools.models import School as SchoolModel
+from app.schools.schemas import SchoolCreate as SchoolSchema
+from app.users.models import Permission, Role, User
+from app.wa_codes.models import WACode as WACodeModel
+from app.wa_codes.schemas import WACodeCreate as WACodeSchema
 
 # Type Variables for Generic support
 ModelT = TypeVar("ModelT", bound=Base)
@@ -44,8 +36,8 @@ SEED_DATA_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "seed"
 
 async def seed_from_csv(
     db: AsyncSession,
-    model_class: Type[ModelT],
-    schema_class: Type[SchemaT],
+    model_class: type[ModelT],
+    schema_class: type[SchemaT],
     filename: str,
     unique_field: str,
 ) -> None:
@@ -66,7 +58,7 @@ async def seed_from_csv(
 
     print(f"[*] Seeding {model_class.__name__}s from {filename}...")
 
-    with open(file_path, mode="r", encoding="utf-8-sig") as f:
+    with open(file_path, encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
 
         # Track counts for the final report

@@ -6,8 +6,8 @@ something breaks here we don't have to dig through employee or school schema
 tests to find the root cause.
 """
 
-import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
+
 from app.common.schemas import OptionalField
 
 

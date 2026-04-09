@@ -1,11 +1,12 @@
 # app/schools/router.py
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.factories import create_readonly_router
 from app.database import get_db
 from app.schools.models import School
-from app.schools.schemas import SchoolCreate, School as SchoolRead
+from app.schools.schemas import School as SchoolRead
 
 router = APIRouter()
 

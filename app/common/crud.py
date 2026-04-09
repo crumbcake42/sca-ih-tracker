@@ -1,8 +1,11 @@
-from typing import Protocol, Type, TypeVar, Sequence, Any
+from collections.abc import Sequence
+from typing import Any, Protocol, TypeVar
+
 from fastapi import HTTPException
-from sqlalchemy import select, func
-from sqlalchemy.orm import Mapped
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Mapped
+
 from app.database import Base
 
 
@@ -16,7 +19,7 @@ ModelT = TypeVar("ModelT", bound=Base)
 
 async def get_by_ids(
     db: AsyncSession,
-    model: Type[IntPKModelT],
+    model: type[IntPKModelT],
     ids: list[int],
 ) -> list[IntPKModelT]:
     """
@@ -38,7 +41,7 @@ async def get_by_ids(
 
 async def get_paginated_list(
     db: AsyncSession,
-    model: Type[ModelT],
+    model: type[ModelT],
     skip: int = 0,
     limit: int = 50,
     sort_by: Any | None = None,

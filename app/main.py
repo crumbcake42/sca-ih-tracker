@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from app.database import Base, engine
 
 from app.contractors.router import router as contractors_router
+from app.database import Base, engine
 from app.deliverables.router import router as deliverables_router
 from app.employees.router import router as employees_router
 from app.hygienists.router import router as hygienists_router

@@ -11,7 +11,7 @@ guaranteed to be found by both tests/ (integration) and app/**/test_*.py
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-
+from typing import AsyncGenerator
 from app.database import get_db, Base
 from app.users.dependencies import get_current_user
 from app.main import app
@@ -22,6 +22,7 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 # ---------------------------------------------------------------------------
 # Database fixtures
 # ---------------------------------------------------------------------------
+
 
 # Module scope: create the schema once per test file, not once per test.
 # Each test still gets its own session that rolls back, so tests are isolated
@@ -43,7 +44,7 @@ async def test_engine():
 
 
 @pytest.fixture
-async def db_session(test_engine) -> AsyncSession:
+async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
     # Wrap every test in a transaction that rolls back on teardown.
     # This is faster than truncating tables and avoids needing a separate
     # "cleanup" fixture for every test that writes to the DB.
@@ -61,9 +62,11 @@ async def db_session(test_engine) -> AsyncSession:
 # HTTP client fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 async def client(db_session: AsyncSession):
     """Unauthenticated client — use to test 401 responses."""
+
     async def override_get_db():
         yield db_session
 

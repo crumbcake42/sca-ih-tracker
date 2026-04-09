@@ -1,11 +1,11 @@
+
 from pydantic import BaseModel
-from typing import Optional
 
 
 class ImportErrorReport(BaseModel):
     row: int
     msg: str
-    context: Optional[str] = None
+    context: str | None = None
 
 
 class ErrorResponse(BaseModel):
