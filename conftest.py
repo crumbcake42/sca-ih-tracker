@@ -8,13 +8,15 @@ guaranteed to be found by both tests/ (integration) and app/**/test_*.py
 (colocated unit tests).
 """
 
+from collections.abc import AsyncGenerator
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from typing import AsyncGenerator
-from app.database import get_db, Base
-from app.users.dependencies import get_current_user
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.database import Base, get_db
 from app.main import app
+from app.users.dependencies import get_current_user
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -91,8 +93,8 @@ async def auth_client(db_session: AsyncSession):
     realistic User object directly, making test intent clearer and setup
     cheaper.
     """
-    from app.users.models import User, Role, Permission
     from app.common.enums import PermissionName
+    from app.users.models import Permission, Role, User
 
     fake_permissions = [
         Permission(id=i, name=p.value) for i, p in enumerate(PermissionName, 1)
