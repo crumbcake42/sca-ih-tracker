@@ -1,5 +1,4 @@
 from .base import Project
-from .links import ProjectContractorLink
+from .links import ProjectHygienistLink, ProjectContractorLink
 
-# This allows other modules to do: from app.projects.models import Project
-__all__ = ["Project", "ProjectContractorLink"]
+__all__ = ["Project", "ProjectContractorLink", "ProjectHygienistLink"]

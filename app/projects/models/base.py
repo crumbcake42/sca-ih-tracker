@@ -11,7 +11,7 @@ from .links import project_school_links
 if TYPE_CHECKING:
     from app.schools.models import School
 
-    from .links import ProjectContractorLink
+    from .links import ProjectHygienistLink, ProjectContractorLink
 
 
 class Project(Base, AuditMixin):
@@ -43,4 +43,10 @@ class Project(Base, AuditMixin):
     # All contractors
     contractor_links: Mapped[list["ProjectContractorLink"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
+    )
+
+    # One hygienist per project — uselist=False since project_id is the PK
+    # on the link table, making this a one-to-one from the project side.
+    hygienist_link: Mapped["ProjectHygienistLink | None"] = relationship(
+        back_populates="project", cascade="all, delete-orphan", uselist=False
     )

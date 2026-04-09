@@ -71,7 +71,7 @@ app/
 │
 ├── projects/
 │   ├── models.py              # Project, ProjectSchoolLink, ProjectContractorLink,
-│   │                          # HygienistProjectLink, ManagerProjectAssignment (audit)
+│   │                          # ProjectHygienistLink, ManagerProjectAssignment (audit)
 │   ├── router.py
 │   ├── schemas.py
 │   └── service.py             # project status derivation logic lives here
@@ -133,7 +133,7 @@ app/
 - [x] `projects` table — model, migrations, full CRUD (`GET/POST/PATCH/DELETE /projects/`) with name search + pagination; `project_number` field with regex validation
 - [x] `project_school_links` (M2M association table) — model, migration — _schools linked via `projects.schools` relationship_
 - [x] `ProjectContractorLink` table (composite PK `project_id`+`contractor_id`, `is_current` flag, `assigned_at`) — model, migration
-- [ ] `hygienist_projects_links` (FK, one hygienist per project) — model, migration
+- [x] `project_hygienist_links` (FK, one hygienist per project) — model, migration
 - [ ] `manager_project_assignments` (audit trail: `project_id`, `user_id`, `assigned_at`, `unassigned_at`, `assigned_by`) — model, migration
 - [ ] `work_auths` table — model, migration, link to `projects`
 - [ ] `work_auths <-> wa_codes` link table — model, migration (tracks which codes are on the WA, pending RFA, or approved)
