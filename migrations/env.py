@@ -7,6 +7,14 @@ from alembic import context
 
 from app.common.config import settings
 from app.database import Base
+import app.contractors.models  # noqa: F401
+import app.deliverables.models  # noqa: F401
+import app.employees.models  # noqa: F401
+import app.hygienists.models  # noqa: F401
+import app.projects.models  # noqa: F401
+import app.schools.models  # noqa: F401
+import app.users.models  # noqa: F401
+import app.wa_codes.models  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -42,7 +42,11 @@ These are the remaining areas worth covering, roughly in priority order:
 ## How to run
 
 ```bash
-pytest                          # all tests
+pytest                          # all tests — confirmed working
 pytest app/employees/           # just employee tests
 pytest --cov=app --cov-report=term-missing --cov-fail-under=70
 ```
+
+## Known broken
+
+- **`test` and `test-cov` pyproject.toml scripts** — the entrypoints (`app.scripts.tests:run` / `app.scripts.tests:coverage`) are defined but currently fail when invoked via the installed script. Use `pytest` directly in the meantime. Fix before wiring into CI.

@@ -76,7 +76,7 @@ async def create_employee_role(
             EmployeeRoleModel.role_type == data.role_type,
             EmployeeRoleModel.start_date
             <= (data.end_date or data.start_date.replace(year=9999)),
-            (EmployeeRoleModel.end_date is None)
+            (EmployeeRoleModel.end_date == None)  # noqa: E711
             | (EmployeeRoleModel.end_date >= data.start_date),
         )
     )
