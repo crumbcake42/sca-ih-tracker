@@ -17,11 +17,14 @@ from app.database import Base, SessionLocal, engine
 from app.deliverables.models import Deliverable as DeliverableModel
 from app.deliverables.schemas import DeliverableCreate as DeliverableSchema
 from app.employees.models import Employee as EmployeeModel
+from app.employees.models import EmployeeRole as EmployeeRoleModel
 from app.employees.schemas import EmployeeCreate as EmployeeSchema
+from app.employees.schemas import EmployeeRoleCreate
 from app.hygienists.models import Hygienist as HygienistModel
 from app.hygienists.schemas import HygienistCreate as HygienistSchema
 from app.schools.models import School as SchoolModel
 from app.schools.schemas import SchoolCreate as SchoolSchema
+import app.projects.models  # noqa: F401 — registers Project/links mappers
 from app.users.models import Permission, Role, User
 from app.wa_codes.models import WACode as WACodeModel
 from app.wa_codes.schemas import WACodeCreate as WACodeSchema
@@ -99,9 +102,68 @@ async def seed_from_csv(
         )
 
 
+async def seed_employee_roles(db: AsyncSession) -> None:
+    """Seed employee_roles from CSV, matching rows to employees via adp_id."""
+    filename = "employee_roles.csv"
+    file_path = SEED_DATA_PATH / filename
+    if not file_path.exists():
+        print(f"  [SKIP] {filename} not found.")
+        return
+
+    print(f"[*] Seeding EmployeeRoles from {filename}...")
+    added_count = 0
+    error_count = 0
+
+    with open(file_path, encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for line_num, row in enumerate(reader, start=2):
+            adp_id = row.pop("adp_id", "").strip()
+            row.pop("name", None)  # ignore reference-only column if present
+            try:
+                validated = EmployeeRoleCreate.model_validate(row)
+
+                result = await db.execute(
+                    select(EmployeeModel).where(EmployeeModel.adp_id == adp_id)
+                )
+                employee = result.scalar_one_or_none()
+                if not employee:
+                    print(f"  [ERROR] Line {line_num}: No employee with adp_id={adp_id!r}")
+                    error_count += 1
+                    continue
+
+                existing = await db.execute(
+                    select(EmployeeRoleModel).where(
+                        EmployeeRoleModel.employee_id == employee.id,
+                        EmployeeRoleModel.role_type == validated.role_type,
+                        EmployeeRoleModel.start_date == validated.start_date,
+                    )
+                )
+                if existing.scalar_one_or_none():
+                    continue
+
+                db.add(EmployeeRoleModel(
+                    employee_id=employee.id,
+                    role_type=validated.role_type,
+                    start_date=validated.start_date,
+                    end_date=validated.end_date,
+                    hourly_rate=validated.hourly_rate,
+                ))
+                added_count += 1
+
+            except ValidationError as e:
+                error_count += 1
+                print(f"  [ERROR] Line {line_num}: {e.errors()[0]['msg']}")
+            except Exception as e:
+                error_count += 1
+                print(f"  [FATAL] Line {line_num}: {str(e)}")
+
+    await db.flush()
+    print(f"  [+] Finished EmployeeRole: {added_count} added, {error_count} failed.")
+
+
 async def initialize():
     print("\n" + "=" * 40)
-    print(" 🏗️  DATABASE PREPARATION (ASYNC)")
+    print(" [*] DATABASE PREPARATION (ASYNC)")
     print("=" * 40)
 
     # 1. Schema Creation
@@ -199,9 +261,11 @@ async def initialize():
             for seed_args in seed_files:
                 await seed_from_csv(*seed_args)
 
+            await seed_employee_roles(db)
+
             await db.commit()
             print("\n" + "=" * 40)
-            print(" ✅ DATABASE READY")
+            print(" [OK] DATABASE READY")
             print("=" * 40 + "\n")
 
         except Exception as e:

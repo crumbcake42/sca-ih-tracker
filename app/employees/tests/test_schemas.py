@@ -85,7 +85,7 @@ class TestEmployeeBaseEmail:
 
 def _make_role(start: str, end: str | None, rate: str = "25.00") -> EmployeeRoleCreate:
     return EmployeeRoleCreate(
-        role_type=EmployeeRoleType.AIR_MONITOR,
+        role_type=EmployeeRoleType.ACM_PROJECT_MONITOR,
         start_date=date.fromisoformat(start),
         end_date=date.fromisoformat(end) if end else None,
         hourly_rate=Decimal(rate),

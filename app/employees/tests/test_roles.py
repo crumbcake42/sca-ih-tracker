@@ -35,7 +35,7 @@ async def _seed_employee(db: AsyncSession, **overrides) -> Employee:
 
 async def _seed_role(db: AsyncSession, employee_id: int, **overrides) -> EmployeeRole:
     defaults: dict = dict(
-        role_type=EmployeeRoleType.AIR_MONITOR,
+        role_type=EmployeeRoleType.ACM_AIR_TECH,
         start_date=date(2024, 1, 1),
         end_date=None,
         hourly_rate=Decimal("25.00"),
@@ -53,7 +53,7 @@ async def _seed_role(db: AsyncSession, employee_id: int, **overrides) -> Employe
 
 def _role_payload(**overrides) -> dict:
     defaults = dict(
-        role_type=EmployeeRoleType.AIR_MONITOR.value,
+        role_type=EmployeeRoleType.ACM_AIR_TECH.value,
         start_date="2024-07-01",
         end_date=None,
         hourly_rate="30.00",
@@ -76,7 +76,7 @@ class TestEmployeeRoleCRUD:
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["role_type"] == EmployeeRoleType.AIR_MONITOR.value
+        assert data["role_type"] == EmployeeRoleType.ACM_AIR_TECH.value
         assert data["employee_id"] == emp.id
 
     async def test_list_roles_returns_sorted_by_start_date(
@@ -89,7 +89,7 @@ class TestEmployeeRoleCRUD:
         await _seed_role(
             db_session,
             emp.id,
-            role_type=EmployeeRoleType.AIR_TECH,
+            role_type=EmployeeRoleType.ACM_AIR_TECH,
             start_date="2023-01-01",
             end_date="2023-12-31",
         )
@@ -211,12 +211,12 @@ class TestRoleOverlap:
     async def test_different_role_types_do_not_conflict(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        # Overlap check is per role_type. An AIR_MONITOR and AIR_TECH can
-        # cover the same date range for the same employee.
+        # Overlap check is per role_type. ACM_AIR_TECH and ACM_PROJECT_MONITOR
+        # can cover the same date range for the same employee.
         emp = await _seed_employee(db_session)
         await _seed_role(db_session, emp.id, start_date="2024-01-01", end_date=None)
         payload = _role_payload(
-            role_type=EmployeeRoleType.AIR_TECH.value,
+            role_type=EmployeeRoleType.ACM_PROJECT_MONITOR.value,
             start_date="2024-01-01",
             end_date=None,
         )

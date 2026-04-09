@@ -47,7 +47,13 @@ class WACodeLevel(StrEnum):
 
 
 class EmployeeRoleType(StrEnum):
-    AIR_MONITOR = "Air Monitor"
-    AIR_TECH = "Air Technician"
-    PROJECT_MONITOR = "Project Monitor"
-    LEAD_RISK_ASSESSOR = "Lead Risk Assessor"
+    ACM_AIR_TECH = "Asbestos On Site Technical Air Testing"
+    ACM_PROJECT_MONITOR = "Asbestos Project Monitor"
+    ACM_INSPECTOR_A = "Asbestos Inspector Level A"
+    ACM_INVESTIGATOR_A = "Asbestos Investigator Level A"
+    ACM_PROJECT_MANAGER_A = "Asbestos Project Manager Level A"
+    LBP_RISK_ASSESSOR_A = "Certified Lead Inspector / Risk Assessor Level A"
+    LBP_RISK_ASSESSOR_B = "Certified Lead Inspector / Risk Assessor Level B"
+    MOLD_FIELD_TECH = "Mold Field Technician"
+    MOLD_PROJECT_MANAGER_A = "Mold Project Manager Level A"
+    MOLD_PROJECT_MANAGER_B = "Mold Project Manager Level B"

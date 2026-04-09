@@ -24,13 +24,12 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
     "httpx",
-    "aiosqlite", # For in-memory testing
     "ruff",
 ]
 
