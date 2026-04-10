@@ -23,7 +23,6 @@ from app.schools.models import School
 from app.wa_codes.models import WACode
 from app.work_auths.models import WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -68,8 +67,9 @@ async def _seed_wa_code(
     db: AsyncSession,
     code: str = "P-001",
     level: WACodeLevel = WACodeLevel.PROJECT,
+    default_fee: str | None = None,
 ) -> WACode:
-    wac = WACode(code=code, description=f"Description for {code}", level=level)
+    wac = WACode(code=code, description=f"Description for {code}", level=level, default_fee=default_fee)
     db.add(wac)
     await db.flush()
     return wac
@@ -150,6 +150,50 @@ class TestAddProjectCode:
             json={"wa_code_id": 1, "fee": "100.00"},
         )
         assert response.status_code == 404
+
+    async def test_omitted_fee_uses_default(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school)
+        wa = await _seed_work_auth(db_session, project)
+        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT, default_fee="350.00")
+
+        response = await auth_client.post(
+            f"/work-auths/{wa.id}/project-codes",
+            json={"wa_code_id": wac.id},
+        )
+        assert response.status_code == 201
+        assert response.json()["fee"] == "350.00"
+
+    async def test_explicit_fee_overrides_default(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school)
+        wa = await _seed_work_auth(db_session, project)
+        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT, default_fee="350.00")
+
+        response = await auth_client.post(
+            f"/work-auths/{wa.id}/project-codes",
+            json={"wa_code_id": wac.id, "fee": "999.00"},
+        )
+        assert response.status_code == 201
+        assert response.json()["fee"] == "999.00"
+
+    async def test_omitted_fee_no_default_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school)
+        wa = await _seed_work_auth(db_session, project)
+        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT, default_fee=None)
+
+        response = await auth_client.post(
+            f"/work-auths/{wa.id}/project-codes",
+            json={"wa_code_id": wac.id},
+        )
+        assert response.status_code == 422
 
 
 # ---------------------------------------------------------------------------

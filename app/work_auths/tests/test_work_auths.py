@@ -18,7 +18,6 @@ from app.projects.models import Project
 from app.schools.models import School
 from app.work_auths.models import WorkAuth
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -71,8 +71,9 @@ async def seed_from_csv(
 
         for line_num, row in enumerate(reader, start=2):
             try:
-                # 1. Validate with Pydantic
-                validated_data: SchemaT = schema_class(**row)
+                # 1. Validate with Pydantic — coerce empty CSV strings to None
+                cleaned = {k: (v if v != "" else None) for k, v in row.items()}
+                validated_data: SchemaT = schema_class(**cleaned)
 
                 # 2. Check for existence
                 unique_val: Any = getattr(validated_data, unique_field)

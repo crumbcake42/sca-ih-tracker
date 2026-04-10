@@ -39,7 +39,7 @@ class WorkAuth(WorkAuthBase):
 
 class WorkAuthProjectCodeCreate(BaseModel):
     wa_code_id: int
-    fee: Decimal = Field(..., ge=0, decimal_places=2)
+    fee: Decimal | None = Field(None, ge=0, decimal_places=2)
     status: WACodeStatus = WACodeStatus.RFA_NEEDED
 
 

@@ -1,5 +1,7 @@
+from decimal import Decimal
+
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import String
+from sqlalchemy import Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.common.enums import WACodeLevel
@@ -13,3 +15,4 @@ class WACode(Base):
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     description: Mapped[str] = mapped_column(String(255), unique=True)
     level: Mapped[WACodeLevel] = mapped_column(SQLEnum(WACodeLevel))
+    default_fee: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
