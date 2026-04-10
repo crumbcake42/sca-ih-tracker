@@ -54,6 +54,18 @@ class WACodeStatus(StrEnum):
     REMOVED = "removed"
 
 
+class RFAStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
+
+
+class RFAAction(StrEnum):
+    ADD = "add"
+    REMOVE = "remove"
+
+
 class EmployeeRoleType(StrEnum):
     ACM_AIR_TECH = "Asbestos On Site Technical Air Testing"
     ACM_PROJECT_MONITOR = "Asbestos Project Monitor"
