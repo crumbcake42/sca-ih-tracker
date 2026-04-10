@@ -135,8 +135,11 @@ app/
 - [x] `ProjectContractorLink` table (composite PK `project_id`+`contractor_id`, `is_current` flag, `assigned_at`) — model, migration
 - [x] `project_hygienist_links` (FK, one hygienist per project) — model, migration
 - [ ] `manager_project_assignments` (audit trail: `project_id`, `user_id`, `assigned_at`, `unassigned_at`, `assigned_by`) — model, migration
-- [ ] `work_auths` table — model, migration, link to `projects`
-- [ ] `work_auths <-> wa_codes` link table — model, migration (tracks which codes are on the WA, pending RFA, or approved)
+- [ ] `work_auths` table — model, migration, link to `projects`; columns: `wa_num` (str, unique), `service_id` (str, unique), `project_num` (str, unique), `initiation_date` (Date), `project_id` (FK)
+- [ ] `work_auth_wa_codes` link table — model, migration; status enum: `rfa_needed` \| `rfa_pending` \| `active` \| `added_by_rfa` \| `removed`; see Design Note on building-level FK below
+- [ ] `rfas` table — model, migration; columns: `work_auth_id` (FK), `status` (`pending` \| `approved` \| `rejected` \| `withdrawn`), `submitted_at`, `resolved_at` (nullable — required for approved/rejected, optional for withdrawn), `submitted_by_id` (FK → users, nullable), `notes` (nullable); enforce one-pending-per-work-auth at application layer
+- [ ] `rfa_wa_codes` table — model, migration; columns: `rfa_id` (FK), `wa_code_id` (FK), `action` (`add` \| `remove`), `project_school_link_id` (FK, nullable — for building-level codes only); composite PK on `(rfa_id, wa_code_id, project_school_link_id)`
+- [ ] CRUD endpoints: `POST /work-auths/{id}/rfas`, `GET /work-auths/{id}/rfas` (history), `PATCH /work-auths/{id}/rfas/{rfa_id}` (resolve)
 - [ ] `project_deliverables` join table (project + deliverable definition + status enum) — model, migration
 
 ---
@@ -163,8 +166,10 @@ app/
 
 ### Phase 5 — Project Status Engine
 
-- [ ] Define all status enums: `DeliverableStatus` (`pending_wa`, `pending_rfa`, `outstanding`, `under_review`, `approved`), `RFAStatus` (`not_submitted`, `under_review`, `approved`)
-- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, RFA status, and returning a computed status
+- [ ] Define all status enums: `DeliverableStatus` (`pending_wa`, `pending_rfa`, `outstanding`, `under_review`, `approved`), `WACodeStatus` (`rfa_needed`, `rfa_pending`, `active`, `added_by_rfa`, `removed`), `RFAStatus` (`pending`, `approved`, `rejected`, `withdrawn`)
+- [ ] Service: `resolve_rfa(rfa_id, status, resolved_at)` — transitions all linked `work_auth_wa_codes` rows: approved → `added_by_rfa` (provisions new rows as needed); rejected/withdrawn → back to `rfa_needed`
+- [ ] `GET /work-auths/{id}/rfas` — full RFA history ordered by `submitted_at`
+- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, and returning a computed status
 - [ ] Implement `project_flags` — a project can have multiple non-blocking notes and blocking issues simultaneously
 - [ ] Wire status derivation into project update endpoints
 - [ ] `GET /projects/{id}/status` — returns full status breakdown
@@ -297,15 +302,24 @@ The first 2 digits encoding the year and the middle 3 encoding work type suggest
 
 ### Design Note — WA Codes Status Tracking
 
-The `wa_codes` on a `work_auth` can exist in one of several states: _not present_, _requested via RFA_, _pending RFA approval_, _active on WA_. This is not a simple boolean. Model the join table with an explicit status:
+The `wa_codes` on a `work_auth` can exist in one of several states. Model the join table with an explicit status rather than nullable timestamps:
 
-| column             | description                                                      |
-| ------------------ | ---------------------------------------------------------------- |
-| `work_auth_id`     | FK                                                               |
-| `wa_code_id`       | FK                                                               |
-| `status`           | enum: `active` \| `rfa_submitted` \| `rfa_approved` \| `removed` |
-| `added_at`         | TIMESTAMP                                                        |
-| `rfa_submitted_at` | TIMESTAMP (nullable)                                             |
-| `rfa_approved_at`  | TIMESTAMP (nullable)                                             |
+| column | description |
+| --- | --- |
+| `work_auth_id` | FK |
+| `wa_code_id` | FK |
+| `project_school_link_id` | FK (nullable) — see building-level note below |
+| `status` | enum: `rfa_needed` \| `rfa_pending` \| `active` \| `added_by_rfa` \| `removed` |
+| `added_at` | TIMESTAMP |
 
-This makes the RFA workflow queryable without needing to reconstruct state from event logs.
+RFA lifecycle timestamps (submitted_at, resolved_at) live on the `rfas` table, not here. This table only tracks current state. The `rfas` / `rfa_wa_codes` tables provide the full history.
+
+---
+
+### Design Note — Building-level WA Codes FK
+
+**The problem:** `wa_codes` have two levels. Project-level codes apply to the whole project (one row in `work_auth_wa_codes` per code). Building-level codes apply per school within the project — the same code can appear for multiple schools under the same WA.
+
+**Proposed solution:** Add a nullable `project_school_link_id` FK (referencing the `project_school_links` association table) to both `work_auth_wa_codes` and `rfa_wa_codes`. Populate it only for building-level codes. This is stricter than a plain `school_id` FK because it enforces that the school is actually linked to the project — an orphaned reference is impossible.
+
+**Composite PK for `work_auth_wa_codes`:** `(work_auth_id, wa_code_id, project_school_link_id)` where `project_school_link_id` is treated as `NULL` for project-level codes. Since SQLite allows multiple NULLs in a unique constraint, this works without special handling in dev. PostgreSQL behaves the same way.
