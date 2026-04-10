@@ -4,18 +4,13 @@
     {
       "label": "Run Dev Server",
       "type": "shell",
-      "command": "./.venv/Scripts/python.exe -m uvicorn app.main:app --reload",
-      "problemMatcher": [],
-      "group": {
-        "kind": "test",
-        "isDefault": true
-      }
+      "command": "just api",
+      "problemMatcher": []
     },
     {
       "label": "Initialize DB (Seed)",
       "type": "shell",
-      // This now uses your custom script command!
-      "command": "./.venv/Scripts/setup-db.exe",
+      "command": "just seed",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",

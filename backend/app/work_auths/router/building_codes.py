@@ -4,12 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import WACodeLevel
 from app.database import get_db
-from app.projects.models import Project
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.wa_codes.models import WACode
 from app.work_auths import models, schemas
 
-from ._helpers import _get_work_auth_or_404, _get_building_code_or_404
+from ._helpers import _get_building_code_or_404, _get_work_auth_or_404
 
 router = APIRouter(
     prefix="/{work_auth_id}/building-codes", tags=["Work Auth Building Codes"]

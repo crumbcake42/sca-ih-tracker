@@ -1,40 +1,4 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
-*$py.class
 
-# Environments
-.venv/
-venv/
-ENV/
-
-# Database
-data/*.db
-data/*.sqlite
-data/*.sqlite3
-
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-
-# Virtual environment config (WinPython specific)
-pyvenv.cfg
-
-# IDEs
-# Ignore the whole folder by default
 .vscode/*
-*code-workspace
 .github/*
-
-# But allow these specific files
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# Ignore personal workspace settings
-.vscode/settings.json
-.idea/
-
-# Environment variables
-.env

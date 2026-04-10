@@ -8,7 +8,7 @@ from app.users.dependencies import PermissionChecker, PermissionName
 from app.wa_codes.models import WACode
 from app.work_auths import models, schemas
 
-from ._helpers import _get_work_auth_or_404, _get_project_code_or_404
+from ._helpers import _get_project_code_or_404, _get_work_auth_or_404
 
 router = APIRouter(
     prefix="/{work_auth_id}/project-codes", tags=["Work Auth Project Codes"]
