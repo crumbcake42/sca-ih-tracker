@@ -135,9 +135,9 @@ app/
 - [x] `ProjectContractorLink` table (composite PK `project_id`+`contractor_id`, `is_current` flag, `assigned_at`) — model, migration
 - [x] `project_hygienist_links` (FK, one hygienist per project) — model, migration
 - [x] `manager_project_assignments` (audit trail: `project_id`, `user_id`, `assigned_at`, `unassigned_at`, `assigned_by`) — model, migration
-- [x] `work_auths` table — model, migration, link to `projects`; columns: `wa_num` (str, unique), `service_id` (str, unique), `project_num` (str, unique), `initiation_date` (Date), `project_id` (FK)
-- [ ] `work_auth_project_codes` table — model, migration; PK `(work_auth_id, wa_code_id)`; `fee` (Numeric) stored at assignment time — do not derive from contract at query time; status enum: `rfa_needed` \| `rfa_pending` \| `active` \| `added_by_rfa` \| `removed`; validate at app layer that `wa_code.level == project`
-- [ ] `work_auth_building_codes` table — model, migration; PK `(work_auth_id, wa_code_id, project_school_link_id)`; same status enum; `project_school_link_id` NOT NULL (FK → `project_school_links`); `budget` (Numeric) per school per WA; validate at app layer that `wa_code.level == building`; billing calculated from monitor role rate × time entry hours
+- [x] `work_auths` table — model, migration, link to `projects`; columns: `wa_num` (str, unique), `service_id` (str, unique), `project_num` (str, unique), `initiation_date` (Date), `project_id` (FK, unique — one WA per project), `is_saved` (bool — WA file saved on office server); full CRUD; 409 on duplicate project
+- [x] `work_auth_project_codes` table — model, migration; PK `(work_auth_id, wa_code_id)`; `fee` (Numeric), `status` (`WACodeStatus` enum), `added_at`; full CRUD under `/work-auths/{id}/project-codes`; 422 if code is building-level; 409 on duplicate
+- [x] `work_auth_building_codes` table — model, migration; PK `(work_auth_id, wa_code_id, project_id, school_id)`; composite FK `(project_id, school_id)` → `project_school_links`; `budget` (Numeric), `status`, `added_at`; full CRUD under `/work-auths/{id}/building-codes/{wa_code_id}/{school_id}`; 422 if code is project-level or school not linked to project; 409 on duplicate
 - [ ] `rfas` table — model, migration; columns: `work_auth_id` (FK), `status` (`pending` \| `approved` \| `rejected` \| `withdrawn`), `submitted_at`, `resolved_at` (nullable — required for approved/rejected, optional for withdrawn), `submitted_by_id` (FK → users, nullable), `notes` (nullable); enforce one-pending-per-work-auth at application layer
 - [ ] `rfa_project_codes` table — model, migration; PK `(rfa_id, wa_code_id)`; columns: `action` (`add` \| `remove`)
 - [ ] `rfa_building_codes` table — model, migration; PK `(rfa_id, wa_code_id, project_school_link_id)`; columns: `action` (`add` \| `remove`), `budget_adjustment` (Numeric, nullable — populated when RFA is adjusting a budget overage); `project_school_link_id` NOT NULL
@@ -168,7 +168,7 @@ app/
 
 ### Phase 5 — Project Status Engine
 
-- [ ] Define all status enums: `DeliverableStatus` (`pending_wa`, `pending_rfa`, `outstanding`, `under_review`, `approved`), `WACodeStatus` (`rfa_needed`, `rfa_pending`, `active`, `added_by_rfa`, `removed`), `RFAStatus` (`pending`, `approved`, `rejected`, `withdrawn`)
+- [ ] Define remaining status enums: `DeliverableStatus` (`pending_wa`, `pending_rfa`, `outstanding`, `under_review`, `approved`), `RFAStatus` (`pending`, `approved`, `rejected`, `withdrawn`) — _`WACodeStatus` already defined in `common/enums.py`_
 - [ ] Service: `resolve_rfa(rfa_id, status, resolved_at)` — handles `rfa_project_codes` and `rfa_building_codes` separately; approved → `added_by_rfa` on the relevant code table (applies `budget_adjustment` to `work_auth_building_codes.budget` if present); rejected/withdrawn → back to `rfa_needed`
 - [ ] `GET /work-auths/{id}/rfas` — full RFA history ordered by `submitted_at`
 - [ ] Service: `check_building_code_budgets(project_id)` — for each active `work_auth_building_code`, compare sum of (monitor_role_rate × time_entry_hours) against `budget`; returns list of overages
@@ -310,17 +310,17 @@ Project-level and building-level codes are modelled as two separate table pairs 
 - **Uniqueness is natural.** Project-level codes use PK `(work_auth_id, wa_code_id)`. Building-level use PK `(work_auth_id, wa_code_id, project_school_link_id)`. No partial unique indexes or NULL-in-PK edge cases.
 - **Billing logic is separate.** Building-level billing is `monitor_role_rate × time_entry_hours`. Project-level billing follows a different model. Keeping them in separate tables eliminates NULL-branching in every billing and status query.
 - **Budgets belong to building codes only.** `work_auth_building_codes` carries a `budget` (Numeric) per `(work_auth_id, wa_code_id, project_school_link_id)`. When estimated billing exceeds this budget it is a blocking project flag requiring an RFA with a `budget_adjustment`.
-- **`project_school_link_id` is NOT NULL** on building code tables, enforced at the DB level. This guarantees the school is actually linked to the project — an orphaned reference is structurally impossible.
+- **`(project_id, school_id)` composite FK is NOT NULL** on building code tables, enforced at the DB level via a `ForeignKeyConstraint` to `project_school_links(project_id, school_id)`. This guarantees the school is actually linked to the project — an orphaned reference is structurally impossible. `project_school_links` remains a plain association table with no surrogate key; the composite FK references it directly.
 
 **Table schemas:**
 
-`work_auth_project_codes`: `(work_auth_id, wa_code_id)` PK · `status` · `added_at`
+`work_auth_project_codes`: `(work_auth_id, wa_code_id)` PK · `fee` · `status` · `added_at`
 
-`work_auth_building_codes`: `(work_auth_id, wa_code_id, project_school_link_id)` PK · `status` · `budget` · `added_at`
+`work_auth_building_codes`: `(work_auth_id, wa_code_id, project_id, school_id)` PK · composite FK `(project_id, school_id)` → `project_school_links` · `budget` · `status` · `added_at`
 
 `rfa_project_codes`: `(rfa_id, wa_code_id)` PK · `action`
 
-`rfa_building_codes`: `(rfa_id, wa_code_id, project_school_link_id)` PK · `action` · `budget_adjustment` (nullable — only populated when the RFA is resolving a budget overage)
+`rfa_building_codes`: `(rfa_id, wa_code_id, project_id, school_id)` PK · composite FK `(project_id, school_id)` → `project_school_links` · `action` · `budget_adjustment` (nullable — only populated when the RFA is resolving a budget overage)
 
 RFA lifecycle timestamps (`submitted_at`, `resolved_at`) live on the `rfas` table. The code tables track current state only. The `rfas` + `rfa_*_codes` tables provide the full history.
 

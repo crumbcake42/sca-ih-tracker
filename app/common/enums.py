@@ -46,6 +46,14 @@ class WACodeLevel(StrEnum):
     BUILDING = "building"
 
 
+class WACodeStatus(StrEnum):
+    RFA_NEEDED = "rfa_needed"
+    RFA_PENDING = "rfa_pending"
+    ACTIVE = "active"
+    ADDED_BY_RFA = "added_by_rfa"
+    REMOVED = "removed"
+
+
 class EmployeeRoleType(StrEnum):
     ACM_AIR_TECH = "Asbestos On Site Technical Air Testing"
     ACM_PROJECT_MONITOR = "Asbestos Project Monitor"
