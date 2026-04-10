@@ -134,12 +134,14 @@ app/
 - [x] `project_school_links` (M2M association table) — model, migration — _schools linked via `projects.schools` relationship_
 - [x] `ProjectContractorLink` table (composite PK `project_id`+`contractor_id`, `is_current` flag, `assigned_at`) — model, migration
 - [x] `project_hygienist_links` (FK, one hygienist per project) — model, migration
-- [ ] `manager_project_assignments` (audit trail: `project_id`, `user_id`, `assigned_at`, `unassigned_at`, `assigned_by`) — model, migration
-- [ ] `work_auths` table — model, migration, link to `projects`; columns: `wa_num` (str, unique), `service_id` (str, unique), `project_num` (str, unique), `initiation_date` (Date), `project_id` (FK)
-- [ ] `work_auth_wa_codes` link table — model, migration; status enum: `rfa_needed` \| `rfa_pending` \| `active` \| `added_by_rfa` \| `removed`; see Design Note on building-level FK below
+- [x] `manager_project_assignments` (audit trail: `project_id`, `user_id`, `assigned_at`, `unassigned_at`, `assigned_by`) — model, migration
+- [x] `work_auths` table — model, migration, link to `projects`; columns: `wa_num` (str, unique), `service_id` (str, unique), `project_num` (str, unique), `initiation_date` (Date), `project_id` (FK)
+- [ ] `work_auth_project_codes` table — model, migration; PK `(work_auth_id, wa_code_id)`; `fee` (Numeric) stored at assignment time — do not derive from contract at query time; status enum: `rfa_needed` \| `rfa_pending` \| `active` \| `added_by_rfa` \| `removed`; validate at app layer that `wa_code.level == project`
+- [ ] `work_auth_building_codes` table — model, migration; PK `(work_auth_id, wa_code_id, project_school_link_id)`; same status enum; `project_school_link_id` NOT NULL (FK → `project_school_links`); `budget` (Numeric) per school per WA; validate at app layer that `wa_code.level == building`; billing calculated from monitor role rate × time entry hours
 - [ ] `rfas` table — model, migration; columns: `work_auth_id` (FK), `status` (`pending` \| `approved` \| `rejected` \| `withdrawn`), `submitted_at`, `resolved_at` (nullable — required for approved/rejected, optional for withdrawn), `submitted_by_id` (FK → users, nullable), `notes` (nullable); enforce one-pending-per-work-auth at application layer
-- [ ] `rfa_wa_codes` table — model, migration; columns: `rfa_id` (FK), `wa_code_id` (FK), `action` (`add` \| `remove`), `project_school_link_id` (FK, nullable — for building-level codes only); composite PK on `(rfa_id, wa_code_id, project_school_link_id)`
-- [ ] CRUD endpoints: `POST /work-auths/{id}/rfas`, `GET /work-auths/{id}/rfas` (history), `PATCH /work-auths/{id}/rfas/{rfa_id}` (resolve)
+- [ ] `rfa_project_codes` table — model, migration; PK `(rfa_id, wa_code_id)`; columns: `action` (`add` \| `remove`)
+- [ ] `rfa_building_codes` table — model, migration; PK `(rfa_id, wa_code_id, project_school_link_id)`; columns: `action` (`add` \| `remove`), `budget_adjustment` (Numeric, nullable — populated when RFA is adjusting a budget overage); `project_school_link_id` NOT NULL
+- [ ] CRUD endpoints: `POST /work-auths/{id}/rfas`, `GET /work-auths/{id}/rfas` (history), `PATCH /work-auths/{id}/rfas/{rfa_id}` (resolve); `resolve_rfa()` service handles project and building code tables separately with no NULL branching
 - [ ] `project_deliverables` join table (project + deliverable definition + status enum) — model, migration
 
 ---
@@ -167,10 +169,11 @@ app/
 ### Phase 5 — Project Status Engine
 
 - [ ] Define all status enums: `DeliverableStatus` (`pending_wa`, `pending_rfa`, `outstanding`, `under_review`, `approved`), `WACodeStatus` (`rfa_needed`, `rfa_pending`, `active`, `added_by_rfa`, `removed`), `RFAStatus` (`pending`, `approved`, `rejected`, `withdrawn`)
-- [ ] Service: `resolve_rfa(rfa_id, status, resolved_at)` — transitions all linked `work_auth_wa_codes` rows: approved → `added_by_rfa` (provisions new rows as needed); rejected/withdrawn → back to `rfa_needed`
+- [ ] Service: `resolve_rfa(rfa_id, status, resolved_at)` — handles `rfa_project_codes` and `rfa_building_codes` separately; approved → `added_by_rfa` on the relevant code table (applies `budget_adjustment` to `work_auth_building_codes.budget` if present); rejected/withdrawn → back to `rfa_needed`
 - [ ] `GET /work-auths/{id}/rfas` — full RFA history ordered by `submitted_at`
-- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, and returning a computed status
-- [ ] Implement `project_flags` — a project can have multiple non-blocking notes and blocking issues simultaneously
+- [ ] Service: `check_building_code_budgets(project_id)` — for each active `work_auth_building_code`, compare sum of (monitor_role_rate × time_entry_hours) against `budget`; returns list of overages
+- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, building code budget overages, and returning a computed status
+- [ ] Implement `project_flags` — a project can have multiple non-blocking notes and blocking issues simultaneously; budget overage on any building-level code is a **blocking** flag (requires RFA to adjust budget before the project can proceed)
 - [ ] Wire status derivation into project update endpoints
 - [ ] `GET /projects/{id}/status` — returns full status breakdown
 
@@ -300,26 +303,39 @@ The first 2 digits encoding the year and the middle 3 encoding work type suggest
 
 ---
 
-### Design Note — WA Codes Status Tracking
+### Design Note — WA Code Tables Split (project vs. building level)
 
-The `wa_codes` on a `work_auth` can exist in one of several states. Model the join table with an explicit status rather than nullable timestamps:
+Project-level and building-level codes are modelled as two separate table pairs rather than a single table with a nullable `project_school_link_id`. This was chosen because:
 
-| column | description |
-| --- | --- |
-| `work_auth_id` | FK |
-| `wa_code_id` | FK |
-| `project_school_link_id` | FK (nullable) — see building-level note below |
-| `status` | enum: `rfa_needed` \| `rfa_pending` \| `active` \| `added_by_rfa` \| `removed` |
-| `added_at` | TIMESTAMP |
+- **Uniqueness is natural.** Project-level codes use PK `(work_auth_id, wa_code_id)`. Building-level use PK `(work_auth_id, wa_code_id, project_school_link_id)`. No partial unique indexes or NULL-in-PK edge cases.
+- **Billing logic is separate.** Building-level billing is `monitor_role_rate × time_entry_hours`. Project-level billing follows a different model. Keeping them in separate tables eliminates NULL-branching in every billing and status query.
+- **Budgets belong to building codes only.** `work_auth_building_codes` carries a `budget` (Numeric) per `(work_auth_id, wa_code_id, project_school_link_id)`. When estimated billing exceeds this budget it is a blocking project flag requiring an RFA with a `budget_adjustment`.
+- **`project_school_link_id` is NOT NULL** on building code tables, enforced at the DB level. This guarantees the school is actually linked to the project — an orphaned reference is structurally impossible.
 
-RFA lifecycle timestamps (submitted_at, resolved_at) live on the `rfas` table, not here. This table only tracks current state. The `rfas` / `rfa_wa_codes` tables provide the full history.
+**Table schemas:**
+
+`work_auth_project_codes`: `(work_auth_id, wa_code_id)` PK · `status` · `added_at`
+
+`work_auth_building_codes`: `(work_auth_id, wa_code_id, project_school_link_id)` PK · `status` · `budget` · `added_at`
+
+`rfa_project_codes`: `(rfa_id, wa_code_id)` PK · `action`
+
+`rfa_building_codes`: `(rfa_id, wa_code_id, project_school_link_id)` PK · `action` · `budget_adjustment` (nullable — only populated when the RFA is resolving a budget overage)
+
+RFA lifecycle timestamps (`submitted_at`, `resolved_at`) live on the `rfas` table. The code tables track current state only. The `rfas` + `rfa_*_codes` tables provide the full history.
+
+The `WACodeLevel` enum on the `wa_codes` table (`project` \| `building`) is validated at the app layer on insert to ensure codes are never placed in the wrong table.
 
 ---
 
-### Design Note — Building-level WA Codes FK
+### Design Note — Contracts (deferred)
 
-**The problem:** `wa_codes` have two levels. Project-level codes apply to the whole project (one row in `work_auth_wa_codes` per code). Building-level codes apply per school within the project — the same code can appear for multiple schools under the same WA.
+Project-level WA code fees and employee role rates are both tied to a long-running contract. Contracts are not modelled yet because only one contract is active and no new one is expected soon.
 
-**Proposed solution:** Add a nullable `project_school_link_id` FK (referencing the `project_school_links` association table) to both `work_auth_wa_codes` and `rfa_wa_codes`. Populate it only for building-level codes. This is stricter than a plain `school_id` FK because it enforces that the school is actually linked to the project — an orphaned reference is impossible.
+**When contracts are added**, the retrofit is additive:
 
-**Composite PK for `work_auth_wa_codes`:** `(work_auth_id, wa_code_id, project_school_link_id)` where `project_school_link_id` is treated as `NULL` for project-level codes. Since SQLite allows multiple NULLs in a unique constraint, this works without special handling in dev. PostgreSQL behaves the same way.
+1. Add a `contracts` table
+2. Add a nullable `contract_id` FK to `work_auths` and backfill with the single current contract
+3. `contract_id` on `employee_roles` can be derived from the WA at query time or stored directly
+
+**No billing logic changes** because fees and rates are stored on their records at assignment time (`work_auth_project_codes.fee`, `employee_roles.hourly_rate`). The contract is audit context — not a live lookup. If fees were derived from a contract at query time instead, this retrofit would be a logic rewrite. Keep fees on the record.

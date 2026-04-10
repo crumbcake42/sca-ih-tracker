@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 import app.projects.models  # noqa: F401 — registers Project/links mappers
+import app.work_auths.models  # noqa: F401
 from app.common.config import settings
 from app.common.enums import PermissionName, RoleName
 from app.common.security import hash_password

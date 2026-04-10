@@ -11,6 +11,7 @@ from app.projects.router import router as projects_router
 from app.schools.router import router as schools_router
 from app.users.router import auth_router, users_router
 from app.wa_codes.router import router as wa_codes_router
+from app.work_auths.router import router as work_auths_router
 
 
 # Now create the tables in your ./data/dev.db
@@ -36,6 +37,7 @@ app.include_router(hygienists_router)
 app.include_router(projects_router)
 app.include_router(schools_router)
 app.include_router(wa_codes_router)
+app.include_router(work_auths_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 

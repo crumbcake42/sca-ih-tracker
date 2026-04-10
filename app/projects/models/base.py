@@ -10,6 +10,7 @@ from .links import project_school_links
 # These imports only happen for the Type Checker/IDE
 if TYPE_CHECKING:
     from app.schools.models import School
+    from app.work_auths.models import WorkAuth
 
     from .links import ProjectContractorLink, ProjectHygienistLink, ProjectManagerAssignment
 
@@ -62,3 +63,7 @@ class Project(Base, AuditMixin):
         return next(
             (a for a in self.manager_assignments if a.unassigned_at is None), None
         )
+
+    work_auths: Mapped[list["WorkAuth"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
