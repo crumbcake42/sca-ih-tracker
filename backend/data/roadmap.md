@@ -128,7 +128,7 @@ app/
 
 ---
 
-### Phase 2 — Projects Core + Relationships
+### Phase 2 — Projects Core + Relationships ✓ COMPLETE
 
 - [x] `projects` table — model, migrations, full CRUD (`GET/POST/PATCH/DELETE /projects/`) with name search + pagination; `project_number` field with regex validation
 - [x] `project_school_links` (M2M association table) — model, migration — _schools linked via `projects.schools` relationship_
@@ -142,7 +142,22 @@ app/
 - [x] `rfa_project_codes` table — model, migration; PK `(rfa_id, wa_code_id)`; columns: `action` (`add` \| `remove`)
 - [x] `rfa_building_codes` table — model, migration; PK `(rfa_id, wa_code_id, project_id, school_id)`; composite FK `(project_id, school_id)` → `project_school_links`; columns: `action` (`add` \| `remove`), `budget_adjustment` (Numeric, nullable)
 - [x] CRUD endpoints: `POST /work-auths/{id}/rfas`, `GET /work-auths/{id}/rfas` (history), `PATCH /work-auths/{id}/rfas/{rfa_id}` (resolve); resolve applies `budget_adjustment` to `work_auth_building_codes.budget` on approve; rejected/withdrawn reverts codes to `rfa_needed`
-- [ ] `project_deliverables` join table (project + deliverable definition + status enum) — model, migration
+- [x] `deliverable_wa_code_triggers` (M2M join table) — PK `(deliverable_id, wa_code_id)`; maps which wa_codes trigger which deliverables; static config seeded via script; managed under `POST/DELETE /deliverables/{id}/triggers`
+- [x] `Deliverable.level` column — `WACodeLevel` enum (`project` \| `building`); added to existing model; project-level deliverables produce one row per project, building-level produce one row per linked school
+- [x] `project_deliverables` table — PK `(project_id, deliverable_id)`; columns: `internal_status` (`InternalDeliverableStatus`), `sca_status` (`SCADeliverableStatus`), `notes` (nullable), `added_at`; full CRUD under `/projects/{id}/deliverables`
+- [x] `project_building_deliverables` table — PK `(project_id, deliverable_id, school_id)`; composite FK `(project_id, school_id)` → `project_school_links`; same status columns as above; full CRUD under `/projects/{id}/building-deliverables`; 422 if school not linked to project; split from project table for clean PK (nullable school_id in PK is illegal in PostgreSQL)
+
+**Design note — deliverable status tracks:**
+
+Each deliverable row carries two independent statuses:
+
+`InternalDeliverableStatus` (5 values): `incomplete` · `blocked` · `in_review` · `in_revision` · `completed` — tracks internal preparation state; `blocked` requires a `notes` explanation
+
+`SCADeliverableStatus` (6 values): `pending_wa` · `pending_rfa` · `outstanding` · `under_review` · `rejected` · `approved` — tracks the SCA-facing submission lifecycle; the first three are derivable from project/WA/code state and are updated by `recalculate_deliverable_sca_status()` in Phase 5; the last three are set manually when interacting with SCA
+
+**Design note — deliverable row lifecycle:**
+
+Rows can be created from multiple trigger sources (WA code added, lab result recorded, manual entry) — all are valid. Once a row exists, its `sca_status` is always maintained by the same `recalculate_deliverable_sca_status(project_id)` service call regardless of how it was created. This handles the "chicken and egg" ordering: a deliverable can be known-needed and tracked before its WA code or even its WA exist, with `sca_status` advancing automatically as each dependency arrives.
 
 ---
 
@@ -168,9 +183,9 @@ app/
 
 ### Phase 5 — Project Status Engine
 
-- [ ] Define remaining status enums: `DeliverableStatus` (`pending_wa`, `pending_rfa`, `outstanding`, `under_review`, `approved`), `RFAStatus` (`pending`, `approved`, `rejected`, `withdrawn`) — _`WACodeStatus` already defined in `common/enums.py`_
-- [ ] Service: `resolve_rfa(rfa_id, status, resolved_at)` — handles `rfa_project_codes` and `rfa_building_codes` separately; approved → `added_by_rfa` on the relevant code table (applies `budget_adjustment` to `work_auth_building_codes.budget` if present); rejected/withdrawn → back to `rfa_needed`
-- [ ] `GET /work-auths/{id}/rfas` — full RFA history ordered by `submitted_at`
+- [ ] Service: `recalculate_deliverable_sca_status(project_id)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); called from any endpoint that mutates WA, WA codes, or RFA resolution; `under_review` / `rejected` / `approved` are manual and never overwritten
+- [ ] Wire `recalculate_deliverable_sca_status()` into: `POST /work-auths/`, `POST /work-auths/{id}/project-codes`, `POST /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve)
+- [ ] Service: `ensure_deliverables_exist(project_id)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; called from time entry and lab result creation (Phase 3/4) so deliverables are tracked as soon as work is recorded, before the WA exists
 - [ ] Service: `check_building_code_budgets(project_id)` — for each active `work_auth_building_code`, compare sum of (monitor_role_rate × time_entry_hours) against `budget`; returns list of overages
 - [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, building code budget overages, and returning a computed status
 - [ ] Implement `project_flags` — a project can have multiple non-blocking notes and blocking issues simultaneously; budget overage on any building-level code is a **blocking** flag (requires RFA to adjust budget before the project can proceed)

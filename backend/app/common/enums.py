@@ -66,6 +66,23 @@ class RFAAction(StrEnum):
     REMOVE = "remove"
 
 
+class InternalDeliverableStatus(StrEnum):
+    INCOMPLETE = "incomplete"
+    BLOCKED = "blocked"
+    IN_REVIEW = "in_review"
+    IN_REVISION = "in_revision"
+    COMPLETED = "completed"
+
+
+class SCADeliverableStatus(StrEnum):
+    PENDING_WA = "pending_wa"
+    PENDING_RFA = "pending_rfa"
+    OUTSTANDING = "outstanding"
+    UNDER_REVIEW = "under_review"
+    REJECTED = "rejected"
+    APPROVED = "approved"
+
+
 class EmployeeRoleType(StrEnum):
     ACM_AIR_TECH = "Asbestos On Site Technical Air Testing"
     ACM_PROJECT_MONITOR = "Asbestos Project Monitor"

@@ -9,6 +9,7 @@ from .links import project_school_links
 
 # These imports only happen for the Type Checker/IDE
 if TYPE_CHECKING:
+    from app.deliverables.models import ProjectBuildingDeliverable, ProjectDeliverable
     from app.schools.models import School
     from app.work_auths.models import WorkAuth
 
@@ -65,5 +66,13 @@ class Project(Base, AuditMixin):
         )
 
     work_auths: Mapped[list["WorkAuth"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+
+    deliverables: Mapped[list["ProjectDeliverable"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+
+    building_deliverables: Mapped[list["ProjectBuildingDeliverable"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
