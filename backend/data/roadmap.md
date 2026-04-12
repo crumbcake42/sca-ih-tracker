@@ -31,7 +31,7 @@ app/
 │   ├── models.py              # Employee, EmployeeRole (time-bound)
 │   ├── router.py
 │   ├── schemas.py
-│   └── service.py             # includes rate-split billing logic
+│   └── service.py
 │
 ├── schools/
 │   ├── models.py
@@ -80,7 +80,7 @@ app/
 │   ├── models.py
 │   ├── router.py
 │   ├── schemas.py
-│   └── service.py             # role validation, rate-split calculation
+│   └── service.py             # role validation
 │
 ├── lab_results/
 │   ├── models.py              # SampleBatch (parent), PCMTEMSample, BulkSample, etc.
@@ -163,11 +163,12 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ### Phase 3 — Time Entries
 
-- [ ] `time_entries` model — columns: `date`, `start_time`, `end_time`, `employee_id`, `employee_role_id` (FK to specific role instance), `project_school_link_id`
-- [ ] Service: validate that `employee_role` was active on `date` at time of insert
-- [ ] Service: implement **rate-split calculation** for shifts crossing a rate-change boundary or midnight
+- [ ] `time_entries` model — columns: `start_datetime` (TIMESTAMP), `end_datetime` (TIMESTAMP, nullable), `employee_id`, `employee_role_id` (FK to specific role instance), `project_id` + `school_id` (composite FK → `project_school_links`), `notes` (nullable)
+- [ ] Service: validate that `employee_role` was active on `start_datetime.date()` at time of insert; validate role belongs to employee
 - [ ] `POST /time-entries/` with full validation
-- [ ] `PATCH /time-entries/{id}` — allow updating `start_time`/`end_time` after the fact (manager adds times from daily logs later)
+- [ ] `PATCH /time-entries/{id}` — allow updating `start_datetime`/`end_datetime`/`notes` after the fact (manager adds times from daily logs later); re-validates role active on new date if `start_datetime` changes
+- [ ] `GET /time-entries/` — list with optional filters: `project_id`, `school_id`, `employee_id`
+- [ ] `GET /time-entries/{id}` — single fetch
 
 ---
 
@@ -186,9 +187,8 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 - [ ] Service: `recalculate_deliverable_sca_status(project_id)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); called from any endpoint that mutates WA, WA codes, or RFA resolution; `under_review` / `rejected` / `approved` are manual and never overwritten
 - [ ] Wire `recalculate_deliverable_sca_status()` into: `POST /work-auths/`, `POST /work-auths/{id}/project-codes`, `POST /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve)
 - [ ] Service: `ensure_deliverables_exist(project_id)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; called from time entry and lab result creation (Phase 3/4) so deliverables are tracked as soon as work is recorded, before the WA exists
-- [ ] Service: `check_building_code_budgets(project_id)` — for each active `work_auth_building_code`, compare sum of (monitor_role_rate × time_entry_hours) against `budget`; returns list of overages
-- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, building code budget overages, and returning a computed status
-- [ ] Implement `project_flags` — a project can have multiple non-blocking notes and blocking issues simultaneously; budget overage on any building-level code is a **blocking** flag (requires RFA to adjust budget before the project can proceed)
+- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, and returning a computed status
+- [ ] Implement `project_flags` — a project can have multiple non-blocking notes and blocking issues simultaneously
 - [ ] Wire status derivation into project update endpoints
 - [ ] `GET /projects/{id}/status` — returns full status breakdown
 
@@ -207,22 +207,17 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ## Analysis + Hazards
 
-### Hazard 1 — Billing rate split across midnight / rate boundaries _(HIGH RISK)_
+### Hazard 1 — Billing rate split across midnight / rate boundaries _(deferred — see Follow-up Project)_
 
-The 11/30/25 5PM–3AM example is the hardest logic in the app. A shift can cross:
+Rate-split calculation is deferred to the billing follow-up project. Time entries store `start_datetime` / `end_datetime` as timestamps, which makes the span math straightforward when billing is eventually implemented.
 
-- A calendar day (always check `end_time < start_time`)
-- A rate-change boundary (start of a new `employee_role` record)
-
-**Recommendation:** Write this as a pure, well-unit-tested function in `employees/service.py`:
+**When billing is built**, the function lives in `employees/service.py`:
 
 ```python
 def calculate_billable_segments(employee_id, role_type, start_dt, end_dt) -> list[BillingSegment]
 ```
 
-It should return a list of `(hours, rate)` segments. Test it exhaustively with edge cases before connecting it to the API.
-
-**Pitfall:** Storing `date` + `start_time` + `end_time` separately makes span math awkward. Consider storing `start_datetime` and `end_datetime` as `TIMESTAMP` internally, while still accepting/displaying date+time separately in the API.
+A shift can cross a calendar day (detect when `end_datetime.date() > start_datetime.date()`) or a rate-change boundary (start of a new `employee_role` record). The function should return a list of `(hours, rate)` segments and be tested exhaustively before being connected to the API.
 
 ---
 
@@ -340,6 +335,19 @@ Project-level and building-level codes are modelled as two separate table pairs 
 RFA lifecycle timestamps (`submitted_at`, `resolved_at`) live on the `rfas` table. The code tables track current state only. The `rfas` + `rfa_*_codes` tables provide the full history.
 
 The `WACodeLevel` enum on the `wa_codes` table (`project` \| `building`) is validated at the app layer on insert to ensure codes are never placed in the wrong table.
+
+---
+
+---
+
+## Follow-up Project — Billing
+
+> Deferred from the main roadmap. The core app tracks project state end-to-end; billing is a secondary concern that reads from that state without blocking it.
+
+- `calculate_billable_segments(employee_id, role_type, start_dt, end_dt) -> list[BillingSegment]` — rate-split function in `employees/service.py`; handles shifts crossing midnight and `employee_role` rate-change boundaries; needs exhaustive unit tests before connecting to any endpoint
+- `check_building_code_budgets(project_id)` — for each active `work_auth_building_code`, compare sum of (`monitor_role_rate × time_entry_hours`) against `budget`; returns list of overages; budget overage on any building-level code is a **blocking** project flag requiring an RFA with `budget_adjustment`
+- Wire billing flag into `project_flags` and `derive_project_status(project_id)` in Phase 5
+- `GET /projects/{id}/billing-summary` — returns hours by role, segments, and budget vs. actual per building code
 
 ---
 

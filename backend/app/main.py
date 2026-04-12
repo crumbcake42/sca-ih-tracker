@@ -9,6 +9,7 @@ from app.employees.router import router as employees_router
 from app.hygienists.router import router as hygienists_router
 from app.projects.router import router as projects_router
 from app.schools.router import router as schools_router
+from app.time_entries.router import router as time_entries_router
 from app.users.router import auth_router, users_router
 from app.wa_codes.router import router as wa_codes_router
 from app.work_auths.router import router as work_auths_router
@@ -36,6 +37,7 @@ app.include_router(employees_router)
 app.include_router(hygienists_router)
 app.include_router(projects_router)
 app.include_router(schools_router)
+app.include_router(time_entries_router)
 app.include_router(wa_codes_router)
 app.include_router(work_auths_router)
 app.include_router(auth_router)
