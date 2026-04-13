@@ -14,7 +14,19 @@ from app.time_entries.models import TimeEntry
 
 
 async def get_sample_type_or_404(sample_type_id: int, db: AsyncSession) -> SampleType:
-    st = await db.get(SampleType, sample_type_id)
+    # Use select() with populate_existing=True rather than db.get() so that:
+    # 1. lazy="selectin" relationships are loaded in the same greenlet context
+    #    (db.get() may return a cached identity-map instance with unloaded
+    #    collections, which fails on serialization outside a greenlet).
+    # 2. populate_existing forces a re-query even when the object is already in
+    #    the identity map, ensuring child collections added after the initial
+    #    load (e.g., subtypes, unit types) are reflected in the response.
+    result = await db.execute(
+        select(SampleType)
+        .where(SampleType.id == sample_type_id)
+        .execution_options(populate_existing=True)
+    )
+    st = result.scalar_one_or_none()
     if not st:
         raise HTTPException(status_code=404, detail="Sample type not found")
     return st

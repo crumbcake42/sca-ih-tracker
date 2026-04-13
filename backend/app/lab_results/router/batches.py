@@ -23,6 +23,7 @@ from app.lab_results.service import (
     validate_turnaround_for_batch,
     validate_unit_types_for_batch,
 )
+from app.time_entries.models import TimeEntry
 from app.users.dependencies import PermissionChecker, PermissionName
 
 router = APIRouter(prefix="/batches", tags=["Lab Results — Batches"])
@@ -61,6 +62,11 @@ async def create_batch(body: SampleBatchCreate, db: AsyncSession = Depends(get_d
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Batch number already exists")
+
+    # Validate time entry exists (independent of role check, which returns early
+    # when no required roles are defined and would otherwise skip this check)
+    if not await db.get(TimeEntry, body.time_entry_id):
+        raise HTTPException(status_code=404, detail="Time entry not found")
 
     # Validate optional FK fields belong to the sample type
     if body.sample_subtype_id is not None:
