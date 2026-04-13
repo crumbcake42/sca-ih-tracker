@@ -161,14 +161,14 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ---
 
-### Phase 3 — Time Entries
+### Phase 3 — Time Entries ✓ COMPLETE
 
-- [ ] `time_entries` model — columns: `start_datetime` (TIMESTAMP), `end_datetime` (TIMESTAMP, nullable), `employee_id`, `employee_role_id` (FK to specific role instance), `project_id` + `school_id` (composite FK → `project_school_links`), `notes` (nullable)
-- [ ] Service: validate that `employee_role` was active on `start_datetime.date()` at time of insert; validate role belongs to employee
-- [ ] `POST /time-entries/` with full validation
-- [ ] `PATCH /time-entries/{id}` — allow updating `start_datetime`/`end_datetime`/`notes` after the fact (manager adds times from daily logs later); re-validates role active on new date if `start_datetime` changes
-- [ ] `GET /time-entries/` — list with optional filters: `project_id`, `school_id`, `employee_id`
-- [ ] `GET /time-entries/{id}` — single fetch
+- [x] `time_entries` model — columns: `start_datetime` (TIMESTAMP), `end_datetime` (TIMESTAMP, nullable), `employee_id`, `employee_role_id` (FK to specific role instance), `project_id` + `school_id` (composite FK → `project_school_links`), `notes` (nullable)
+- [x] Service: validate that `employee_role` was active on `start_datetime.date()` at time of insert; validate role belongs to employee
+- [x] `POST /time-entries/` with full validation
+- [x] `PATCH /time-entries/{id}` — allow updating `start_datetime`/`end_datetime`/`notes` after the fact (manager adds times from daily logs later); re-validates role active on new date if `start_datetime` changes
+- [x] `GET /time-entries/` — list with optional filters: `project_id`, `school_id`, `employee_id`
+- [x] `GET /time-entries/{id}` — single fetch
 
 ---
 
