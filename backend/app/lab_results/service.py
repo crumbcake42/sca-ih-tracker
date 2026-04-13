@@ -1,0 +1,132 @@
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.employees.models import EmployeeRole
+from app.lab_results.models import (
+    SampleBatch,
+    SampleType,
+    SampleTypeRequiredRole,
+    SampleUnitType,
+    TurnaroundOption,
+)
+from app.time_entries.models import TimeEntry
+
+
+async def get_sample_type_or_404(sample_type_id: int, db: AsyncSession) -> SampleType:
+    st = await db.get(SampleType, sample_type_id)
+    if not st:
+        raise HTTPException(status_code=404, detail="Sample type not found")
+    return st
+
+
+async def get_batch_or_404(batch_id: int, db: AsyncSession) -> SampleBatch:
+    batch = await db.get(SampleBatch, batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Sample batch not found")
+    return batch
+
+
+async def validate_unit_types_for_batch(
+    sample_type_id: int,
+    unit_type_ids: list[int],
+    db: AsyncSession,
+) -> None:
+    """All unit types submitted must belong to the batch's sample type."""
+    if not unit_type_ids:
+        return
+    result = await db.execute(
+        select(SampleUnitType).where(SampleUnitType.id.in_(unit_type_ids))
+    )
+    unit_types = result.scalars().all()
+
+    missing = set(unit_type_ids) - {ut.id for ut in unit_types}
+    if missing:
+        raise HTTPException(status_code=404, detail=f"Unit type(s) not found: {missing}")
+
+    wrong_type = [ut for ut in unit_types if ut.sample_type_id != sample_type_id]
+    if wrong_type:
+        names = [ut.name for ut in wrong_type]
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unit type(s) {names} do not belong to the selected sample type",
+        )
+
+
+async def validate_turnaround_for_batch(
+    sample_type_id: int,
+    turnaround_option_id: int,
+    db: AsyncSession,
+) -> None:
+    """TAT option must belong to the batch's sample type."""
+    tat = await db.get(TurnaroundOption, turnaround_option_id)
+    if not tat:
+        raise HTTPException(status_code=404, detail="Turnaround option not found")
+    if tat.sample_type_id != sample_type_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Turnaround option does not belong to the selected sample type",
+        )
+
+
+async def validate_subtype_for_batch(
+    sample_type_id: int,
+    sample_subtype_id: int,
+    db: AsyncSession,
+) -> None:
+    """Subtype must belong to the batch's sample type."""
+    from app.lab_results.models import SampleSubtype
+    subtype = await db.get(SampleSubtype, sample_subtype_id)
+    if not subtype:
+        raise HTTPException(status_code=404, detail="Sample subtype not found")
+    if subtype.sample_type_id != sample_type_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Sample subtype does not belong to the selected sample type",
+        )
+
+
+async def validate_employee_role_for_sample_type(
+    time_entry_id: int,
+    sample_type_id: int,
+    db: AsyncSession,
+) -> None:
+    """If the sample type defines required roles, the employee's role on the linked
+    time entry must match at least one of them. No required roles = no restriction."""
+    required_result = await db.execute(
+        select(SampleTypeRequiredRole).where(
+            SampleTypeRequiredRole.sample_type_id == sample_type_id
+        )
+    )
+    required = required_result.scalars().all()
+    if not required:
+        return  # no restriction
+
+    time_entry = await db.get(TimeEntry, time_entry_id)
+    if not time_entry:
+        raise HTTPException(status_code=404, detail="Time entry not found")
+
+    employee_role = await db.get(EmployeeRole, time_entry.employee_role_id)
+    if not employee_role:
+        raise HTTPException(status_code=404, detail="Employee role not found")
+
+    allowed_role_types = {r.role_type for r in required}
+    if employee_role.role_type not in allowed_role_types:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Employee role '{employee_role.role_type}' is not permitted to collect "
+                f"this sample type. Required: {[r.value for r in allowed_role_types]}"
+            ),
+        )
+
+
+async def validate_inspector_count(
+    sample_type: SampleType,
+    inspector_count: int,
+) -> None:
+    if not sample_type.allows_multiple_inspectors and inspector_count > 1:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Sample type '{sample_type.name}' only allows one inspector per batch",
+        )

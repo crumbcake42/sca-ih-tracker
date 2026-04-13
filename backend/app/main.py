@@ -7,6 +7,7 @@ from app.database import Base, engine
 from app.deliverables.router import router as deliverables_router
 from app.employees.router import router as employees_router
 from app.hygienists.router import router as hygienists_router
+from app.lab_results.router import router as lab_results_router
 from app.projects.router import router as projects_router
 from app.schools.router import router as schools_router
 from app.time_entries.router import router as time_entries_router
@@ -32,6 +33,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="SCA IH Tracker")
 
 app.include_router(contractors_router)
+app.include_router(lab_results_router)
 app.include_router(deliverables_router)
 app.include_router(employees_router)
 app.include_router(hygienists_router)
