@@ -3,9 +3,9 @@ default:
     @just --list
 
 # ── Backend ──────────────────────────────────────────────────
-# Start FastAPI dev server
-api:
-    cd backend && .venv/Scripts/uvicorn app.main:app --reload
+# Start FastAPI dev server. Pass log=true to enable SQL query logging.
+api log="":
+    cd backend && LOG_SQL={{log}} .venv/Scripts/uvicorn app.main:app --reload
 
 # Initialize DB, run migrations, seed data
 seed:
@@ -41,7 +41,7 @@ ui:
     cd frontend && npm run dev
 
 # ── Combined ─────────────────────────────────────────────────
-# Start both servers (run in separate terminals if you want separate output)
-dev:
-    cd backend && .venv/Scripts/uvicorn app.main:app --reload &
+# Start both servers. Pass log=true to enable SQL query logging.
+dev log="":
+    cd backend && LOG_SQL={{log}} .venv/Scripts/uvicorn app.main:app --reload &
     cd frontend && npm run dev

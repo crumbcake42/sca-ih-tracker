@@ -83,9 +83,13 @@ app/
 │   └── service.py             # role validation
 │
 ├── lab_results/
-│   ├── models.py              # SampleBatch (parent), PCMTEMSample, BulkSample, etc.
-│   ├── router.py
+│   ├── models.py              # config: SampleType, SampleSubtype, SampleUnitType, TurnaroundOption
+│   │                          # data:   SampleBatch, SampleBatchUnit, SampleBatchInspector
 │   ├── schemas.py
+│   ├── router/
+│   │   ├── __init__.py
+│   │   ├── config.py          # admin CRUD: sample_types, subtypes, unit_types, turnaround_options
+│   │   └── batches.py         # data entry: sample_batches, units, inspectors
 │   └── service.py
 │
 └── common/
@@ -174,15 +178,45 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ### Phase 4 — Lab Results
 
-- [ ] `sample_batches` parent table — `batch_num`, `is_report`, `time_entry_id`, `sample_type` discriminator
-- [ ] `pcm_tem_samples` child table — monitor, date, quantity, time_started, time_relinquished, turnaround_time
-- [ ] `bulk_samples` child table — date, PLM qty, NOB-PLM qty, NOB-PREP qty, NOB-TEM qty
-- [ ] `bulk_sample_inspectors` join table — bulk sample to employee (multiple inspectors per COC)
-- [ ] CRUD endpoints for each type via `/lab-results/`
+Two-layer design: admin-configurable type definitions (config layer) + per-job recorded data (data layer). Adding a new sample type requires no code or migration — an admin adds rows to the config tables.
+
+**Config layer** (admin-managed, seeded initially, rarely change):
+
+- [ ] `sample_types` — `id`, `name` ("PCM", "Bulk", "LDW"), `description`, `allows_multiple_inspectors` (bool)
+- [ ] `sample_subtypes` — `id`, `sample_type_id` (FK), `name` ("Pre-Abatement", "During", "Final", "Ambient")
+- [ ] `sample_unit_types` — `id`, `sample_type_id` (FK), `name` ("PLM", "NOB-PLM", "NOB-TEM", "NOB-PREP", "PCM"); unit types are scoped to a sample type — a bulk batch cannot contain PCM units
+- [ ] `turnaround_options` — `id`, `sample_type_id` (FK), `hours` (int), `label` ("1hr Rush", "6hr", "24hr Standard")
+- [ ] `sample_type_required_roles` — M2M: `sample_type_id`, `role_type` (enum); which employee role types may collect this sample
+- [ ] `sample_type_wa_codes` — M2M: `sample_type_id`, `wa_code_id` (FK); which WA codes are required to bill this sample type
+- [ ] Admin CRUD under `/lab-results/config/sample-types`, `/lab-results/config/unit-types`, etc.; seed initial PCM + Bulk definitions on first deploy
+
+**Data layer** (recorded per job):
+
+- [ ] `sample_batches` — `id`, `sample_type_id` (FK), `sample_subtype_id` (FK, nullable), `turnaround_option_id` (FK, nullable), `time_entry_id` (FK), `batch_num`, `is_report`, `date_collected`, `notes`
+- [ ] `sample_batch_units` — `id`, `batch_id` (FK), `sample_unit_type_id` (FK), `quantity` (int), `unit_rate` (Numeric, nullable — denormalized from `sample_rates` at record time, consistent with how `work_auth_project_codes.fee` and `employee_roles.hourly_rate` are stored)
+- [ ] `sample_batch_inspectors` — M2M: `batch_id`, `employee_id` (FK)
+- [ ] App-layer validation on batch create: unit type must belong to the batch's sample type (422 otherwise); employee must hold a role in `sample_type_required_roles` for the type
+- [ ] CRUD endpoints: `POST/GET /lab-results/batches/`, `GET /lab-results/batches/{id}`, `PATCH /lab-results/batches/{id}`
+
+**Billing runway** (not implemented yet — see Follow-up Project):
+
+- [ ] `sample_rates` — `id`, `contract_id` (FK → contracts, **nullable** — null means global/default rate), `sample_unit_type_id` (FK), `turnaround_option_id` (FK), `rate` (Numeric), `effective_from` (Date); add this table now so the FK shape is locked in before contracts arrive; rate lookup: prefer contract-specific row, fall back to `contract_id IS NULL`; when a batch is recorded, resolve the applicable rate and store it on `sample_batch_units.unit_rate`
 
 ---
 
-### Phase 5 — Project Status Engine
+### Phase 5 — Observability
+
+**Goal:** make slow queries and N+1 regressions visible in development and in production before they become user-facing problems.
+
+- [ ] **SQL logging middleware** — read `LOG_SQL` env var at startup; if set, attach a SQLAlchemy `before_cursor_execute` event listener that logs every statement + elapsed time to the `sqlalchemy.engine` logger; default off in production, on-demand in dev
+- [ ] **Slow request middleware** — FastAPI `@app.middleware("http")` that records wall time per request; logs a `WARNING` if duration exceeds a configurable threshold (start at 500ms); include route path and method in the log line so slow endpoints are immediately identifiable
+- [ ] **Per-request query counter** — extend the event listener to increment a counter stored in a context variable; log query count alongside duration on slow requests; a single request firing >20 queries is a red flag worth investigating
+- [ ] **Test-layer query count assertions** — add a `query_counter` pytest fixture (wraps the same event listener) that exposes `.count` after a test block; use it on key list endpoints to assert `query_count <= N` and catch N+1 regressions before they ship; apply to the most join-heavy endpoints first (project status, batch list with units)
+- [ ] **Dev command** — `just api log=true` passes `LOG_SQL=true` to uvicorn; no separate recipe needed (see justfile)
+
+---
+
+### Phase 6 — Project Status Engine
 
 - [ ] Service: `recalculate_deliverable_sca_status(project_id)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); called from any endpoint that mutates WA, WA codes, or RFA resolution; `under_review` / `rejected` / `approved` are manual and never overwritten
 - [ ] Wire `recalculate_deliverable_sca_status()` into: `POST /work-auths/`, `POST /work-auths/{id}/project-codes`, `POST /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve)
@@ -194,7 +228,7 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ---
 
-### Phase 6 — Dashboard Query Endpoints
+### Phase 7 — Dashboard Query Endpoints
 
 - [ ] `GET /projects/dashboard/my-outstanding-deliverables`
 - [ ] `GET /projects/dashboard/needs-rfa`
@@ -239,13 +273,15 @@ This requires the `btree_gist` extension. Add it in an Alembic migration. Withou
 
 ---
 
-### Hazard 3 — Lab results polymorphism
+### Hazard 3 — Lab results extensibility
 
-**Recommendation: Joined table inheritance** (SQLAlchemy supports this natively).
+**Do not use joined table inheritance.** The original plan (`pcm_tem_samples`, `bulk_samples` as separate child tables) hardcodes the sample type taxonomy into the schema — adding LDW or any new type requires a migration and new model code.
 
-Single table inheritance (one table, many NULLs) is tempting but becomes a mess as sample types grow. Joined inheritance gives you a clean `sample_batches` parent you can query uniformly while each subtype has its own normalized table. The `sample_type` discriminator column on the parent drives which child to join.
+**Use the config+data meta-model instead** (see Phase 4). Sample types, subtypes, unit types, and turnaround options are rows in admin-managed tables. The data tables (`sample_batches`, `sample_batch_units`) are fixed in shape regardless of how many types are defined.
 
-**Pitfall:** Don't try to store bulk sample inspector relationships in a column. `bulk_sample_inspectors` must be a proper join table.
+**Validation that was structural is now app-layer:** `sample_unit_type.sample_type_id` must match `batch.sample_type_id` — enforce this in the service on create and return 422 if violated. This is a straightforward check and keeps the schema clean.
+
+**Pitfall:** Don't enforce `allows_multiple_inspectors` at the DB level — a check constraint here would be complex and fragile. Enforce it in the service: if `sample_type.allows_multiple_inspectors` is false, reject a second inspector insert with 409.
 
 ---
 
@@ -335,6 +371,33 @@ Project-level and building-level codes are modelled as two separate table pairs 
 RFA lifecycle timestamps (`submitted_at`, `resolved_at`) live on the `rfas` table. The code tables track current state only. The `rfas` + `rfa_*_codes` tables provide the full history.
 
 The `WACodeLevel` enum on the `wa_codes` table (`project` \| `building`) is validated at the app layer on insert to ensure codes are never placed in the wrong table.
+
+---
+
+### Design Note — Query Performance and N+1
+
+The two most common performance problems in SQLAlchemy apps at this scale, in order of how often they cause trouble:
+
+**1. N+1 queries** — fetching a list of objects and then firing one query per object to load a relationship. The fix is always `lazy="selectin"` or an explicit `joinedload()` on the relationship. Already applied to `RFA.project_codes` and `RFA.building_codes`. Apply the same pattern whenever a list endpoint serializes nested objects.
+
+**2. Missing indexes** — a query on an unindexed column reads every row in the table. SQLAlchemy automatically creates indexes for columns declared with `index=True` and for single-column FKs. Composite FKs and filter columns used in dashboard queries need explicit indexes added in migrations (see Hazard 5).
+
+Joins on indexed columns are fast regardless of table size. The join-heavy schema in Phase 4 and Phase 6 is fine as long as FK columns are indexed. The dashboard endpoints in Phase 7 are where composite indexes matter most.
+
+**To catch regressions early:** add a `query_counter` pytest fixture and assert query counts on list endpoints (see Phase 5). A list endpoint that was 2 queries and becomes 52 queries after a model change is caught in CI, not in production.
+
+---
+
+### Design Note — Configurable Lab Results and the Sample Rates / Contracts Runway
+
+`sample_rates` is designed now with a nullable `contract_id` so the billing retrofit is additive:
+
+- **Now (no contracts):** rates have `contract_id = NULL`; one global rate schedule
+- **When contracts land:** add `contracts` table, add nullable `contract_id` FK to `work_auths` (backfill with current contract), add contract-specific rows to `sample_rates`; rate lookup prefers contract-specific row, falls back to `contract_id IS NULL`
+
+Rate resolution chain: `sample_batch_unit → batch → time_entry → project → work_auth → contract_id → sample_rates`
+
+Rates are denormalized onto `sample_batch_units.unit_rate` at record time (same pattern as `work_auth_project_codes.fee` and `employee_roles.hourly_rate`) so historical batches are unaffected when contract rates change.
 
 ---
 
