@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-14 (Phase 3.5 + audit tests complete; Phase 4 design revised)
+# Session Handoff — 2026-04-14 (Documentation pass complete; Phase 4 still next)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,28 +6,33 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**All tests passing. Phase 3.5 is fully done — models, endpoints, and tests. Phase 4 design was revised before implementation began. Next step: implement the Phase 4 migration and state model.**
+**All tests passing. Phase 3.5 is fully done. Phase 4 design was revised last session. This session was a documentation pass — no code was changed. Next step is still Phase 4 migration and state model.**
 
 ---
 
 ## What Was Done This Session
 
-### 1 — Audit tests written
+### Documentation pass — module READMEs written
 
-Tests were added across four files to verify that `created_by_id` and `updated_by_id` are correctly populated. All pass. The pattern used in each: make the API call via `auth_client`, then query `db_session` directly to check the audit field (the audit fields are not exposed in Read schemas, so response JSON can't be used).
+Nine `README.md` files were created across the project. Each follows the three-section format from `data/roadmap.md`: **Purpose**, **Non-obvious behavior**, **Before you modify**. Mermaid diagrams are embedded in modules with state machines or validation chains.
 
-| File | Tests added |
+| File | Key content |
 |------|-------------|
-| `app/time_entries/tests/test_time_entries.py` | `TestAuditFields` — POST sets `created_by_id`, PATCH sets `updated_by_id` |
-| `app/lab_results/tests/test_batches.py` | `TestBatchAuditFields` — same pattern |
-| `app/work_auths/tests/test_work_auths.py` | `TestWorkAuthAuditFields` — same pattern |
-| `app/tests/test_audit.py` | CSV import sets `created_by_id`; `"!"` hash blocks auth |
+| `app/employees/README.md` | Time-bound EmployeeRole, app-layer overlap validation, nullable user link |
+| `app/users/README.md` | PermissionChecker returns the user, SYSTEM_USER_ID=1 is reserved, RBAC structure |
+| `app/wa_codes/README.md` | WACodeLevel drives endpoint gating + deliverable granularity; treat level as immutable once in use |
+| `app/deliverables/README.md` | Dual independent status tracks, trigger config is seeded not dynamic, separate project/building tables |
+| `app/common/README.md` | AuditMixin is explicit-only, SYSTEM_USER_ID import location, router factory functions |
+| `app/work_auths/README.md` | WA code status state machine (Mermaid), RFA state machine (Mermaid), one-pending-RFA-per-WA rule |
+| `app/projects/README.md` | Link tables via project endpoints only, ProjectManagerAssignment is append-only audit trail, composite FK dependencies |
+| `app/time_entries/README.md` | Planned state diagram (Mermaid, status col not yet added), overlap → system notes not 422, SYSTEM_USER_ID identifies quick-add entries |
+| `app/lab_results/README.md` | Config vs data layer, batch validation chain flowchart (Mermaid), sample_unit_type validation is app-layer only |
 
-The `fake_user.id = 1` in the `auth_client` fixture is the expected `created_by_id` value throughout.
+The roadmap's "Files to generate" checklist was updated. Still unchecked: `backend/README.md`, `backend/app/PATTERNS.md` (already exists), `backend/app/notes/README.md` (blocked until Phase 3.6 implements the notes module).
 
-### 2 — Phase 4 design revised
+Thin CRUD modules (schools, contractors, hygienists) were deliberately skipped per the roadmap's own rule.
 
-Before writing any Phase 4 code, the original plan was reviewed against the actual use cases. Three features were dropped or replaced with simpler alternatives. See the Design Decisions section below.
+---
 
 ---
 

@@ -388,12 +388,18 @@ Rule of thumb: if you had to stop and think about how something works before wri
 
 - [ ] `backend/README.md` — module index, how to run dev server, how to run tests, where design docs live
 - [ ] `backend/app/PATTERNS.md` — `db.get()` vs `select() + populate_existing`, FK validation in early-return paths, `PermissionChecker` pattern, AuditMixin wiring, rollback test pattern
-- [ ] `backend/app/lab_results/README.md` — config vs. data layer, batch validation chain flowchart, `populate_existing` warning, state model
-- [ ] `backend/app/time_entries/README.md` — state diagram, overlap detection + notes integration, quick-add service flow
+- [x] `backend/app/lab_results/README.md` — config vs. data layer, batch validation chain flowchart, `populate_existing` warning, state model
+- [x] `backend/app/time_entries/README.md` — state diagram, overlap detection + notes integration, quick-add service flow
 - [ ] `backend/app/notes/README.md` — polymorphic attachment pattern, system vs. user notes, auto-resolve lifecycle, future @mention hook
-- [ ] `backend/app/projects/README.md` — status derivation, link table relationships, blocking issues aggregation
-- [ ] `backend/app/work_auths/README.md` — WA/RFA state machine diagram
-- [ ] `backend/app/common/README.md` — what lives here, enums policy, AuditMixin overview, factory router pattern
+- [x] `backend/app/projects/README.md` — status derivation, link table relationships, blocking issues aggregation
+- [x] `backend/app/work_auths/README.md` — WA/RFA state machine diagram
+- [x] `backend/app/common/README.md` — what lives here, enums policy, AuditMixin overview, factory router pattern
+
+**Additional READMEs created (Phase 0/1 modules with non-obvious behavior):**
+- [x] `backend/app/employees/README.md` — time-bound EmployeeRole, overlap validation, nullable user link
+- [x] `backend/app/users/README.md` — PermissionChecker pattern, SYSTEM_USER_ID, RBAC structure
+- [x] `backend/app/wa_codes/README.md` — WACodeLevel downstream effects, immutability once in use
+- [x] `backend/app/deliverables/README.md` — dual status tracks, trigger config, separate project/building tables
 
 Generate these after Phase 3.6 is implemented, before Phase 4 code is written.
 
