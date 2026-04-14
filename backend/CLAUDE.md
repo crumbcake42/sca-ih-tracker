@@ -4,6 +4,7 @@
 
 - Install: `pip install -e .`
 - Run tests: `pytest tests/ -v`
+- **`pytest` is not on PATH.** Use `.venv/Scripts/python.exe -m pytest` directly — do not use `source .venv/Scripts/activate`.
 - **Never run `alembic` commands.** The user generates and applies all migrations manually.
 
 ---

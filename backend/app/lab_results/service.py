@@ -1,17 +1,33 @@
+from typing import TYPE_CHECKING
+from datetime import datetime, timedelta
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.employees.models import EmployeeRole
+from app.common.config import SYSTEM_USER_ID
+from app.common.enums import TimeEntryStatus
+from app.employees.models import Employee, EmployeeRole
 from app.lab_results.models import (
     SampleBatch,
+    SampleBatchInspector,
+    SampleBatchUnit,
     SampleType,
     SampleTypeRequiredRole,
     SampleUnitType,
     TurnaroundOption,
+    
 )
+from app.projects.models import Project
 from app.time_entries.models import TimeEntry
+from app.time_entries.service import (
+    check_time_entry_overlap,
+    validate_role_for_entry,
+    validate_school_on_project,
+)
 
+if TYPE_CHECKING:
+    from app.lab_results.schemas import QuickAddBatchCreate
 
 async def get_sample_type_or_404(sample_type_id: int, db: AsyncSession) -> SampleType:
     # Use select() with populate_existing=True rather than db.get() so that:
@@ -99,12 +115,13 @@ async def validate_subtype_for_batch(
 
 
 async def validate_employee_role_for_sample_type(
-    time_entry_id: int,
+    time_entry_id: int | None,
     sample_type_id: int,
     db: AsyncSession,
 ) -> None:
     """If the sample type defines required roles, the employee's role on the linked
-    time entry must match at least one of them. No required roles = no restriction."""
+    time entry must match at least one of them. No required roles = no restriction.
+    If time_entry_id is None (batch not linked to a time entry), skip role validation."""
     required_result = await db.execute(
         select(SampleTypeRequiredRole).where(
             SampleTypeRequiredRole.sample_type_id == sample_type_id
@@ -113,6 +130,9 @@ async def validate_employee_role_for_sample_type(
     required = required_result.scalars().all()
     if not required:
         return  # no restriction
+
+    if time_entry_id is None:
+        return  # no time entry to check against; role validation deferred
 
     time_entry = await db.get(TimeEntry, time_entry_id)
     if not time_entry:
@@ -142,3 +162,94 @@ async def validate_inspector_count(
             status_code=422,
             detail=f"Sample type '{sample_type.name}' only allows one inspector per batch",
         )
+
+
+async def quick_add_batch(
+    body: "QuickAddBatchCreate",
+    db: AsyncSession,
+) -> SampleBatch:
+    """Atomically create an assumed TimeEntry and a linked SampleBatch.
+
+    The time entry is created with status=assumed, start_datetime=midnight of
+    body.date_on_site, end_datetime=None, and created_by_id=SYSTEM_USER_ID.
+    All validations run before any DB writes; on failure the transaction rolls back.
+    """
+
+
+    # --- Time entry validations ---
+    if not await db.get(Employee, body.employee_id):
+        raise HTTPException(status_code=404, detail="Employee not found")
+    if not await db.get(Project, body.project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    await validate_school_on_project(body.project_id, body.school_id, db)
+
+    start_dt = datetime(body.date_on_site.year, body.date_on_site.month, body.date_on_site.day)
+    await validate_role_for_entry(body.employee_id, body.employee_role_id, start_dt, db)
+    await check_time_entry_overlap(body.employee_id, start_dt, None, db)
+
+    # --- Batch validations ---
+    sample_type = await get_sample_type_or_404(body.sample_type_id, db)
+
+    existing = await db.execute(
+        select(SampleBatch).where(SampleBatch.batch_num == body.batch_num)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Batch number already exists")
+
+    if body.sample_subtype_id is not None:
+        await validate_subtype_for_batch(body.sample_type_id, body.sample_subtype_id, db)
+    if body.turnaround_option_id is not None:
+        await validate_turnaround_for_batch(body.sample_type_id, body.turnaround_option_id, db)
+
+    unit_type_ids = [u.sample_unit_type_id for u in body.units]
+    await validate_unit_types_for_batch(body.sample_type_id, unit_type_ids, db)
+    await validate_inspector_count(sample_type, len(body.inspector_ids))
+
+    for emp_id in body.inspector_ids:
+        if not await db.get(Employee, emp_id):
+            raise HTTPException(status_code=404, detail=f"Employee {emp_id} not found")
+
+    # --- Writes (all-or-nothing) ---
+    entry = TimeEntry(
+        start_datetime=start_dt,
+        end_datetime=None,
+        employee_id=body.employee_id,
+        employee_role_id=body.employee_role_id,
+        project_id=body.project_id,
+        school_id=body.school_id,
+        status=TimeEntryStatus.ASSUMED,
+        created_by_id=SYSTEM_USER_ID,
+    )
+    db.add(entry)
+    await db.flush()  # get entry.id before creating the batch
+
+    # Validate employee role for sample type using the new time entry
+    await validate_employee_role_for_sample_type(entry.id, body.sample_type_id, db)
+
+    batch = SampleBatch(
+        sample_type_id=body.sample_type_id,
+        sample_subtype_id=body.sample_subtype_id,
+        turnaround_option_id=body.turnaround_option_id,
+        time_entry_id=entry.id,
+        batch_num=body.batch_num,
+        is_report=body.is_report,
+        date_collected=body.date_collected,
+        notes=body.notes,
+        created_by_id=SYSTEM_USER_ID,
+    )
+    db.add(batch)
+    await db.flush()
+
+    for unit in body.units:
+        db.add(SampleBatchUnit(
+            batch_id=batch.id,
+            sample_unit_type_id=unit.sample_unit_type_id,
+            quantity=unit.quantity,
+        ))
+
+    for emp_id in body.inspector_ids:
+        db.add(SampleBatchInspector(batch_id=batch.id, employee_id=emp_id))
+
+    await db.commit()
+    await db.refresh(batch)
+    return batch

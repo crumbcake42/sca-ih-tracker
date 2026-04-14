@@ -214,9 +214,8 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ### Phase 3.6 — Notes and Blockers _(next step)_
 
-> Prerequisite for Phase 4: overlap detection writes system notes instead of returning 422.
 > Prerequisite for Phase 6: project closure gates on unresolved blocking notes across all project entities.
-> Implement before any Phase 4 migration work begins.
+> Phase 4 no longer requires Phase 3.6 — overlap detection was changed to return 422 at entry time rather than creating system notes (see Phase 4 design decisions).
 
 **Data model:**
 
@@ -245,7 +244,7 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ---
 
-### Phase 4 — Lab Results _(in progress)_
+### Phase 4 — Lab Results ✓ COMPLETE (migration pending — user-managed)
 
 Two-layer design: admin-configurable type definitions (config layer) + per-job recorded data (data layer). Adding a new sample type requires no code or migration — an admin adds rows to the config tables.
 
@@ -271,24 +270,25 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 > **Design decision — `source` column dropped:** `created_by_id == SYSTEM_USER_ID` already encodes whether an entry was system-created — a redundant column adds a migration with no new information.
 >
-> **Design decision — `conflicted` reinstated as a Notes concern, not a status column:** Both conflicting entries are allowed to be created. On overlap, the service calls `create_system_note()` on both entries (`note_type = time_entry_conflict`, `is_blocking = True`) with a body identifying the other project and entry. Neither project can close until the notes are resolved. When the overlap is cleared (entry deleted, times adjusted), `auto_resolve_system_notes()` is called on both entries. No `conflicted` column on `time_entries` — the blocking state lives in the Notes system.
->
-> **Real-world rationale:** Employees often submit logs late and with errors across multiple projects. Blocking the second manager's entry with a 422 creates a race to enter first — the losing manager's project can't record work that was actually done. Allowing both entries with system-generated blocking notes lets both projects track reported work while surfacing the conflict to both managers for resolution.
+> **Design decision — overlap returns 422 at entry time (changed from system notes):** If a POST or PATCH time entry would overlap an existing entry for the same employee (checked cross-project), the request returns 422 identifying the conflicting entry ID. No conflicting entry is created. This was changed from the earlier design (create both + system notes) because the team is small and internal — the practical case is a manager correcting a data-entry error, not two managers racing to record real parallel work.
 >
 > **Design decision — `orphaned` status dropped:** Time entries are rarely deleted in practice. Rather than detect and mark batches orphaned when their entry's date range changes, block deletion of any time entry that has `active` or `discarded` batches (409 with explanation). Managers must reassign or delete batches first.
 
-- [ ] `time_entries.status` — `assumed` (system placeholder, times not yet confirmed) \| `entered` (times manually input or confirmed from daily logs) \| `locked` (project closed; read-only)
-- [ ] When a manager edits a `status=assumed` entry, set `status → entered`; `created_by_id` stays as `SYSTEM_USER_ID` (immutable origin); `updated_by_id` = manager's user ID
-- [ ] Overlap detection at insert/update: if `(employee_id, start_datetime, end_datetime)` overlaps any existing entry for that employee, **allow the insert** and call `create_system_note()` on both conflicting entries (`note_type = time_entry_conflict`); on delete or time update, call `auto_resolve_system_notes()` for any pairs that no longer overlap (requires Phase 3.6 Notes system)
-- [ ] `sample_batches.status` — `active` \| `discarded` \| `locked` (migration adds column)
-- [ ] Make `sample_batches.time_entry_id` nullable (migration)
-- [ ] Block deletion of `time_entries` that have `active` or `discarded` batches (409 with explanation)
+- [x] `time_entries.status` — `assumed` \| `entered` \| `locked`; default `entered` for manager-created entries
+- [x] When a manager edits a `status=assumed` entry, set `status → entered`; `created_by_id` stays as `SYSTEM_USER_ID`; `updated_by_id` = manager's user ID
+- [x] Overlap detection at insert/update: 422 if the new/updated entry would overlap any existing entry for that employee (cross-project); NULL `end_datetime` treated as full day (midnight to midnight) since assumed entries always start at `00:00:00`
+- [x] `sample_batches.status` — `active` \| `discarded` \| `locked`; default `active`
+- [x] Make `sample_batches.time_entry_id` nullable; batch with no time entry is a blocking issue (dismissable requirements design deferred to after Phase 6)
+- [x] Block deletion of `time_entries` that have `active` or `discarded` batches (409)
+- [x] `POST /lab-results/batches/{id}/discard` — dedicated discard endpoint (not a PATCH field); sets `status=discarded`; 422 if already discarded or locked
 
 **Quick-add endpoint** (manager-facing; no pre-existing time entry required):
 
-- [ ] `POST /lab-results/batches/quick-add` — accepts `project_id`, `school_id`, `employee_id`, `date_collected` instead of `time_entry_id`; calls `resolve_or_create_time_entry()` which finds an existing entry for that employee/project/school/date or creates a placeholder (`status=assumed`, span = `date_collected 00:00` → `date_collected+1 00:00`, `created_by_id=SYSTEM_USER_ID`)
-- [ ] Role resolution for system-created entries: use the first active role matching any `sample_type_required_roles` for the batch's sample type; if no required roles, use the employee's first active role on `date_collected`; 422 if no active role found
-- [ ] Inspector resolution: use the first `inspector_id` in the list as the time entry's `employee_id`
+- [x] `POST /lab-results/batches/quick-add` — accepts `employee_id`, `employee_role_id`, `project_id`, `school_id`, `date_on_site` plus all batch fields; creates assumed `TimeEntry` (midnight of `date_on_site`, `end=NULL`, `created_by_id=SYSTEM_USER_ID`) and `SampleBatch` atomically; all validations run before any write; overlap check runs against the full-day span
+
+**Deferred — Dismissable requirements** (discovered during Phase 4 planning):
+
+- [ ] A batch with `time_entry_id=NULL` should be surfaceable as a blocking issue that a manager can explicitly dismiss (acknowledging the problem and excluding those samples from billing). Needs design: storage, permissions, billing integration. `time_entry_id` nullable (Phase 4) is the prerequisite. Implement after Phase 6.
 
 **Billing runway** (not implemented yet — see Follow-up Project):
 

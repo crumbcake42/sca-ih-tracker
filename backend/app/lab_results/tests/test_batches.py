@@ -640,3 +640,90 @@ class TestBatchAuditFields:
         assert response.status_code == 200
         batch = await db_session.get(SampleBatch, batch_id)
         assert batch.updated_by_id == 1  # fake_user.id from auth_client fixture
+
+
+# ---------------------------------------------------------------------------
+# Batch status defaults
+# ---------------------------------------------------------------------------
+
+
+class TestBatchStatusDefault:
+    async def test_create_defaults_to_active(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Status Default Type")
+        response = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-ST1"))
+        assert response.status_code == 201
+        assert response.json()["status"] == "active"
+
+
+# ---------------------------------------------------------------------------
+# POST /batches/{id}/discard
+# ---------------------------------------------------------------------------
+
+
+class TestDiscardBatch:
+    async def test_discard_active_batch_returns_200(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Discard Type 1")
+        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-DIS1"))
+        batch_id = create.json()["id"]
+
+        response = await auth_client.post(f"{BASE}/{batch_id}/discard")
+        assert response.status_code == 200
+        assert response.json()["status"] == "discarded"
+
+    async def test_discard_already_discarded_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Discard Type 2")
+        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-DIS2"))
+        batch_id = create.json()["id"]
+
+        await auth_client.post(f"{BASE}/{batch_id}/discard")
+        response = await auth_client.post(f"{BASE}/{batch_id}/discard")
+        assert response.status_code == 422
+
+    async def test_discard_missing_batch_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.post(f"{BASE}/9999/discard")
+        assert response.status_code == 404
+
+    async def test_discard_sets_updated_by_id(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Discard Type 3")
+        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-DIS3"))
+        batch_id = create.json()["id"]
+
+        await auth_client.post(f"{BASE}/{batch_id}/discard")
+        batch = await db_session.get(SampleBatch, batch_id)
+        assert batch.updated_by_id == 1  # fake_user.id from auth_client fixture
+
+
+# ---------------------------------------------------------------------------
+# Nullable time_entry_id
+# ---------------------------------------------------------------------------
+
+
+class TestNullableTimeEntry:
+    async def test_create_batch_without_time_entry_returns_201(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Nullable TE Type")
+        payload = ctx.batch_payload("BATCH-NTE1")
+        payload["time_entry_id"] = None  # explicitly null
+
+        response = await auth_client.post(BASE + "/", json=payload)
+        assert response.status_code == 201
+        assert response.json()["time_entry_id"] is None
+
+    async def test_create_batch_with_invalid_time_entry_returns_404(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Nullable TE Type 2")
+        payload = ctx.batch_payload("BATCH-NTE2")
+        payload["time_entry_id"] = 9999  # non-existent
+
+        response = await auth_client.post(BASE + "/", json=payload)
+        assert response.status_code == 404

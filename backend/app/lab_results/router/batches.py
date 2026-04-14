@@ -14,9 +14,12 @@ from app.lab_results.schemas import (
     SampleBatchRead,
     SampleBatchUpdate,
 )
+from app.common.enums import SampleBatchStatus
+from app.lab_results.schemas import QuickAddBatchCreate
 from app.lab_results.service import (
     get_batch_or_404,
     get_sample_type_or_404,
+    quick_add_batch,
     validate_employee_role_for_sample_type,
     validate_inspector_count,
     validate_subtype_for_batch,
@@ -67,9 +70,8 @@ async def create_batch(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Batch number already exists")
 
-    # Validate time entry exists (independent of role check, which returns early
-    # when no required roles are defined and would otherwise skip this check)
-    if not await db.get(TimeEntry, body.time_entry_id):
+    # Validate time entry exists when one is provided
+    if body.time_entry_id is not None and not await db.get(TimeEntry, body.time_entry_id):
         raise HTTPException(status_code=404, detail="Time entry not found")
 
     # Validate optional FK fields belong to the sample type
@@ -146,3 +148,30 @@ async def delete_batch(batch_id: int, db: AsyncSession = Depends(get_db)):
     batch = await get_batch_or_404(batch_id, db)
     await db.delete(batch)
     await db.commit()
+
+
+@router.post("/{batch_id}/discard", response_model=SampleBatchRead)
+async def discard_batch(
+    batch_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
+):
+    batch = await get_batch_or_404(batch_id, db)
+    if batch.status == SampleBatchStatus.LOCKED:
+        raise HTTPException(status_code=422, detail="Cannot discard a locked batch")
+    if batch.status == SampleBatchStatus.DISCARDED:
+        raise HTTPException(status_code=422, detail="Batch is already discarded")
+    batch.status = SampleBatchStatus.DISCARDED
+    batch.updated_by_id = current_user.id
+    await db.commit()
+    await db.refresh(batch)
+    return batch
+
+
+@router.post("/quick-add", response_model=SampleBatchRead, status_code=status.HTTP_201_CREATED)
+async def quick_add(
+    body: QuickAddBatchCreate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(_edit_dep),
+):
+    return await quick_add_batch(body, db)

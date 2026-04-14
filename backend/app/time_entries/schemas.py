@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.common.enums import TimeEntryStatus
+
 
 class TimeEntryCreate(BaseModel):
     start_datetime: datetime
@@ -43,4 +45,5 @@ class TimeEntryRead(BaseModel):
     project_id: int
     school_id: int
     notes: str | None
+    status: TimeEntryStatus
     created_at: datetime

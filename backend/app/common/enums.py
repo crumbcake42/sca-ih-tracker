@@ -83,6 +83,18 @@ class SCADeliverableStatus(StrEnum):
     APPROVED = "approved"
 
 
+class TimeEntryStatus(StrEnum):
+    ASSUMED = "assumed"
+    ENTERED = "entered"
+    LOCKED = "locked"
+
+
+class SampleBatchStatus(StrEnum):
+    ACTIVE = "active"
+    DISCARDED = "discarded"
+    LOCKED = "locked"
+
+
 class EmployeeRoleType(StrEnum):
     ACM_AIR_TECH = "Asbestos On Site Technical Air Testing"
     ACM_PROJECT_MONITOR = "Asbestos Project Monitor"
