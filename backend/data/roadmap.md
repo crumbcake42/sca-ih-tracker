@@ -212,6 +212,39 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ---
 
+### Phase 3.6 — Notes and Blockers _(next step)_
+
+> Prerequisite for Phase 4: overlap detection writes system notes instead of returning 422.
+> Prerequisite for Phase 6: project closure gates on unresolved blocking notes across all project entities.
+> Implement before any Phase 4 migration work begins.
+
+**Data model:**
+
+- [ ] `notes` table — `entity_type` (enum: `project` \| `time_entry` \| `deliverable` \| `sample_batch` \| `work_auth`), `entity_id` (int; no DB-level FK — polymorphic attachment, app-layer enforced), `parent_note_id` (nullable FK → `notes.id`; one level of replies only), `body` (text), `note_type` (nullable enum: `time_entry_conflict` \| future system types; `NULL` for user-authored notes), `is_blocking` (bool), `is_resolved` (bool, default `False`), `resolved_by_id` (nullable FK → `users.id`), `resolved_at` (nullable timestamp); `AuditMixin` covers `created_at`, `updated_at`, `created_by_id`, `updated_by_id` (`created_by_id = SYSTEM_USER_ID` for system notes)
+- [ ] `NoteEntityType` enum in `app/common/enums.py`; `NoteType` enum for system-generated note types
+
+**Service layer:**
+
+- [ ] `create_system_note(entity_type, entity_id, note_type, body, db)` — inserts a blocking note with `created_by_id = SYSTEM_USER_ID`; checks for an existing unresolved note of the same `note_type` on the same entity before inserting to prevent duplicates
+- [ ] `auto_resolve_system_notes(entity_id, note_type, db)` — marks all unresolved notes of a given type on a given entity as resolved (`resolved_by_id = SYSTEM_USER_ID`, `resolved_at = now()`); called from the service layer when the underlying condition is cleared (e.g., overlap fixed)
+- [ ] `get_blocking_notes_for_project(project_id, db)` — aggregates all unresolved blocking notes across: the project itself, all linked time entries, all deliverables, all sample batches, all work auths; returns a list with `entity_type`, `entity_id`, a human-readable `entity_label`, and a `link` for frontend navigation
+
+**Endpoints:**
+
+- [ ] `GET /notes/{entity_type}/{entity_id}` — all notes on this entity, threaded (top-level notes with their replies nested); ordered by `created_at`
+- [ ] `POST /notes/{entity_type}/{entity_id}` — create a user note; request body includes `is_blocking` (bool) and `body` (text); validates entity exists before inserting
+- [ ] `POST /notes/{note_id}/reply` — add a reply to a top-level note; replies are never blocking
+- [ ] `PATCH /notes/{note_id}/resolve` — mark a user-authored blocking note as resolved; requires a `resolution_note` field in the request body (auto-appended as a reply to preserve the resolution rationale); system notes (`note_type IS NOT NULL`) cannot be manually resolved — they auto-resolve when the condition clears
+- [ ] `GET /projects/{id}/blocking-issues` — aggregated unresolved blocking notes across all entities belonging to the project; used by the project status engine and by `lock_project_records()`
+
+**Integration rules:**
+
+- `entity_type + entity_id` is a polymorphic reference — no DB-level FK; service validates entity existence before creating a note
+- Blocking notes on a deliverable block status transitions to `submitted` or `approved` — checked in the deliverable PATCH endpoint
+- Future `@mention` support: do not sanitize or strip `@username` patterns from note bodies; the body is stored as-is so a future mention parser can extract them without a data migration (see Follow-up Project — User Notifications)
+
+---
+
 ### Phase 4 — Lab Results _(in progress)_
 
 Two-layer design: admin-configurable type definitions (config layer) + per-job recorded data (data layer). Adding a new sample type requires no code or migration — an admin adds rows to the config tables.
@@ -236,16 +269,20 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 **Time entry state model** — **NEXT STEP** (one migration adds `status` to `time_entries`):
 
-> **Design decision:** `source` column was dropped. `created_by_id == SYSTEM_USER_ID` already encodes whether an entry was system-created — a redundant column adds a migration with no new information.
+> **Design decision — `source` column dropped:** `created_by_id == SYSTEM_USER_ID` already encodes whether an entry was system-created — a redundant column adds a migration with no new information.
 >
-> **Design decision:** `conflicted` status was dropped. Overlap is caught at insert/update time with a 422 (see below) rather than maintained as running state. Running state requires re-evaluating overlap on every delete and update, is complex to keep correct, and turns a minor data-entry mistake into a hard project-closure block for a small internal team.
+> **Design decision — `conflicted` reinstated as a Notes concern, not a status column:** Both conflicting entries are allowed to be created. On overlap, the service calls `create_system_note()` on both entries (`note_type = time_entry_conflict`, `is_blocking = True`) with a body identifying the other project and entry. Neither project can close until the notes are resolved. When the overlap is cleared (entry deleted, times adjusted), `auto_resolve_system_notes()` is called on both entries. No `conflicted` column on `time_entries` — the blocking state lives in the Notes system.
+>
+> **Real-world rationale:** Employees often submit logs late and with errors across multiple projects. Blocking the second manager's entry with a 422 creates a race to enter first — the losing manager's project can't record work that was actually done. Allowing both entries with system-generated blocking notes lets both projects track reported work while surfacing the conflict to both managers for resolution.
+>
+> **Design decision — `orphaned` status dropped:** Time entries are rarely deleted in practice. Rather than detect and mark batches orphaned when their entry's date range changes, block deletion of any time entry that has `active` or `discarded` batches (409 with explanation). Managers must reassign or delete batches first.
 
 - [ ] `time_entries.status` — `assumed` (system placeholder, times not yet confirmed) \| `entered` (times manually input or confirmed from daily logs) \| `locked` (project closed; read-only)
 - [ ] When a manager edits a `status=assumed` entry, set `status → entered`; `created_by_id` stays as `SYSTEM_USER_ID` (immutable origin); `updated_by_id` = manager's user ID
-- [ ] Overlap validation at insert/update: if the new entry's `(employee_id, start_datetime, end_datetime)` overlaps any existing entry for that employee, return 422 with a clear message identifying the conflict — no `conflicted` status, no reactive re-evaluation
+- [ ] Overlap detection at insert/update: if `(employee_id, start_datetime, end_datetime)` overlaps any existing entry for that employee, **allow the insert** and call `create_system_note()` on both conflicting entries (`note_type = time_entry_conflict`); on delete or time update, call `auto_resolve_system_notes()` for any pairs that no longer overlap (requires Phase 3.6 Notes system)
 - [ ] `sample_batches.status` — `active` \| `discarded` \| `locked` (migration adds column)
 - [ ] Make `sample_batches.time_entry_id` nullable (migration)
-- [ ] Block deletion of `time_entries` that have `active` or `discarded` batches (409 with explanation) — simpler than orphan detection; managers rarely delete time entries in practice
+- [ ] Block deletion of `time_entries` that have `active` or `discarded` batches (409 with explanation)
 
 **Quick-add endpoint** (manager-facing; no pre-existing time entry required):
 
@@ -279,13 +316,11 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 - [ ] Wire `recalculate_deliverable_sca_status()` into: `POST /work-auths/`, `POST /work-auths/{id}/project-codes`, `POST /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve)
 - [ ] Service: `ensure_deliverables_exist(project_id)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; called from time entry and lab result creation so deliverables are tracked as soon as work is recorded, before the WA exists
 - [ ] **Gap from design doc:** when a batch is recorded, check `sample_type_wa_codes` for the batch's sample type and surface any WA codes not yet on the project's WA as a project flag ("needs RFA to add LAMP30, LAMP32"); the `sample_type_wa_codes` table and FK are already in place — this wiring is not yet planned as a concrete task
-- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, and unconfirmed time entries; returns computed status
-- [ ] Implement `project_flags` — a project can carry multiple non-blocking notes and blocking issues simultaneously; **blocking flags include:**
-  - Any `time_entry` linked to this project with `status=assumed` — placeholder times not yet confirmed from daily logs
-  - Any `sample_batch` linked to this project with `status=discarded` that has not been reviewed _(exact semantics TBD)_
-- [ ] Service: `lock_project_records(project_id)` — called on project closure; transitions all linked `time_entries` from `assumed`/`entered` → `locked` and all linked `sample_batches` from `active` → `locked`; locked records are read-only; guards on update endpoints check `status != locked` before allowing changes
+- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, unconfirmed time entries, and unresolved blocking notes; returns computed status; calls `get_blocking_notes_for_project()` (Phase 3.6) as part of the check
+- [ ] Service: `lock_project_records(project_id)` — before locking, calls `get_blocking_notes_for_project()` and hard-blocks closure if any unresolved blocking notes exist (returns 409 listing each blocking issue); on success, transitions all linked `time_entries` from `assumed`/`entered` → `locked` and all `sample_batches` from `active` → `locked`; locked records are read-only; guards on update endpoints check `status != locked` before allowing changes
 - [ ] Wire status derivation into project update endpoints
-- [ ] `GET /projects/{id}/status` — returns full status breakdown including any blocking flags
+- [ ] `GET /projects/{id}/status` — returns full status breakdown; includes output of `get_blocking_notes_for_project()` as a `blocking_issues` list so the frontend can surface each issue with a navigation link to its entity
+- [ ] `GET /projects/{id}/blocking-issues` — direct endpoint for the aggregated blocking notes view (implemented in Phase 3.6; wired into project status here)
 
 ---
 
@@ -297,6 +332,70 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 - [ ] `GET /projects/dashboard/ready-to-bill`
 - [ ] `GET /projects/dashboard/awaiting-contractor-doc`
 - [ ] Add composite DB indexes to support these queries (see Hazards section)
+
+---
+
+## Documentation Plan
+
+### Why this exists
+
+The most common reason documentation goes stale is that it lives somewhere separate from the code. A doc written once and never touched again becomes actively misleading — worse than no doc at all. The strategy here keeps documentation physically close to what it describes and uses formats that are cheap to update alongside code changes.
+
+### What goes where
+
+| Location | Purpose | What NOT to put here |
+|---|---|---|
+| `backend/data/roadmap.md` | Design intent, decisions made, what's coming next | Implementation details already in code |
+| `backend/data/handoff.md` | Per-session continuity notes; non-obvious technical context | Long-term design (that belongs in roadmap) |
+| `backend/app/PATTERNS.md` | Cross-cutting SQLAlchemy/FastAPI patterns that apply to multiple modules | Module-specific behavior |
+| `backend/app/{module}/README.md` | Module purpose, non-obvious behavior, what to check before modifying | Things the code already says clearly |
+| Inline code comments | The "why" behind non-obvious logic; not what the code does | Obvious or self-documenting operations |
+
+### What each module README covers
+
+Three sections, no more:
+
+1. **Purpose** — one paragraph: what this module owns, and explicitly what it does NOT own (boundary statements prevent scope creep in both code and understanding)
+2. **Non-obvious behavior** — anything that will cause a bug if forgotten; technical patterns that aren't visible from reading the surface of the code (e.g., `populate_existing=True`, FK validation in early-return paths)
+3. **Before you modify** — specific guard rails for this module; what to test, what service functions to check, what other modules are affected by changes here
+
+### Diagrams (Mermaid)
+
+Mermaid diagrams are embedded as code blocks in Markdown files and render natively in VS Code and GitHub. They're version-controlled text — updating them is editing a file, not screenshotting a whiteboard.
+
+**Use state diagrams for any entity with a status column:**
+- `time_entries.status` — `assumed → entered → locked` with transition conditions
+- `sample_batches.status` — `active → discarded/locked`
+- `notes.is_resolved` — blocking note lifecycle (created → auto-resolved / manually resolved)
+- Deliverable `internal_status` and `sca_status` — the two parallel tracks
+
+**Use flowcharts for any validation chain with branching:**
+- Batch creation validation (time entry check → role check → subtype → unit types → TAT → inspector count)
+- Quick-add time entry resolution (`resolve_or_create_time_entry`)
+- Deliverable SCA status recalculation (`recalculate_deliverable_sca_status`)
+
+**Use sequence diagrams for cross-module flows:**
+- `POST /lab-results/batches/quick-add` — which service functions are called, in which order, across which modules
+- Project closure (`lock_project_records`) — what is checked and in what sequence before locking proceeds
+
+### When to write docs
+
+Write module READMEs **before** writing Phase 4 code — not after. Documentation written before implementation forces you to articulate the design, which catches ambiguities before they become bugs. Documentation written after implementation is usually skipped because the code "already explains it."
+
+Rule of thumb: if you had to stop and think about how something works before writing the code, document it. If it was straightforward, skip it.
+
+### Files to generate (not yet created)
+
+- [ ] `backend/README.md` — module index, how to run dev server, how to run tests, where design docs live
+- [ ] `backend/app/PATTERNS.md` — `db.get()` vs `select() + populate_existing`, FK validation in early-return paths, `PermissionChecker` pattern, AuditMixin wiring, rollback test pattern
+- [ ] `backend/app/lab_results/README.md` — config vs. data layer, batch validation chain flowchart, `populate_existing` warning, state model
+- [ ] `backend/app/time_entries/README.md` — state diagram, overlap detection + notes integration, quick-add service flow
+- [ ] `backend/app/notes/README.md` — polymorphic attachment pattern, system vs. user notes, auto-resolve lifecycle, future @mention hook
+- [ ] `backend/app/projects/README.md` — status derivation, link table relationships, blocking issues aggregation
+- [ ] `backend/app/work_auths/README.md` — WA/RFA state machine diagram
+- [ ] `backend/app/common/README.md` — what lives here, enums policy, AuditMixin overview, factory router pattern
+
+Generate these after Phase 3.6 is implemented, before Phase 4 code is written.
 
 ---
 
@@ -463,27 +562,23 @@ Joins on indexed columns are fast regardless of table size. The join-heavy schem
 
 ### Design Note — Time Entry and Sample Batch State Model
 
-**`time_entries`** carry two orthogonal fields added in Phase 4:
+**`time_entries.status`** (3 values, added in Phase 4):
 
-`source` (immutable, set at creation):
-- `manual` — entered by a manager from activity logs; also set when a manager edits a system-created entry
-- `system` — auto-created by the quick-add endpoint on behalf of a lab sample receipt; `created_by_id = SYSTEM_USER_ID`
+- `assumed` — system-created placeholder; `start_datetime`/`end_datetime` span midnight-to-midnight on `date_collected`; times not yet confirmed from daily logs
+- `entered` — times manually input or confirmed by a manager from daily logs; any manager edit to an `assumed` entry flips it to `entered`
+- `locked` — project closed; entry is read-only
 
-`status` (mutable):
-- `assumed` — system placeholder; `start_datetime`/`end_datetime` are implied (00:00–00:00), not confirmed
-- `entered` — manually input or manager-confirmed; times are intentional
-- `conflicted` — overlaps with another time entry for the same employee on any project; both entries are flagged; neither project can close until the conflict is resolved
-- `locked` — project has been closed; entry is read-only and excluded from billing recalculation
+`created_by_id == SYSTEM_USER_ID` is sufficient to distinguish system-created entries from manually entered ones. No `source` column is needed.
 
-When a manager edits a `source=system` entry, `source` flips to `manual` and `status` advances to `entered`. `created_by_id` stays as `SYSTEM_USER_ID` — it records the origin, not the last editor.
+**Conflict handling:** Overlapping entries for the same employee are allowed to exist simultaneously. On overlap detection (at insert/update), the service creates `time_entry_conflict` system notes (Phase 3.6) on both conflicting entries. These notes are blocking — neither project can close until the conflict is resolved. When the overlap is cleared, the system notes auto-resolve. This allows both managers to record reported work while making the conflict visible and tracked.
 
-**`sample_batches`** carry a `status` field:
-- `active` — linked to a valid, non-locked time entry
-- `orphaned` — `time_entry_id` was deleted or revised such that `date_collected` no longer falls within the entry's span; `time_entry_id` becomes `NULL`; orphaned batches block project closure until re-linked or discarded
+**`sample_batches.status`** (3 values, added in Phase 4):
+
+- `active` — normal state
 - `discarded` — explicitly invalidated by a manager (e.g., falsified samples, COC error); excluded from billing calculations
 - `locked` — project closed; read-only
 
-Overlap detection (`flag_employee_overlaps`) and orphan detection (`orphan_detached_batches`) run as service calls on every time entry write, not as DB triggers, so they are testable and readable. See Phase 4.
+**Orphan handling:** The `orphaned` status was dropped. Instead, deletion of a time entry that has `active` or `discarded` batches linked to it is blocked with a 409. Managers must reassign or delete those batches before the entry can be deleted. This is sufficient because time entries are logs of real work and are rarely deleted in practice.
 
 ---
 
@@ -499,6 +594,19 @@ Rate resolution chain: `sample_batch_unit → batch → time_entry → project �
 Rates are denormalized onto `sample_batch_units.unit_rate` at record time (same pattern as `work_auth_project_codes.fee` and `employee_roles.hourly_rate`) so historical batches are unaffected when contract rates change.
 
 ---
+
+---
+
+## Follow-up Project — User Notifications and @Mentions
+
+> Deferred. The Notes system (Phase 3.6) is designed to accommodate this without schema changes. Notes store body text as-is; `@username` patterns are intentionally preserved for future parsing. Do not sanitize or strip them.
+
+When implemented:
+
+- `note_mentions` table — `(note_id, user_id, notified_at)`; populated by parsing `@username` patterns from note bodies on creation or edit; parser lives in `notes/service.py`
+- Notification dispatch: when a `note_mentions` row is inserted, queue a notification to the mentioned user (delivery channel TBD — email / in-app / both)
+- In-app notification center: `GET /users/me/notifications` — unread mentions and unread replies to notes the user has participated in; `PATCH /users/me/notifications/{id}/read` — mark as read
+- This feature does not require changes to the `notes` table schema — it extends cleanly with one new table and a parser function
 
 ---
 
