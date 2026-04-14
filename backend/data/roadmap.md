@@ -176,39 +176,47 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ---
 
-### Phase 3.5 — Audit Infrastructure
+### Phase 3.5 — Audit Infrastructure ✓ COMPLETE
 
 > Cross-cutting concern applied in one pass. Doing this incrementally risks inconsistent audit data — a null `updated_by_id` would be indistinguishable from "never edited" vs "edited before we wired this in."
 
 **System user sentinel:**
 
-- [ ] Seed a reserved `users` row (`id=1`, `username="system"`, no valid password hash) in `app/scripts/db.py`; this user represents automated writes
-- [ ] Define `SYSTEM_USER_ID: int = 1` constant in `app/common/config.py`; import it wherever service functions write on behalf of the system
+- [x] Seed a reserved `users` row (`id=1`, `username="system"`, no valid password hash) in `app/scripts/db.py`; this user represents automated writes
+- [x] Define `SYSTEM_USER_ID: int = 1` constant in `app/common/config.py`; import it wherever service functions write on behalf of the system
 
-**Apply `AuditMixin` to all business entity models** (one migration):
+**Apply `AuditMixin` to all business entity models** (migration pending — user-managed):
 
-- [ ] `wa_codes`, `deliverables` — reference data; need to know who changed a code definition or deliverable template
-- [ ] `work_auths`, `work_auth_project_codes`, `work_auth_building_codes` — financial/legal records
-- [ ] `rfas`, `rfa_project_codes`, `rfa_building_codes` — approval workflow
-- [ ] `projects`, `employees`, `employee_roles` — core operational data
-- [ ] `project_deliverables`, `project_building_deliverables` — status tracking
-- [ ] `time_entries`, `sample_batches` — field activity; also carry `source`/`status` (see Phase 4)
-- [ ] `sample_types` and all config sub-tables — admin-managed, still auditable
-- [ ] `schools`, `contractors`, `hygienists` — reference data; address/name changes have downstream effects on reports (see Design Note)
-- [ ] **Exclude**: `manager_project_assignments` (already a purpose-built audit trail); `project_school_links`, `project_contractor_links`, `project_hygienist_links` (managed via parent; parent's audit covers them); `users`, `roles`, `permissions` (auth layer)
+- [x] `wa_codes`, `deliverables` — reference data; need to know who changed a code definition or deliverable template
+- [x] `work_auths`, `work_auth_project_codes`, `work_auth_building_codes` — financial/legal records
+- [x] `rfas`, `rfa_project_codes`, `rfa_building_codes` — approval workflow
+- [x] `projects`, `employees`, `employee_roles` — core operational data
+- [x] `project_deliverables`, `project_building_deliverables` — status tracking
+- [x] `time_entries`, `sample_batches` — field activity; also carry `source`/`status` (see Phase 4)
+- [x] `sample_types` and all config sub-tables — admin-managed, still auditable
+- [x] `schools`, `contractors`, `hygienists` — reference data; address/name changes have downstream effects on reports (see Design Note)
+- [x] **Exclude**: `manager_project_assignments` (already a purpose-built audit trail); `project_school_links`, `project_contractor_links`, `project_hygienist_links` (managed via parent; parent's audit covers them); `users`, `roles`, `permissions` (auth layer)
 
 **Wire `created_by_id` / `updated_by_id` into all write endpoints** on audited models:
 
-- [ ] Add `current_user: User = Depends(get_current_user)` to every create/update route on audited models; set `created_by_id = current_user.id` on insert and `updated_by_id = current_user.id` on update
-- [ ] For system-initiated writes (quick-add time entry, status recalculation, orphan flagging), pass `user_id=SYSTEM_USER_ID` into the service function explicitly
+- [x] Add `current_user: User = Depends(get_current_user)` to every create/update route on audited models; set `created_by_id = current_user.id` on insert and `updated_by_id = current_user.id` on update
+- [x] For system-initiated writes (quick-add time entry, status recalculation, orphan flagging), pass `user_id=SYSTEM_USER_ID` into the service function explicitly
+
+**Audit tests:**
+
+- [x] `POST /time-entries/` sets `created_by_id`; `PATCH` sets `updated_by_id`
+- [x] `POST /lab-results/batches/` sets `created_by_id`; `PATCH` sets `updated_by_id`
+- [x] `POST /work-auths` sets `created_by_id`; `PATCH` sets `updated_by_id`
+- [x] Batch CSV import (`POST /schools/batch/import`) sets `created_by_id` on created records
+- [x] System user sentinel: `"!"` hash blocks all `verify_password` attempts
 
 ---
 
-### Phase 4 — Lab Results
+### Phase 4 — Lab Results _(in progress)_
 
 Two-layer design: admin-configurable type definitions (config layer) + per-job recorded data (data layer). Adding a new sample type requires no code or migration — an admin adds rows to the config tables.
 
-**Config layer** (admin-managed, seeded initially, rarely change):
+**Config layer** (admin-managed, seeded initially, rarely change): ✓ COMPLETE
 
 - [x] `sample_types` — `id`, `name` ("PCM", "Bulk", "LDW"), `description`, `allows_multiple_inspectors` (bool)
 - [x] `sample_subtypes` — `id`, `sample_type_id` (FK), `name` ("Pre-Abatement", "During", "Final", "Ambient")
@@ -218,30 +226,32 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 - [x] `sample_type_wa_codes` — M2M: `sample_type_id`, `wa_code_id` (FK); which WA codes are required to bill this sample type
 - [x] Admin CRUD under `/lab-results/config/sample-types`; seed initial PCM + Bulk definitions on first deploy
 
-**Data layer** (recorded per job):
+**Data layer** (recorded per job): ✓ COMPLETE (basic CRUD — state model pending)
 
-- [x] `sample_batches` — `id`, `sample_type_id` (FK), `sample_subtype_id` (FK, nullable), `turnaround_option_id` (FK, nullable), `time_entry_id` (FK, **nullable** — batches may become orphaned if their time entry is later deleted or revised past their `date_collected`), `batch_num`, `is_report`, `date_collected`, `notes`, `status` (`active` \| `orphaned` \| `discarded`)
-- [x] `sample_batch_units` — `id`, `batch_id` (FK), `sample_unit_type_id` (FK), `quantity` (int), `unit_rate` (Numeric, nullable — denormalized from `sample_rates` at record time, consistent with how `work_auth_project_codes.fee` and `employee_roles.hourly_rate` are stored)
+- [x] `sample_batches` — `id`, `sample_type_id`, `sample_subtype_id` (nullable), `turnaround_option_id` (nullable), `time_entry_id` (FK, currently required — make nullable in next migration), `batch_num`, `is_report`, `date_collected`, `notes`
+- [x] `sample_batch_units` — `id`, `batch_id` (FK), `sample_unit_type_id` (FK), `quantity` (int), `unit_rate` (Numeric, nullable)
 - [x] `sample_batch_inspectors` — M2M: `batch_id`, `employee_id` (FK)
 - [x] App-layer validation on batch create: unit type must belong to the batch's sample type (422 otherwise); employee must hold a role in `sample_type_required_roles` for the type
 - [x] CRUD endpoints: `POST/GET /lab-results/batches/`, `GET /lab-results/batches/{id}`, `PATCH /lab-results/batches/{id}`, `DELETE /lab-results/batches/{id}`
 
-**Time entry state model** (migration adds `source` + `status` to `time_entries`):
+**Time entry state model** — **NEXT STEP** (one migration adds `status` to `time_entries`):
 
-- [ ] `time_entries.source` — `manual` (entered from activity log) \| `system` (auto-created by quick-add); immutable after creation; tracked via `created_by_id` in `AuditMixin`
-- [ ] `time_entries.status` — `assumed` (system placeholder, unconfirmed) \| `entered` (manually input) \| `conflicted` (overlaps another entry for the same employee on any project) \| `locked` (project closed/billed; read-only)
-- [ ] When a manager edits a `source=system` entry, flip `source → manual` and set `status → entered`; `created_by_id` stays as `SYSTEM_USER_ID` (immutable origin record); `updated_by_id` = manager's user ID
+> **Design decision:** `source` column was dropped. `created_by_id == SYSTEM_USER_ID` already encodes whether an entry was system-created — a redundant column adds a migration with no new information.
+>
+> **Design decision:** `conflicted` status was dropped. Overlap is caught at insert/update time with a 422 (see below) rather than maintained as running state. Running state requires re-evaluating overlap on every delete and update, is complex to keep correct, and turns a minor data-entry mistake into a hard project-closure block for a small internal team.
+
+- [ ] `time_entries.status` — `assumed` (system placeholder, times not yet confirmed) \| `entered` (times manually input or confirmed from daily logs) \| `locked` (project closed; read-only)
+- [ ] When a manager edits a `status=assumed` entry, set `status → entered`; `created_by_id` stays as `SYSTEM_USER_ID` (immutable origin); `updated_by_id` = manager's user ID
+- [ ] Overlap validation at insert/update: if the new entry's `(employee_id, start_datetime, end_datetime)` overlaps any existing entry for that employee, return 422 with a clear message identifying the conflict — no `conflicted` status, no reactive re-evaluation
+- [ ] `sample_batches.status` — `active` \| `discarded` \| `locked` (migration adds column)
+- [ ] Make `sample_batches.time_entry_id` nullable (migration)
+- [ ] Block deletion of `time_entries` that have `active` or `discarded` batches (409 with explanation) — simpler than orphan detection; managers rarely delete time entries in practice
 
 **Quick-add endpoint** (manager-facing; no pre-existing time entry required):
 
-- [ ] `POST /lab-results/batches/quick-add` — accepts `project_id`, `school_id`, `employee_id`, `date_collected` instead of `time_entry_id`; calls `resolve_or_create_time_entry()` which finds an existing entry for that employee/project/school/date or creates a placeholder (`source=system`, `status=assumed`, span = `date_collected 00:00` → `date_collected+1 00:00`, `created_by_id=SYSTEM_USER_ID`)
+- [ ] `POST /lab-results/batches/quick-add` — accepts `project_id`, `school_id`, `employee_id`, `date_collected` instead of `time_entry_id`; calls `resolve_or_create_time_entry()` which finds an existing entry for that employee/project/school/date or creates a placeholder (`status=assumed`, span = `date_collected 00:00` → `date_collected+1 00:00`, `created_by_id=SYSTEM_USER_ID`)
 - [ ] Role resolution for system-created entries: use the first active role matching any `sample_type_required_roles` for the batch's sample type; if no required roles, use the employee's first active role on `date_collected`; 422 if no active role found
 - [ ] Inspector resolution: use the first `inspector_id` in the list as the time entry's `employee_id`
-
-**Overlap detection and orphan management:**
-
-- [ ] Service: `flag_employee_overlaps(employee_id, start_dt, end_dt, exclude_id)` — queries all `time_entries` for the employee where spans overlap; marks all conflicting entries `status=conflicted`; clears `conflicted` flag on entries that no longer overlap after an update; called on every time entry create and update
-- [ ] Service: `orphan_detached_batches(time_entry_id)` — called when a time entry is deleted or its span changes; marks `sample_batches.status=orphaned` for any batch whose `date_collected` no longer falls within the entry's span; an orphaned batch blocks project closure until it is re-linked to a valid time entry or marked `discarded`
 
 **Billing runway** (not implemented yet — see Follow-up Project):
 
@@ -249,7 +259,9 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 ---
 
-### Phase 5 — Observability
+### Phase 5 — Observability _(deferred — build after Phase 6)_
+
+> **Design decision:** Deferred until the app is in production with real data. This is a small internal tool with a small team; premature observability work delays Phase 6 which is the actual product value. SQLite in dev doesn't reflect production query characteristics anyway. Revisit once deployed.
 
 **Goal:** make slow queries and N+1 regressions visible in development and in production before they become user-facing problems.
 
@@ -265,12 +277,13 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 - [ ] Service: `recalculate_deliverable_sca_status(project_id)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); called from any endpoint that mutates WA, WA codes, or RFA resolution; `under_review` / `rejected` / `approved` are manual and never overwritten
 - [ ] Wire `recalculate_deliverable_sca_status()` into: `POST /work-auths/`, `POST /work-auths/{id}/project-codes`, `POST /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve)
-- [ ] Service: `ensure_deliverables_exist(project_id)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; called from time entry and lab result creation (Phase 3/4) so deliverables are tracked as soon as work is recorded, before the WA exists
-- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, time entry conflicts, and orphaned batches; returns computed status
-- [ ] Implement `project_flags` — a project can have multiple non-blocking notes and blocking issues simultaneously; **blocking flags include:**
-  - Any `time_entry` linked to this project with `status=conflicted` — overlap must be resolved before closure
-  - Any `sample_batch` linked to this project with `status=orphaned` — must be re-linked or discarded before closure
-- [ ] Service: `lock_project_records(project_id)` — called on project closure; transitions all linked `time_entries` from `assumed`/`entered` → `locked` and all linked `sample_batches` from `active` → `locked`; locked records are read-only and excluded from further edits; guards on update endpoints check `status != locked` before allowing changes
+- [ ] Service: `ensure_deliverables_exist(project_id)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; called from time entry and lab result creation so deliverables are tracked as soon as work is recorded, before the WA exists
+- [ ] **Gap from design doc:** when a batch is recorded, check `sample_type_wa_codes` for the batch's sample type and surface any WA codes not yet on the project's WA as a project flag ("needs RFA to add LAMP30, LAMP32"); the `sample_type_wa_codes` table and FK are already in place — this wiring is not yet planned as a concrete task
+- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, and unconfirmed time entries; returns computed status
+- [ ] Implement `project_flags` — a project can carry multiple non-blocking notes and blocking issues simultaneously; **blocking flags include:**
+  - Any `time_entry` linked to this project with `status=assumed` — placeholder times not yet confirmed from daily logs
+  - Any `sample_batch` linked to this project with `status=discarded` that has not been reviewed _(exact semantics TBD)_
+- [ ] Service: `lock_project_records(project_id)` — called on project closure; transitions all linked `time_entries` from `assumed`/`entered` → `locked` and all linked `sample_batches` from `active` → `locked`; locked records are read-only; guards on update endpoints check `status != locked` before allowing changes
 - [ ] Wire status derivation into project update endpoints
 - [ ] `GET /projects/{id}/status` — returns full status breakdown including any blocking flags
 
