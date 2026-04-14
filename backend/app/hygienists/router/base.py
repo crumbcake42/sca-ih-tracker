@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.hygienists.models import Hygienist as HygienistModel
 from app.hygienists.schemas import Hygienist, HygienistCreate, HygienistUpdate
+from app.users.dependencies import get_current_user
+from app.users.models import User
 
 router = APIRouter()
 
@@ -32,9 +34,11 @@ async def get_hygienist(hygienist_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/", response_model=Hygienist, status_code=201)
 async def create_hygienist(
-    data: HygienistCreate, db: AsyncSession = Depends(get_db)
+    data: HygienistCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    new_hygienist = HygienistModel(**data.model_dump())
+    new_hygienist = HygienistModel(**data.model_dump(), created_by_id=current_user.id)
     db.add(new_hygienist)
     await db.commit()
     await db.refresh(new_hygienist)
@@ -43,7 +47,10 @@ async def create_hygienist(
 
 @router.patch("/{hygienist_id}", response_model=Hygienist)
 async def update_hygienist(
-    hygienist_id: int, data: HygienistUpdate, db: AsyncSession = Depends(get_db)
+    hygienist_id: int,
+    data: HygienistUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     result = await db.execute(
         select(HygienistModel).where(HygienistModel.id == hygienist_id)
@@ -54,6 +61,7 @@ async def update_hygienist(
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(hygienist, field, value)
+    hygienist.updated_by_id = current_user.id
 
     await db.commit()
     await db.refresh(hygienist)

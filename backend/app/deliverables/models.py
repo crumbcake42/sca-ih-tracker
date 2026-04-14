@@ -10,14 +10,14 @@ from app.common.enums import (
     SCADeliverableStatus,
     WACodeLevel,
 )
-from app.database import Base
+from app.database import AuditMixin, Base
 
 if TYPE_CHECKING:
     from app.projects.models import Project
     from app.wa_codes.models import WACode
 
 
-class Deliverable(Base):
+class Deliverable(Base, AuditMixin):
     __tablename__ = "deliverables"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -44,7 +44,7 @@ class DeliverableWACodeTrigger(Base):
     wa_code: Mapped["WACode"] = relationship()
 
 
-class ProjectDeliverable(Base):
+class ProjectDeliverable(Base, AuditMixin):
     __tablename__ = "project_deliverables"
 
     project_id: Mapped[int] = mapped_column(
@@ -68,7 +68,7 @@ class ProjectDeliverable(Base):
     deliverable: Mapped["Deliverable"] = relationship()
 
 
-class ProjectBuildingDeliverable(Base):
+class ProjectBuildingDeliverable(Base, AuditMixin):
     __tablename__ = "project_building_deliverables"
 
     project_id: Mapped[int] = mapped_column(

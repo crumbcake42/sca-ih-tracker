@@ -12,6 +12,8 @@ from app.employees.schemas import (
     EmployeeRoleCreate,
     EmployeeRoleUpdate,
 )
+from app.users.dependencies import get_current_user
+from app.users.models import User
 
 router = APIRouter()
 
@@ -61,6 +63,7 @@ async def create_employee_role(
     employee_id: int,
     data: EmployeeRoleCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     # Verify employee exists
     emp_result = await db.execute(
@@ -87,7 +90,9 @@ async def create_employee_role(
             detail=f"Overlapping {data.role_type} role already exists for this employee.",
         )
 
-    new_role = EmployeeRoleModel(employee_id=employee_id, **data.model_dump())
+    new_role = EmployeeRoleModel(
+        employee_id=employee_id, **data.model_dump(), created_by_id=current_user.id
+    )
     db.add(new_role)
     await db.commit()
     await db.refresh(new_role)
@@ -99,6 +104,7 @@ async def update_employee_role(
     role_id: int,
     data: EmployeeRoleUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     result = await db.execute(
         select(EmployeeRoleModel).where(EmployeeRoleModel.id == role_id)
@@ -109,6 +115,7 @@ async def update_employee_role(
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(role, field, value)
+    role.updated_by_id = current_user.id
 
     if role.end_date is not None and role.end_date <= role.start_date:
         raise HTTPException(status_code=422, detail="end_date must be after start_date")

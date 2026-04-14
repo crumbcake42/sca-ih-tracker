@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.enums import WACodeLevel
 from app.database import get_db
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 from app.wa_codes.models import WACode
 from app.work_auths import models, schemas
 
@@ -40,12 +41,12 @@ async def list_project_codes(
     "",
     response_model=schemas.WorkAuthProjectCode,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def add_project_code(
     work_auth_id: int,
     body: schemas.WorkAuthProjectCodeCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     await _get_work_auth_or_404(work_auth_id, db)
 
@@ -76,6 +77,7 @@ async def add_project_code(
         wa_code_id=body.wa_code_id,
         fee=fee,
         status=body.status,
+        created_by_id=current_user.id,
     )
     db.add(pc)
     await db.commit()
@@ -86,17 +88,18 @@ async def add_project_code(
 @router.patch(
     "/{wa_code_id}",
     response_model=schemas.WorkAuthProjectCode,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def update_project_code(
     work_auth_id: int,
     wa_code_id: int,
     body: schemas.WorkAuthProjectCodeUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     pc = await _get_project_code_or_404(work_auth_id, wa_code_id, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(pc, field, value)
+    pc.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(pc)
     return pc

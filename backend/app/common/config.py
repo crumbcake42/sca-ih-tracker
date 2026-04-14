@@ -54,3 +54,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Reserved user ID for system-initiated writes (quick-add, status recalculation, etc.)
+# This row is inserted first in db.initialize() so it naturally receives id=1.
+SYSTEM_USER_ID: int = 1

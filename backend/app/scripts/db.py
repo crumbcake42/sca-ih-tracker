@@ -229,7 +229,33 @@ async def initialize():
                 db_role.permissions = [permissions_map[p] for p in allowed_perms]
                 print(f"  [OK] Role: {role_enum.value:12}")
 
-            # 4. User Check
+            # 4. System User Sentinel (must be inserted before any other users
+            #    so it receives id=1 on a fresh database)
+            print("\n[*] Ensuring system user sentinel...")
+            stmt = select(User).where(User.username == "system")
+            result = await db.execute(stmt)
+            if not result.unique().scalars().first():
+                superadmin_role_stmt = select(Role).where(
+                    Role.name == RoleName.SUPERADMIN.value
+                )
+                superadmin_role = (
+                    await db.execute(superadmin_role_stmt)
+                ).scalar_one()
+                system_user = User(
+                    first_name="System",
+                    last_name="User",
+                    username="system",
+                    email="system@system.internal",
+                    hashed_password="!",  # Impossible bcrypt hash — cannot authenticate
+                    role=superadmin_role,
+                )
+                db.add(system_user)
+                await db.flush()
+                print(f"  [CREATE] System user created (id={system_user.id}).")
+            else:
+                print("  [OK] System user already exists.")
+
+            # 5. User Check
             print("\n[*] Verifying System Administrator...")
             stmt = select(User).where(User.username == settings.FIRST_ADMIN_USERNAME)
             result = await db.execute(stmt)
@@ -250,7 +276,7 @@ async def initialize():
                 db.add(new_admin)
                 print(f"  [CREATE] User '{settings.FIRST_ADMIN_USERNAME}' added.")
 
-            # 5. Seed Base Truth Data (CSV)
+            # 6. Seed Base Truth Data (CSV)
             print("\n[*] Seeding Business Data...")
             seed_files = [
                 (db, SchoolModel, SchoolSchema, "schools.csv", "code"),

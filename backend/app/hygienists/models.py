@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import AuditMixin, Base
 
 if TYPE_CHECKING:
     from app.projects.models.links import ProjectHygienistLink
 
 
-class Hygienist(Base):
+class Hygienist(Base, AuditMixin):
     __tablename__ = "hygienists"
 
     id: Mapped[int] = mapped_column(primary_key=True)

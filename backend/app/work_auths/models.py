@@ -50,7 +50,7 @@ class WorkAuth(Base, AuditMixin):
     )
 
 
-class WorkAuthProjectCode(Base):
+class WorkAuthProjectCode(Base, AuditMixin):
     __tablename__ = "work_auth_project_codes"
 
     work_auth_id: Mapped[int] = mapped_column(
@@ -69,7 +69,7 @@ class WorkAuthProjectCode(Base):
     wa_code: Mapped["WACode"] = relationship()
 
 
-class WorkAuthBuildingCode(Base):
+class WorkAuthBuildingCode(Base, AuditMixin):
     __tablename__ = "work_auth_building_codes"
 
     work_auth_id: Mapped[int] = mapped_column(
@@ -125,7 +125,7 @@ class RFA(Base, AuditMixin):
     )
 
 
-class RFAProjectCode(Base):
+class RFAProjectCode(Base, AuditMixin):
     __tablename__ = "rfa_project_codes"
 
     rfa_id: Mapped[int] = mapped_column(
@@ -140,7 +140,7 @@ class RFAProjectCode(Base):
     wa_code: Mapped["WACode"] = relationship()
 
 
-class RFABuildingCode(Base):
+class RFABuildingCode(Base, AuditMixin):
     __tablename__ = "rfa_building_codes"
 
     rfa_id: Mapped[int] = mapped_column(

@@ -8,6 +8,7 @@ from app.database import get_db
 from app.projects import models, schemas
 from app.schools.models import School
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 
 router = APIRouter()
 
@@ -33,10 +34,11 @@ async def get_projects(
     "/",
     response_model=schemas.Project,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_CREATE))],
 )
 async def create_project(
-    project_in: schemas.ProjectCreate, db: AsyncSession = Depends(get_db)
+    project_in: schemas.ProjectCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_CREATE)),
 ):
     """Create a new project (Requires PROJECT_CREATE permission)."""
     schools = await get_by_ids(db, School, project_in.school_ids)
@@ -44,6 +46,7 @@ async def create_project(
     new_project = models.Project(
         **project_in.model_dump(exclude={"school_ids"}),
         schools=schools,
+        created_by_id=current_user.id,
     )
     db.add(new_project)
     await db.commit()
@@ -72,12 +75,12 @@ async def get_project_by_id(project_id: int, db: AsyncSession = Depends(get_db))
 @router.patch(
     "/{project_id}",
     response_model=schemas.Project,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def update_project(
     project_id: int,
     project_update: schemas.ProjectCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     """Update project details (Requires PROJECT_EDIT permission)."""
     stmt = (
@@ -98,6 +101,7 @@ async def update_project(
     if "school_ids" in project_update.model_fields_set:
         db_project.schools = await get_by_ids(db, School, project_update.school_ids)
 
+    db_project.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(db_project)
     return db_project

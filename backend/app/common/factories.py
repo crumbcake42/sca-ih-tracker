@@ -46,6 +46,7 @@ def create_batch_import_router(
         file: UploadFile = File(...),
         has_headers: bool = Query(True),
         db: AsyncSession = Depends(get_db),
+        current_user=Depends(get_current_user),
     ):
         if not file.filename or not file.filename.lower().endswith(".csv"):
             raise HTTPException(status_code=400, detail="File must be a CSV.")
@@ -87,7 +88,7 @@ def create_batch_import_router(
                     obj_in = await result if inspect.isawaitable(result) else result
 
                 # 4. Final Create
-                new_obj = model(**obj_in.model_dump())
+                new_obj = model(**obj_in.model_dump(), created_by_id=current_user.id)
                 db.add(new_obj)
                 created_items.append(new_obj)
 

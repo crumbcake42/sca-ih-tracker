@@ -458,3 +458,49 @@ class TestDeleteTimeEntry:
     async def test_delete_missing_returns_404(self, auth_client: AsyncClient):
         response = await auth_client.delete("/time-entries/9999")
         assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Audit field wiring
+# ---------------------------------------------------------------------------
+
+
+class TestAuditFields:
+    async def test_create_sets_created_by_id(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, "A001")
+        project = await _seed_project(db_session, school)
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+
+        response = await auth_client.post(
+            "/time-entries/",
+            json={
+                "start_datetime": DT_START.isoformat(),
+                "employee_id": emp.id,
+                "employee_role_id": role.id,
+                "project_id": project.id,
+                "school_id": school.id,
+            },
+        )
+        assert response.status_code == 201
+        entry = await db_session.get(TimeEntry, response.json()["id"])
+        assert entry.created_by_id == 1  # fake_user.id from auth_client fixture
+
+    async def test_update_sets_updated_by_id(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, "A002")
+        project = await _seed_project(db_session, school)
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+        entry = await _seed_entry(db_session, emp, role, project, school)
+
+        response = await auth_client.patch(
+            f"/time-entries/{entry.id}",
+            json={"notes": "audit test"},
+        )
+        assert response.status_code == 200
+        await db_session.refresh(entry)
+        assert entry.updated_by_id == 1  # fake_user.id from auth_client fixture

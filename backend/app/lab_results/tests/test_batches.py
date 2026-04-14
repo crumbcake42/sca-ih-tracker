@@ -610,3 +610,33 @@ class TestDeleteBatch:
         # Verify by checking the batch itself is gone.
         batch = await db_session.get(SampleBatch, batch_id)
         assert batch is None
+
+
+# ---------------------------------------------------------------------------
+# Audit field wiring
+# ---------------------------------------------------------------------------
+
+
+class TestBatchAuditFields:
+    async def test_create_sets_created_by_id(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Audit Create Type")
+        response = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-AU1"))
+        assert response.status_code == 201
+        batch = await db_session.get(SampleBatch, response.json()["id"])
+        assert batch.created_by_id == 1  # fake_user.id from auth_client fixture
+
+    async def test_update_sets_updated_by_id(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        ctx = await _make_context(db_session, sample_type_name="Audit Update Type")
+        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-AU2"))
+        batch_id = create.json()["id"]
+
+        response = await auth_client.patch(
+            f"{BASE}/{batch_id}", json={"notes": "audit test"}
+        )
+        assert response.status_code == 200
+        batch = await db_session.get(SampleBatch, batch_id)
+        assert batch.updated_by_id == 1  # fake_user.id from auth_client fixture

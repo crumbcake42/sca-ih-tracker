@@ -208,3 +208,41 @@ class TestDeleteWorkAuth:
     async def test_delete_missing_returns_404(self, auth_client: AsyncClient):
         response = await auth_client.delete("/work-auths/9999")
         assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Audit field wiring
+# ---------------------------------------------------------------------------
+
+
+class TestWorkAuthAuditFields:
+    async def test_create_sets_created_by_id(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school)
+
+        response = await auth_client.post(
+            "/work-auths",
+            json={
+                **_wa_payload(wa_num="WA-AUDIT1", service_id="SVC-A1", project_num="PN-A1"),
+                "project_id": project.id,
+            },
+        )
+        assert response.status_code == 201
+        wa = await db_session.get(WorkAuth, response.json()["id"])
+        assert wa.created_by_id == 1  # fake_user.id from auth_client fixture
+
+    async def test_update_sets_updated_by_id(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school)
+        wa = await _seed_work_auth(db_session, project, wa_num="WA-AUDIT2")
+
+        response = await auth_client.patch(
+            f"/work-auths/{wa.id}", json={"wa_num": "WA-AUDIT2-UPDATED"}
+        )
+        assert response.status_code == 200
+        await db_session.refresh(wa)
+        assert wa.updated_by_id == 1  # fake_user.id from auth_client fixture

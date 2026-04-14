@@ -6,10 +6,10 @@ from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enums import EmployeeRoleType, TitleEnum
-from app.database import Base
+from app.database import AuditMixin, Base
 
 
-class Employee(Base):
+class Employee(Base, AuditMixin):
     __tablename__ = "employees"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -25,7 +25,7 @@ class Employee(Base):
     )
 
 
-class EmployeeRole(Base):
+class EmployeeRole(Base, AuditMixin):
     __tablename__ = "employee_roles"
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -11,6 +11,7 @@ from app.deliverables.models import (
 )
 from app.projects.models import Project
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 
 router = APIRouter()
 
@@ -46,12 +47,12 @@ async def list_project_deliverables(
     "/{project_id}/deliverables",
     response_model=deliverable_schemas.ProjectDeliverable,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def add_project_deliverable(
     project_id: int,
     body: deliverable_schemas.ProjectDeliverableCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     await _get_project_or_404(project_id, db)
 
@@ -72,6 +73,7 @@ async def add_project_deliverable(
         internal_status=body.internal_status,
         sca_status=body.sca_status,
         notes=body.notes,
+        created_by_id=current_user.id,
     )
     db.add(pd)
     await db.commit()
@@ -82,19 +84,20 @@ async def add_project_deliverable(
 @router.patch(
     "/{project_id}/deliverables/{deliverable_id}",
     response_model=deliverable_schemas.ProjectDeliverable,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def update_project_deliverable(
     project_id: int,
     deliverable_id: int,
     body: deliverable_schemas.ProjectDeliverableUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     pd = await db.get(ProjectDeliverable, (project_id, deliverable_id))
     if not pd:
         raise HTTPException(status_code=404, detail="Project deliverable not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(pd, field, value)
+    pd.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(pd)
     return pd
@@ -143,12 +146,12 @@ async def list_building_deliverables(
     "/{project_id}/building-deliverables",
     response_model=deliverable_schemas.ProjectBuildingDeliverable,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def add_building_deliverable(
     project_id: int,
     body: deliverable_schemas.ProjectBuildingDeliverableCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     await _get_project_or_404(project_id, db)
 
@@ -184,6 +187,7 @@ async def add_building_deliverable(
         internal_status=body.internal_status,
         sca_status=body.sca_status,
         notes=body.notes,
+        created_by_id=current_user.id,
     )
     db.add(bd)
     await db.commit()
@@ -194,7 +198,6 @@ async def add_building_deliverable(
 @router.patch(
     "/{project_id}/building-deliverables/{deliverable_id}/{school_id}",
     response_model=deliverable_schemas.ProjectBuildingDeliverable,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def update_building_deliverable(
     project_id: int,
@@ -202,6 +205,7 @@ async def update_building_deliverable(
     school_id: int,
     body: deliverable_schemas.ProjectBuildingDeliverableUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     bd = await db.get(
         ProjectBuildingDeliverable, (project_id, deliverable_id, school_id)
@@ -210,6 +214,7 @@ async def update_building_deliverable(
         raise HTTPException(status_code=404, detail="Building deliverable not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(bd, field, value)
+    bd.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(bd)
     return bd

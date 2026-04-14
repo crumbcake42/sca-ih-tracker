@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.enums import RFAAction, RFAStatus, WACodeStatus
 from app.database import get_db
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 from app.work_auths import models, schemas
 
 from ._helpers import _get_work_auth_or_404
@@ -36,12 +37,12 @@ async def _get_rfa_or_404(rfa_id: int, work_auth_id: int, db: AsyncSession) -> m
     "",
     response_model=schemas.RFA,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def create_rfa(
     wa_id: int,
     body: schemas.RFACreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     wa = await _get_work_auth_or_404(wa_id, db)
 
@@ -63,6 +64,7 @@ async def create_rfa(
         status=RFAStatus.PENDING,
         submitted_by_id=body.submitted_by_id,
         notes=body.notes,
+        created_by_id=current_user.id,
     )
     db.add(rfa)
     await db.flush()  # get rfa.id before creating child rows
@@ -136,13 +138,13 @@ async def list_rfas(
 @router.patch(
     "/{rfa_id}",
     response_model=schemas.RFA,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def resolve_rfa(
     wa_id: int,
     rfa_id: int,
     body: schemas.RFAResolve,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     await _get_work_auth_or_404(wa_id, db)
     rfa = await _get_rfa_or_404(rfa_id, wa_id, db)
@@ -231,6 +233,7 @@ async def resolve_rfa(
     rfa.resolved_at = datetime.now(UTC)
     if body.notes is not None:
         rfa.notes = body.notes
+    rfa.updated_by_id = current_user.id
 
     await db.commit()
     await db.refresh(rfa)

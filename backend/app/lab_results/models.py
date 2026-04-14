@@ -1,23 +1,21 @@
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     Date,
-    DateTime,
     ForeignKey,
     Numeric,
     String,
     Text,
     UniqueConstraint,
-    func,
 )
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enums import EmployeeRoleType
-from app.database import Base
+from app.database import AuditMixin, Base
 
 if TYPE_CHECKING:
     from app.employees.models import Employee
@@ -30,7 +28,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-class SampleType(Base):
+class SampleType(Base, AuditMixin):
     __tablename__ = "sample_types"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -57,7 +55,7 @@ class SampleType(Base):
     )
 
 
-class SampleSubtype(Base):
+class SampleSubtype(Base, AuditMixin):
     __tablename__ = "sample_subtypes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -69,7 +67,7 @@ class SampleSubtype(Base):
     sample_type: Mapped["SampleType"] = relationship(back_populates="subtypes")
 
 
-class SampleUnitType(Base):
+class SampleUnitType(Base, AuditMixin):
     __tablename__ = "sample_unit_types"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -81,7 +79,7 @@ class SampleUnitType(Base):
     sample_type: Mapped["SampleType"] = relationship(back_populates="unit_types")
 
 
-class TurnaroundOption(Base):
+class TurnaroundOption(Base, AuditMixin):
     __tablename__ = "turnaround_options"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -94,7 +92,7 @@ class TurnaroundOption(Base):
     sample_type: Mapped["SampleType"] = relationship(back_populates="turnaround_options")
 
 
-class SampleTypeRequiredRole(Base):
+class SampleTypeRequiredRole(Base, AuditMixin):
     """Roles an employee must hold to collect this sample type.
     Uses a surrogate PK so role_type values (which contain spaces/slashes)
     don't appear in URL paths."""
@@ -114,7 +112,7 @@ class SampleTypeRequiredRole(Base):
     sample_type: Mapped["SampleType"] = relationship(back_populates="required_roles")
 
 
-class SampleTypeWACode(Base):
+class SampleTypeWACode(Base, AuditMixin):
     """WA codes that must be on the work auth to bill this sample type."""
 
     __tablename__ = "sample_type_wa_codes"
@@ -135,7 +133,7 @@ class SampleTypeWACode(Base):
 # ---------------------------------------------------------------------------
 
 
-class SampleBatch(Base):
+class SampleBatch(Base, AuditMixin):
     __tablename__ = "sample_batches"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -155,7 +153,6 @@ class SampleBatch(Base):
     is_report: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     date_collected: Mapped[date] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     sample_type: Mapped["SampleType"] = relationship()
     subtype: Mapped["SampleSubtype | None"] = relationship()

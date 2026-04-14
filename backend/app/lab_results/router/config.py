@@ -28,11 +28,13 @@ from app.lab_results.schemas import (
 )
 from app.lab_results.service import get_sample_type_or_404
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 from app.wa_codes.models import WACode
 
 router = APIRouter(prefix="/config/sample-types", tags=["Lab Results — Config"])
 
-_edit = [Depends(PermissionChecker(PermissionName.PROJECT_EDIT))]
+_edit_dep = PermissionChecker(PermissionName.PROJECT_EDIT)
+_edit = [Depends(_edit_dep)]
 
 
 # ---------------------------------------------------------------------------
@@ -46,15 +48,18 @@ async def list_sample_types(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 
-@router.post("", response_model=SampleTypeRead, status_code=status.HTTP_201_CREATED,
-             dependencies=_edit)
-async def create_sample_type(body: SampleTypeCreate, db: AsyncSession = Depends(get_db)):
+@router.post("", response_model=SampleTypeRead, status_code=status.HTTP_201_CREATED)
+async def create_sample_type(
+    body: SampleTypeCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
+):
     existing = await db.execute(
         select(SampleType).where(SampleType.name == body.name)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Sample type name already exists")
-    st = SampleType(**body.model_dump())
+    st = SampleType(**body.model_dump(), created_by_id=current_user.id)
     db.add(st)
     await db.commit()
     await db.refresh(st)
@@ -66,13 +71,17 @@ async def get_sample_type(type_id: int, db: AsyncSession = Depends(get_db)):
     return await get_sample_type_or_404(type_id, db)
 
 
-@router.patch("/{type_id}", response_model=SampleTypeRead, dependencies=_edit)
+@router.patch("/{type_id}", response_model=SampleTypeRead)
 async def update_sample_type(
-    type_id: int, body: SampleTypeUpdate, db: AsyncSession = Depends(get_db)
+    type_id: int,
+    body: SampleTypeUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
 ):
     st = await get_sample_type_or_404(type_id, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(st, field, value)
+    st.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(st)
     return st
@@ -91,12 +100,15 @@ async def delete_sample_type(type_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{type_id}/subtypes", response_model=SampleSubtypeRead,
-             status_code=status.HTTP_201_CREATED, dependencies=_edit)
+             status_code=status.HTTP_201_CREATED)
 async def add_subtype(
-    type_id: int, body: SampleSubtypeCreate, db: AsyncSession = Depends(get_db)
+    type_id: int,
+    body: SampleSubtypeCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
 ):
     await get_sample_type_or_404(type_id, db)
-    subtype = SampleSubtype(sample_type_id=type_id, name=body.name)
+    subtype = SampleSubtype(sample_type_id=type_id, name=body.name, created_by_id=current_user.id)
     db.add(subtype)
     await db.commit()
     await db.refresh(subtype)
@@ -121,12 +133,15 @@ async def remove_subtype(
 
 
 @router.post("/{type_id}/unit-types", response_model=SampleUnitTypeRead,
-             status_code=status.HTTP_201_CREATED, dependencies=_edit)
+             status_code=status.HTTP_201_CREATED)
 async def add_unit_type(
-    type_id: int, body: SampleUnitTypeCreate, db: AsyncSession = Depends(get_db)
+    type_id: int,
+    body: SampleUnitTypeCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
 ):
     await get_sample_type_or_404(type_id, db)
-    ut = SampleUnitType(sample_type_id=type_id, name=body.name)
+    ut = SampleUnitType(sample_type_id=type_id, name=body.name, created_by_id=current_user.id)
     db.add(ut)
     await db.commit()
     await db.refresh(ut)
@@ -151,12 +166,17 @@ async def remove_unit_type(
 
 
 @router.post("/{type_id}/turnaround-options", response_model=TurnaroundOptionRead,
-             status_code=status.HTTP_201_CREATED, dependencies=_edit)
+             status_code=status.HTTP_201_CREATED)
 async def add_turnaround_option(
-    type_id: int, body: TurnaroundOptionCreate, db: AsyncSession = Depends(get_db)
+    type_id: int,
+    body: TurnaroundOptionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
 ):
     await get_sample_type_or_404(type_id, db)
-    tat = TurnaroundOption(sample_type_id=type_id, hours=body.hours, label=body.label)
+    tat = TurnaroundOption(
+        sample_type_id=type_id, hours=body.hours, label=body.label, created_by_id=current_user.id
+    )
     db.add(tat)
     await db.commit()
     await db.refresh(tat)
@@ -181,9 +201,12 @@ async def remove_turnaround_option(
 
 
 @router.post("/{type_id}/required-roles", response_model=SampleTypeRequiredRoleRead,
-             status_code=status.HTTP_201_CREATED, dependencies=_edit)
+             status_code=status.HTTP_201_CREATED)
 async def add_required_role(
-    type_id: int, body: SampleTypeRequiredRoleCreate, db: AsyncSession = Depends(get_db)
+    type_id: int,
+    body: SampleTypeRequiredRoleCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
 ):
     await get_sample_type_or_404(type_id, db)
     existing = await db.execute(
@@ -194,7 +217,9 @@ async def add_required_role(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Role already required for this sample type")
-    rr = SampleTypeRequiredRole(sample_type_id=type_id, role_type=body.role_type)
+    rr = SampleTypeRequiredRole(
+        sample_type_id=type_id, role_type=body.role_type, created_by_id=current_user.id
+    )
     db.add(rr)
     await db.commit()
     await db.refresh(rr)
@@ -219,9 +244,12 @@ async def remove_required_role(
 
 
 @router.post("/{type_id}/wa-codes", response_model=SampleTypeWACodeRead,
-             status_code=status.HTTP_201_CREATED, dependencies=_edit)
+             status_code=status.HTTP_201_CREATED)
 async def add_wa_code(
-    type_id: int, body: SampleTypeWACodeCreate, db: AsyncSession = Depends(get_db)
+    type_id: int,
+    body: SampleTypeWACodeCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
 ):
     await get_sample_type_or_404(type_id, db)
     wa_code = await db.get(WACode, body.wa_code_id)
@@ -233,7 +261,9 @@ async def add_wa_code(
     )
     if existing:
         raise HTTPException(status_code=409, detail="WA code already required for this sample type")
-    link = SampleTypeWACode(sample_type_id=type_id, wa_code_id=body.wa_code_id)
+    link = SampleTypeWACode(
+        sample_type_id=type_id, wa_code_id=body.wa_code_id, created_by_id=current_user.id
+    )
     db.add(link)
     await db.commit()
     await db.refresh(link)

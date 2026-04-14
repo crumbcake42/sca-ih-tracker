@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.projects.models import Project
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 from app.work_auths import models, schemas
 
 from ._helpers import _get_work_auth_or_404
@@ -20,11 +21,11 @@ router = APIRouter()
     "/",
     response_model=schemas.WorkAuth,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def create_work_auth(
     body: schemas.WorkAuthCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     project = await db.get(Project, body.project_id)
     if not project:
@@ -39,7 +40,7 @@ async def create_work_auth(
             detail="A work auth already exists for this project.",
         )
 
-    wa = models.WorkAuth(**body.model_dump())
+    wa = models.WorkAuth(**body.model_dump(), created_by_id=current_user.id)
     db.add(wa)
     await db.commit()
     await db.refresh(wa)
@@ -73,16 +74,17 @@ async def get_work_auth_for_project(
 @router.patch(
     "/{work_auth_id}",
     response_model=schemas.WorkAuth,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def update_work_auth(
     work_auth_id: int,
     body: schemas.WorkAuthUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     wa = await _get_work_auth_or_404(work_auth_id, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(wa, field, value)
+    wa.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(wa)
     return wa

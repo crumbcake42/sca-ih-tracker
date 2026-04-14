@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.enums import WACodeLevel
 from app.database import get_db
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 from app.wa_codes.models import WACode
 from app.work_auths import models, schemas
 
@@ -40,12 +41,12 @@ async def list_building_codes(
     "",
     response_model=schemas.WorkAuthBuildingCode,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def add_building_code(
     work_auth_id: int,
     body: schemas.WorkAuthBuildingCodeCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     wa = await _get_work_auth_or_404(work_auth_id, db)
 
@@ -91,6 +92,7 @@ async def add_building_code(
         school_id=body.school_id,
         budget=body.budget,
         status=body.status,
+        created_by_id=current_user.id,
     )
     db.add(bc)
     await db.commit()
@@ -101,7 +103,6 @@ async def add_building_code(
 @router.patch(
     "/{wa_code_id}/{school_id}",
     response_model=schemas.WorkAuthBuildingCode,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def update_building_code(
     work_auth_id: int,
@@ -109,10 +110,12 @@ async def update_building_code(
     school_id: int,
     body: schemas.WorkAuthBuildingCodeUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     bc = await _get_building_code_or_404(work_auth_id, wa_code_id, school_id, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(bc, field, value)
+    bc.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(bc)
     return bc

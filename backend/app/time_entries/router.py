@@ -9,6 +9,7 @@ from app.time_entries.models import TimeEntry
 from app.time_entries.schemas import TimeEntryCreate, TimeEntryRead, TimeEntryUpdate
 from app.time_entries.service import validate_role_for_entry, validate_school_on_project
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 
 router = APIRouter(prefix="/time-entries", tags=["time-entries"])
 
@@ -43,11 +44,11 @@ async def get_time_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
     "/",
     response_model=TimeEntryRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def create_time_entry(
     body: TimeEntryCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     # Verify employee exists
     employee = await db.get(Employee, body.employee_id)
@@ -75,6 +76,7 @@ async def create_time_entry(
         project_id=body.project_id,
         school_id=body.school_id,
         notes=body.notes,
+        created_by_id=current_user.id,
     )
     db.add(entry)
     await db.commit()
@@ -85,12 +87,12 @@ async def create_time_entry(
 @router.patch(
     "/{entry_id}",
     response_model=TimeEntryRead,
-    dependencies=[Depends(PermissionChecker(PermissionName.PROJECT_EDIT))],
 )
 async def update_time_entry(
     entry_id: int,
     body: TimeEntryUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
     entry = await db.get(TimeEntry, entry_id)
     if not entry:
@@ -116,6 +118,7 @@ async def update_time_entry(
 
     for field, value in updates.items():
         setattr(entry, field, value)
+    entry.updated_by_id = current_user.id
 
     await db.commit()
     await db.refresh(entry)

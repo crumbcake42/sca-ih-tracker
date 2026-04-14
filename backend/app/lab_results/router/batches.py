@@ -25,10 +25,11 @@ from app.lab_results.service import (
 )
 from app.time_entries.models import TimeEntry
 from app.users.dependencies import PermissionChecker, PermissionName
+from app.users.models import User
 
 router = APIRouter(prefix="/batches", tags=["Lab Results — Batches"])
 
-_edit = [Depends(PermissionChecker(PermissionName.PROJECT_EDIT))]
+_edit_dep = PermissionChecker(PermissionName.PROJECT_EDIT)
 
 
 @router.get("/", response_model=list[SampleBatchRead])
@@ -51,9 +52,12 @@ async def get_batch(batch_id: int, db: AsyncSession = Depends(get_db)):
     return await get_batch_or_404(batch_id, db)
 
 
-@router.post("/", response_model=SampleBatchRead, status_code=status.HTTP_201_CREATED,
-             dependencies=_edit)
-async def create_batch(body: SampleBatchCreate, db: AsyncSession = Depends(get_db)):
+@router.post("/", response_model=SampleBatchRead, status_code=status.HTTP_201_CREATED)
+async def create_batch(
+    body: SampleBatchCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
+):
     sample_type = await get_sample_type_or_404(body.sample_type_id, db)
 
     # Validate batch_num uniqueness
@@ -100,6 +104,7 @@ async def create_batch(body: SampleBatchCreate, db: AsyncSession = Depends(get_d
         is_report=body.is_report,
         date_collected=body.date_collected,
         notes=body.notes,
+        created_by_id=current_user.id,
     )
     db.add(batch)
     await db.flush()  # get batch.id before creating child rows
@@ -119,19 +124,24 @@ async def create_batch(body: SampleBatchCreate, db: AsyncSession = Depends(get_d
     return batch
 
 
-@router.patch("/{batch_id}", response_model=SampleBatchRead, dependencies=_edit)
+@router.patch("/{batch_id}", response_model=SampleBatchRead)
 async def update_batch(
-    batch_id: int, body: SampleBatchUpdate, db: AsyncSession = Depends(get_db)
+    batch_id: int,
+    body: SampleBatchUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(_edit_dep),
 ):
     batch = await get_batch_or_404(batch_id, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(batch, field, value)
+    batch.updated_by_id = current_user.id
     await db.commit()
     await db.refresh(batch)
     return batch
 
 
-@router.delete("/{batch_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_edit)
+@router.delete("/{batch_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(_edit_dep)])
 async def delete_batch(batch_id: int, db: AsyncSession = Depends(get_db)):
     batch = await get_batch_or_404(batch_id, db)
     await db.delete(batch)
