@@ -28,12 +28,20 @@ never `is_blocking=True`; only top-level notes can block.
 **System vs. user notes.** `note_type IS NOT NULL` identifies a system note.
 System notes:
 
-- Are created via `create_system_note()` with `created_by_id = SYSTEM_USER_ID`
+- Are created via `create_system_note(entity_type, entity_id, note_type, body, db)`
+  with `created_by_id = SYSTEM_USER_ID`
 - Are de-duplicated: `create_system_note` checks for an existing unresolved
-  note of the same `(entity_type, entity_id, note_type)` before inserting
+  note of the same `(entity_type, entity_id, note_type)` before inserting;
+  returns the existing note rather than creating a duplicate
 - **Cannot be manually resolved.** They auto-resolve via
-  `auto_resolve_system_notes(entity_id, note_type)` when the underlying
-  condition clears. The resolve endpoint returns 422 on a system note.
+  `auto_resolve_system_notes(entity_type, entity_id, note_type, db)` when the
+  underlying condition clears. `entity_type` is required — omitting it would
+  accidentally resolve notes on different entity types that share the same
+  `entity_id`. The resolve endpoint returns 422 on a system note.
+
+**`BlockingIssue` schema** (`app/notes/schemas.py`) is the return type of
+`get_blocking_notes_for_project()` (which lives in `app/projects/services.py`).
+Fields: `note_id`, `entity_type`, `entity_id`, `body`, `entity_label`, `link`.
 
 **Resolution of user-authored blocking notes.** `PATCH /notes/{id}/resolve`
 requires a `resolution_note` in the body. The service sets `is_resolved=True`,

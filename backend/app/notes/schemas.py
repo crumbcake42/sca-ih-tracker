@@ -46,3 +46,14 @@ class NoteRead(BaseModel):
 
 
 NoteRead.model_rebuild()
+
+
+class BlockingIssue(BaseModel):
+    """One unresolved blocking note, enriched with navigation context."""
+
+    note_id: int
+    entity_type: NoteEntityType
+    entity_id: int
+    body: str
+    entity_label: str  # e.g. "Time Entry #5"
+    link: str          # e.g. "/time-entries/5"

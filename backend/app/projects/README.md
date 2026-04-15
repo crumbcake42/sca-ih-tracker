@@ -18,6 +18,8 @@ This module does **not** own time entries, lab results, work authorizations, or 
 
 **`project_number` has a regex format constraint** (`^\d{2}-\d{3}-\d{4}$`, e.g., `24-001-0001`). Validation is applied at the router layer. The first two digits encode the year; the middle three encode work type. Utility functions for parsing meaning from a project number belong in `common/validators.py` (not yet implemented).
 
+**`get_blocking_notes_for_project(project_id, db)`** (Phase 3.6, in `services.py`) aggregates all unresolved blocking top-level notes across the project itself, its time entries, its deliverables, and its sample batches. Returns `list[BlockingIssue]` (schema in `app/notes/schemas.py`). Two caveats: (1) deliverable notes use the deliverable template's `id` as `entity_id` — a note on template #5 surfaces for any project with that deliverable; (2) sample batches with `time_entry_id=NULL` are excluded because they have no project association. Called by Phase 6's `lock_project_records` and `derive_project_status`.
+
 **`derive_project_status()` does not exist yet (Phase 6).** Project status is currently a manually managed field. When Phase 6 is implemented, `derive_project_status(project_id)` will be a pure function with no side effects. Do not cache its result on a `computed_status` column until that function is finalized.
 
 ---
