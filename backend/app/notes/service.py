@@ -1,11 +1,40 @@
 from datetime import UTC, datetime
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import NoteEntityType, NoteType
 from app.notes.models import Note
+
+
+async def validate_entity_exists(
+    entity_type: NoteEntityType,
+    entity_id: int,
+    db: AsyncSession,
+) -> None:
+    """
+    Raise 404 if entity_type + entity_id does not correspond to an existing record.
+
+    Uses db.get() — safe here because the result is never serialized; we only
+    check existence. Inline imports avoid module-level circular-import risk.
+    """
+    from app.deliverables.models import Deliverable
+    from app.lab_results.models import SampleBatch
+    from app.projects.models import Project
+    from app.time_entries.models import TimeEntry
+
+    model_map = {
+        NoteEntityType.PROJECT: Project,
+        NoteEntityType.TIME_ENTRY: TimeEntry,
+        NoteEntityType.DELIVERABLE: Deliverable,
+        NoteEntityType.SAMPLE_BATCH: SampleBatch,
+    }
+    model = model_map[entity_type]
+    if not await db.get(model, entity_id):
+        label = entity_type.value.replace("_", " ").title()
+        raise HTTPException(status_code=404, detail=f"{label} {entity_id} not found")
 
 
 async def create_system_note(

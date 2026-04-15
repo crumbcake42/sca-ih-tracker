@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-15 (Phase 3.6 Session B complete)
+# Session Handoff — 2026-04-15 (Phase 3.6 Session C complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,39 +6,49 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**324 tests passing.** Phase 3.6 **Session B** (notes service layer) is complete. The notes migration has been applied. Three service functions are implemented and tested: `create_system_note`, `auto_resolve_system_notes` (in `app/notes/service.py`), and `get_blocking_notes_for_project` (in `app/projects/services.py`).
+**348 tests passing.** Phase 3.6 **Session C** (notes endpoints) is complete. The five notes-related endpoints are implemented and tested.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 3.6 Session B — Notes service layer
+### Phase 3.6 Session C — Notes endpoints
 
-- **Created** `app/notes/service.py`:
-  - `create_system_note(entity_type, entity_id, note_type, body, db)` — inserts a blocking note with `created_by_id = SYSTEM_USER_ID`; de-duplicated on `(entity_type, entity_id, note_type)` for unresolved notes.
-  - `auto_resolve_system_notes(entity_type, entity_id, note_type, db)` — resolves all matching unresolved notes; returns count.
-- **Added** `get_blocking_notes_for_project(project_id, db)` to `app/projects/services.py` — aggregates unresolved blocking notes across the project, its time entries, deliverables, and sample batches; returns `list[BlockingIssue]`.
-- **Added** `BlockingIssue` Pydantic schema to `app/notes/schemas.py` (fields: `note_id`, `entity_type`, `entity_id`, `body`, `entity_label`, `link`).
-- **Created** `app/notes/tests/test_notes_service.py` — 8 tests for `create_system_note` and `auto_resolve_system_notes`.
-- **Created** `app/projects/tests/test_projects_service.py` — 9 tests for `get_blocking_notes_for_project`.
+- **Created** `app/notes/router.py` with four endpoints:
+  - `GET /notes/{entity_type}/{entity_id}` — threaded list of top-level notes with nested replies
+  - `POST /notes/{note_id}/reply` — add reply to a top-level note (registered BEFORE the generic POST — see routing note below)
+  - `POST /notes/{entity_type}/{entity_id}` — create a user note; validates entity exists via `validate_entity_exists()`
+  - `PATCH /notes/{note_id}/resolve` — resolve user-authored blocking note; appends resolution_note as reply; 422 on system notes
+- **Added** `validate_entity_exists(entity_type, entity_id, db)` to `app/notes/service.py` — raises 404 if the referenced entity doesn't exist; uses inline imports to avoid circular imports
+- **Added** `GET /projects/{project_id}/blocking-issues` to `app/projects/router/base.py` — returns `list[BlockingIssue]` by calling `get_blocking_notes_for_project()`
+- **Registered** `notes_router` in `app/main.py`
+- **Created** `app/notes/tests/test_notes_router.py` — 24 API tests covering all five endpoints
 
-All 324 tests pass.
+All 348 tests pass.
 
 ---
 
 ## Design Decisions Made This Session
 
-### `auto_resolve_system_notes` takes `entity_type`
+### Route registration order: reply before create
 
-The roadmap signature omitted `entity_type`. Without it, resolving by `(entity_id, note_type)` alone could accidentally resolve notes on different entity types that share the same `entity_id`. Added `entity_type` as a required parameter for precision.
+`POST /notes/{note_id}/reply` is registered before `POST /notes/{entity_type}/{entity_id}` in the router. Starlette checks routes in registration order. For `/notes/42/reply`, both patterns match structurally. The reply route is more specific (literal "reply" segment) but Starlette doesn't auto-prioritise literals — manual ordering is required. For `/notes/project/42`, the reply route does NOT structurally match (second segment is "42" not "reply"), so it correctly falls through to the create route.
 
-### Deliverable `entity_id` is the template's `deliverable_id`
+### Nested `selectinload` for `Note.replies`
 
-`project_deliverables` and `project_building_deliverables` have no surrogate ID. Notes on deliverables attach to the `deliverable_id` (template row). A note on template #5 will appear in `get_blocking_notes_for_project` for any project that has deliverable #5. This is a known limitation — revisit if surrogate IDs are added to the deliverable instance tables.
+`NoteRead` is a recursive schema with `replies: list["NoteRead"]`. Returning a Note ORM object directly from a query risks MissingGreenlet on the second level (`response.replies[0].replies`) because:
 
-### Batches without a `time_entry_id` are excluded from `get_blocking_notes_for_project`
+1. A just-created Note has `replies` as an uninitialised InstrumentedList
+2. The nested `selectinload(Note.replies).selectinload(Note.replies)` sees the collection as "already present" and skips the secondary query
+3. FastAPI then accesses the attribute, SQLAlchemy lazy-loads synchronously → MissingGreenlet
 
-`sample_batches.time_entry_id` is nullable (Phase 4). A batch with no time entry has no project association. Only batches reachable via `time_entries.project_id` are included.
+Fix: `db.expunge(note)` (and `db.expunge(resolution_reply)` in resolve_note) removes the just-created objects from the identity map before the reload query. The reload gets fresh Python objects with `replies` in a true "unloaded" state, so the nested selectinload fires correctly.
+
+`db.expire_all()` was tried first but disrupted the async session state, causing MissingGreenlet on subsequent query cursor creation. `expunge()` on specific objects is the correct approach.
+
+### `list_notes` uses `populate_existing=True`
+
+The `GET /notes/{entity_type}/{entity_id}` endpoint uses `populate_existing=True` because notes could be seeded in the test session before the query runs, and the identity map would return stale versions. The write endpoints use `expunge()` instead (since we create then immediately re-read).
 
 ---
 
@@ -46,39 +56,62 @@ The roadmap signature omitted `entity_type`. Without it, resolving by `(entity_i
 
 - **Session A — Data model:** ✓ COMPLETE
 - **Session B — Service layer:** ✓ COMPLETE
-- **Session C — Endpoints:** `GET/POST /notes/{entity_type}/{entity_id}`, `POST /notes/{id}/reply`, `PATCH /notes/{id}/resolve`, `GET /projects/{id}/blocking-issues`; API tests covering reply-depth rule and system-note resolve rejection.
-- **Session D — Integration:** wire `create_system_note` into any service paths that should emit system notes (primary candidate: deliverable status-transition gate on blocking notes).
+- **Session C — Endpoints:** ✓ COMPLETE
+- **Session D — Integration:** wire `create_system_note` into service paths that should emit system notes (primary candidate: deliverable status-transition gate on blocking notes); update relevant module READMEs.
 
 ---
 
 ## Non-Obvious Technical Patterns (carried forward)
 
+### Route priority for overlapping POST patterns
+
+When two POST routes share the same path structure (e.g., `/{a}/{b}` and `/{id}/literal`), register the more-specific one (with a literal segment) FIRST. Starlette does not auto-prioritise literal segments over parameters.
+
+### `expunge()` + reload for just-created Note objects
+
+After `await db.commit()` on a newly created Note, expunge the Note from the session before re-querying it with `selectinload(Note.replies).selectinload(Note.replies)`. This ensures the selectin secondary query fires for the `replies` collection, avoiding MissingGreenlet during serialisation. `expire_all()` is NOT a safe substitute — it disrupts async session state.
+
+### Nested `selectinload` for recursive `NoteRead`
+
+`NoteRead.replies: list["NoteRead"]` is two levels deep (top-level notes with their replies). Use `selectinload(Note.replies).selectinload(Note.replies)` in all queries that return Note objects to be serialised. One level is not enough — the second selectinload loads the replies' `replies` collections (always empty, since one level of nesting is enforced).
+
 ### Self-referential relationship with `remote_side`
 
-For a one-to-many self-ref (parent → children) where the FK lives on the child, set `remote_side="Model.id"` on the `parent` relationship, and pair it with a reciprocal `back_populates`-linked collection on the parent. Getting `remote_side` pointed at the wrong column yields a silently-wrong relationship that loads nothing or loops.
+See previous handoff.
 
 ### Recursive Pydantic schemas need `model_rebuild()`
 
-`NoteRead` references itself via `replies: list["NoteRead"] = []`. Pydantic v2 requires an explicit `NoteRead.model_rebuild()` after the class definition for the self-reference to resolve.
+See previous handoff.
 
 ### Polymorphic attachment — no DB-level FK
 
-`notes.entity_id` has no FK. Service layer validates entity existence before insert. Deleting the parent entity does not cascade to its notes — that is explicitly app-layer (or deferred) cleanup.
+See previous handoff.
 
 ### Existing patterns still in force
 
-See `data/handoff.md` history and `app/PATTERNS.md`: `db.get()` vs `select() + populate_existing`, FK validation in early-return paths, `PermissionChecker` returns the user, audit-field test pattern, user-managed migrations, `lazy="selectin"` on serialized relationships, SQLite `Numeric` cast via `Decimal(str(value))`.
+See `data/handoff.md` history and `app/PATTERNS.md`.
 
 ---
 
 ## Next Step
 
-**Session C:** implement the four notes endpoints and their API tests.
+**Session D:** wire `create_system_note` into service paths that should emit system notes; update relevant module READMEs.
 
-- `GET /notes/{entity_type}/{entity_id}` — threaded list
-- `POST /notes/{entity_type}/{entity_id}` — create user note (validates entity exists)
-- `POST /notes/{note_id}/reply` — add reply to top-level note (reject reply-to-reply)
-- `PATCH /notes/{note_id}/resolve` — resolve user-authored blocking note; 422 on system notes
-- `GET /projects/{id}/blocking-issues` — calls `get_blocking_notes_for_project()`
+Primary candidate from the roadmap: blocking notes on a deliverable should block status transitions to `submitted` or `approved` — wire this check into the deliverable PATCH endpoint in `app/projects/router/deliverables.py`.
 
-Create `app/notes/router.py` and register it in `app/main.py`. Entity-existence validation needs a helper that looks up the entity by `entity_type` — this lives in `app/notes/service.py`.
+Checklist for Session D:
+
+- [ ] Review `app/projects/router/deliverables.py` — add blocking-note check before allowing `internal_status → in_review` or `sca_status → under_review/approved`
+- [ ] Decide whether any existing service paths (time entry overlap, batch discard, etc.) should emit system notes — the roadmap originally planned time-entry-conflict system notes but this was changed to 422-at-entry-time; verify nothing was missed
+- [ ] Update `app/notes/README.md` with the polymorphic attachment pattern, system vs. user notes, auto-resolve lifecycle, and the `expunge()`/nested-selectinload patterns from this session
+- [ ] Update `app/projects/README.md` to mention `GET /blocking-issues` endpoint
+
+Last note
+
+- My usage reached its limit during my last session as it was trying to update its notes for next time, so it didn't write everything down. It's last printed message was the following:
+
+● The handoff is already accurate. Three things still need updating:
+
+1. data/roadmap.md — Session C isn't marked complete and the endpoint checkboxes are still unchecked
+2. app/notes/README.md — missing the router-level patterns (expunge, nested selectinload, route order)
+3. app/projects/README.md — already mentions get_blocking_notes_for_project but doesn't mention the new endpoint

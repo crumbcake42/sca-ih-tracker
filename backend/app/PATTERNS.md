@@ -227,6 +227,47 @@ This only applies to `lazy="joined"` / `joinedload`. `lazy="selectin"` fires a s
 
 ---
 
+## 12. Route registration order for overlapping POST paths
+
+When two POST routes share the same path structure (e.g., `/{a}/{b}` and `/{id}/literal`), register the more-specific one (with a literal path segment) **first**. Starlette checks routes in registration order and does not auto-prioritise literal segments over parameters.
+
+```python
+# Correct — /{note_id}/reply registered before /{entity_type}/{entity_id}
+@router.post("/{note_id}/reply", ...)        # literal "reply" → more specific
+@router.post("/{entity_type}/{entity_id}", ...)  # both segments are variables
+```
+
+For a path like `/notes/42/reply`, both patterns match structurally. With `/{note_id}/reply` first, Starlette matches it correctly. The generic pattern still handles `/notes/project/42` because "42" ≠ "reply" so the more-specific pattern does not match structurally.
+
+---
+
+## 13. `expunge()` + nested `selectinload` for just-created objects
+
+After committing a newly created ORM object, expunge it from the session before reloading with `selectinload`. Without expunge, the identity map returns the in-memory object whose relationship collections are in an uninitialised state. The `selectinload` secondary query is skipped ("collection already present"), leaving the attribute in a lazy state that raises `MissingGreenlet` when FastAPI serialises the response.
+
+```python
+note = Note(...)
+db.add(note)
+await db.commit()
+
+# Remove from identity map so the reload gets a fresh Python object
+note_id = note.id
+db.expunge(note)
+
+result = await db.execute(
+    select(Note)
+    .where(Note.id == note_id)
+    .options(selectinload(Note.replies).selectinload(Note.replies))
+)
+return result.scalar_one()
+```
+
+For recursive schemas (`NoteRead.replies: list["NoteRead"]`), chain `selectinload` two levels deep. One level is not enough — the replies' `replies` collections also need to be DB-loaded before serialisation.
+
+`db.expire_all()` is NOT a safe substitute — it disrupts async session cursor creation. `db.expunge(specific_obj)` is targeted and harmless.
+
+---
+
 ## 11. Rollback test pattern
 
 Tests use a transaction-based rollback fixture. Each test opens a savepoint, runs, then rolls back — leaving the database clean for the next test without re-creating the schema.
