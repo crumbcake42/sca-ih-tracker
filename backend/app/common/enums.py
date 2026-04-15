@@ -95,6 +95,19 @@ class SampleBatchStatus(StrEnum):
     LOCKED = "locked"
 
 
+class NoteEntityType(StrEnum):
+    PROJECT = "project"
+    TIME_ENTRY = "time_entry"
+    DELIVERABLE = "deliverable"
+    SAMPLE_BATCH = "sample_batch"
+
+
+class NoteType(StrEnum):
+    """System-generated note types. NULL for user-authored notes."""
+
+    TIME_ENTRY_CONFLICT = "time_entry_conflict"
+
+
 class EmployeeRoleType(StrEnum):
     ACM_AIR_TECH = "Asbestos On Site Technical Air Testing"
     ACM_PROJECT_MONITOR = "Asbestos Project Monitor"

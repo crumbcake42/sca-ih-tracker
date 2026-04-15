@@ -217,16 +217,24 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 > Prerequisite for Phase 6: project closure gates on unresolved blocking notes across all project entities.
 > Phase 4 no longer requires Phase 3.6 — overlap detection was changed to return 422 at entry time rather than creating system notes (see Phase 4 design decisions).
 
-**Data model:**
+**Session breakdown** (one building step per session):
 
-- [ ] `notes` table — `entity_type` (enum: `project` \| `time_entry` \| `deliverable` \| `sample_batch` \| `work_auth`), `entity_id` (int; no DB-level FK — polymorphic attachment, app-layer enforced), `parent_note_id` (nullable FK → `notes.id`; one level of replies only), `body` (text), `note_type` (nullable enum: `time_entry_conflict` \| future system types; `NULL` for user-authored notes), `is_blocking` (bool), `is_resolved` (bool, default `False`), `resolved_by_id` (nullable FK → `users.id`), `resolved_at` (nullable timestamp); `AuditMixin` covers `created_at`, `updated_at`, `created_by_id`, `updated_by_id` (`created_by_id = SYSTEM_USER_ID` for system notes)
-- [ ] `NoteEntityType` enum in `app/common/enums.py`; `NoteType` enum for system-generated note types
+- **Session A — Data model + migration:** `app/notes/` module scaffold; `Note` model; `NoteEntityType` + `NoteType` enums in `app/common/enums.py`; Pydantic schemas (no endpoints yet); module README. Stop for user-generated migration.
+- **Session B — Service layer:** `create_system_note()`, `auto_resolve_system_notes()`, `get_blocking_notes_for_project()` with unit tests.
+- **Session C — Endpoints:** `GET/POST /notes/{entity_type}/{entity_id}`, `POST /notes/{id}/reply`, `PATCH /notes/{id}/resolve`, `GET /projects/{id}/blocking-issues` + API tests.
+- **Session D — Integration:** wire `create_system_note` into any service paths that should emit system notes (e.g. deliverable blocking-note gate on status transitions); update relevant module READMEs.
+
+**Data model:** ✓ Session A complete (model + schemas landed; migration pending — user-generated)
+
+- [x] `notes` table — `entity_type` (enum: `project` \| `time_entry` \| `deliverable` \| `sample_batch`), `entity_id` (int; no DB-level FK — polymorphic attachment, app-layer enforced), `parent_note_id` (nullable FK → `notes.id`, `ondelete=CASCADE`; one level of replies only), `body` (text), `note_type` (nullable enum: `time_entry_conflict` \| future system types; `NULL` for user-authored notes), `is_blocking` (bool), `is_resolved` (bool, default `False`), `resolved_by_id` (nullable FK → `users.id`), `resolved_at` (nullable timestamp); composite index on `(entity_type, entity_id)`; `AuditMixin` covers `created_at`, `updated_at`, `created_by_id`, `updated_by_id` (`created_by_id = SYSTEM_USER_ID` for system notes). _Note: `work_auth` intentionally omitted from `NoteEntityType` — not needed for closure gating and can be added later if a use case emerges._
+- [x] `NoteEntityType` + `NoteType` enums in `app/common/enums.py`
+- [x] Pydantic schemas in `app/notes/schemas.py`: `NoteCreate`, `NoteReply`, `NoteResolve`, `NoteRead` (with nested `replies`)
 
 **Service layer:**
 
 - [ ] `create_system_note(entity_type, entity_id, note_type, body, db)` — inserts a blocking note with `created_by_id = SYSTEM_USER_ID`; checks for an existing unresolved note of the same `note_type` on the same entity before inserting to prevent duplicates
 - [ ] `auto_resolve_system_notes(entity_id, note_type, db)` — marks all unresolved notes of a given type on a given entity as resolved (`resolved_by_id = SYSTEM_USER_ID`, `resolved_at = now()`); called from the service layer when the underlying condition is cleared (e.g., overlap fixed)
-- [ ] `get_blocking_notes_for_project(project_id, db)` — aggregates all unresolved blocking notes across: the project itself, all linked time entries, all deliverables, all sample batches, all work auths; returns a list with `entity_type`, `entity_id`, a human-readable `entity_label`, and a `link` for frontend navigation
+- [ ] `get_blocking_notes_for_project(project_id, db)` — **lives in `app/projects/service.py`** (not `app/notes/service.py`), since it's a project-scoped aggregation that joins across modules. Aggregates all unresolved blocking notes across: the project itself, all linked time entries, all deliverables, all sample batches; returns a list with `entity_type`, `entity_id`, a human-readable `entity_label`, and a `link` for frontend navigation
 
 **Endpoints:**
 

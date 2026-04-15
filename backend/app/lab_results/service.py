@@ -1,5 +1,5 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
-from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -16,7 +16,6 @@ from app.lab_results.models import (
     SampleTypeRequiredRole,
     SampleUnitType,
     TurnaroundOption,
-    
 )
 from app.projects.models import Project
 from app.time_entries.models import TimeEntry

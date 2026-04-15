@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.security import verify_password
 from app.schools.models import School
 
-
 # ---------------------------------------------------------------------------
 # Batch import audit
 # ---------------------------------------------------------------------------

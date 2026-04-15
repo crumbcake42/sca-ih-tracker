@@ -18,6 +18,7 @@ import app.wa_codes.models  # noqa: F401
 import app.work_auths.models  # noqa: F401
 import app.time_entries.models  # noqa: F401
 import app.lab_results.models  # noqa: F401
+import app.notes.models  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

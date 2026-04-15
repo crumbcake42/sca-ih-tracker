@@ -14,8 +14,6 @@ This module does **not** contain business logic. If a function is specific to on
 
 **`SYSTEM_USER_ID = 1` is defined in `config.py` and must be imported from there.** Never hardcode the integer `1` as a user ID in service code. Use `from app.common.config import SYSTEM_USER_ID`.
 
-**The `Note` model in `models.py` is polymorphic via `parent_type`/`parent_id`.** There is no FK constraint on `parent_id` — the polymorphic pattern intentionally avoids a hard FK so a single `notes` table can attach to any entity type. Referential integrity is enforced at the application layer, not the DB layer. See `app/notes/README.md` for full detail once that module is implemented.
-
 **`crud.py` provides two generic helpers:**
 - `get_paginated_list()` — handles pagination, optional search, and sort for any model. Use this instead of hand-rolling list endpoints.
 - `get_by_ids()` — fetches multiple records by a list of IDs with a single query and raises 404 if any are missing.
