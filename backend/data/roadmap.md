@@ -324,6 +324,67 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 ---
 
+### Phase 6.5 — Required Documents and Expected/Placeholder Entities
+
+Required documents at **submission/closure** time (distinct from Phase 2's `deliverables`, which are documents sent out for SCA review). Full design in `.claude/plans/witty-brewing-bentley.md`.
+
+**Three data silos, distinguished by shape of tracking required:**
+
+**Silo 1 — `project_document_requirements`** (generic on/off checklist)
+- Covers DAILY_LOG, REOCCUPANCY_LETTER, MINOR_LETTER
+- Columns: `project_id`, `document_type` (enum), `is_required`, `is_saved`, nullable `employee_id` / `date` / `school_id` / `file_id`, `dismissal_reason` / `dismissed_by_id` / `dismissed_at`, `is_placeholder`, `expected_role_type` (enum, nullable), `notes` + AuditMixin
+- Daily log auto-create: on time entry insert, if the employee's role type has `requires_daily_log=True`, ensure a row exists for (project, employee, date)
+- Re-occupancy / minor letters are manual POST — the system never derives count
+
+**Silo 2 — `contractor_payment_records`** (CPR with RFA+RFP sub-flow)
+- One row per (project, contractor). Auto-created on contractor link to a project (`is_required=true` by default; manager can dismiss)
+- Columns: `project_id`, `contractor_id`, `is_required`, RFA dates/statuses (`rfa_submitted_at`, `rfa_internal_status`+`rfa_internal_resolved_at`, `rfa_sca_status`+`rfa_sca_resolved_at`), RFP dates/statuses through saving (`rfp_submitted_at`, `rfp_internal_status`+`rfp_internal_resolved_at`, `rfp_saved_at`), dismissal audit fields, `notes` + AuditMixin
+- **`rfp_saved_at IS NOT NULL` is the closure gate.** SCA's post-save RFP review has no bearing on closure and is intentionally not tracked here
+- **History via system notes, not a history table.** When the manager re-submits an RFA/RFP after prior dates were recorded, the service writes a `create_system_note()` capturing the prior dates before clearing them. Stage regressions (approved → rejected) likewise get auto-notes. Dashboard queries like "CPRs with multiple RFA rounds" become note-text filters
+
+**Silo 3 — `dep_filing_forms` + `project_dep_filings`**
+- Admin-managed `dep_filing_forms` (code, label, `is_default_selected`, `display_order`) — adding a new form requires no migration
+- `project_dep_filings` — one row per (project, form) with `is_saved`, `saved_at`, nullable `file_id`; unique on (project_id, dep_filing_form_id)
+- Manager UX: "project has DEP filings" button → form list with common ones pre-checked → POST `{form_ids: [...]}` creates rows
+- Closure gate: any `is_saved=false` row blocks close
+
+**Cross-cutting — expected/placeholder entities and project templates:**
+
+- Every derived-entity table carries `is_placeholder: bool` and allows nullable identity columns (employee_id, date, etc.) when `is_placeholder=True`
+- `time_entries.status` gains a fourth value `EXPECTED` (nullable employee/dates; does not participate in overlap checks) on top of the Phase 4 migration
+- `wa_code_expected_entities` config table (extends the existing `deliverable_wa_code_triggers` pattern): maps WA codes to the entities they imply — expected time entries by role type, expected daily logs, expected DEP filing packages, etc.
+- Service `derive_expected_entities_for_project(project_id)` runs on WA code add (idempotent via `(project_id, source_wa_code_id, derived_entity_type, expected_role_type)` dedupe key) and creates placeholder rows in the appropriate silos
+- **Dismissibility** (generalizes the Phase 4 "dismissible requirements" idea): every required thing can be satisfied (real data promotes the placeholder) OR dismissed (manager sets `is_required=false` via a dedicated endpoint that requires `dismissal_reason`). Closure aggregator only counts `is_required=True AND not_satisfied`
+- **Project templates** (`project_templates` + `project_template_wa_codes`): a named bundle of WA codes. Apply-to-project = copy the WA codes onto the project, then run `derive_expected_entities_for_project()`. This is a convenience layer on top of `wa_code_expected_entities` and is deferred to its own follow-up phase — the code-level derivation works without it
+
+**Role-type schema addition:** add `requires_daily_log: bool` to role type config. Air techs and project monitors get True; asbestos investigators get False. Admin-toggleable.
+
+**⚠️ Placeholder→actual matching layer (service logic that promotes a placeholder when a matching real entity is created) is DESIGN NOT FINALIZED.** Must be revisited in a dedicated session before any implementation.
+
+**In-scope for Phase 6.5 tasks:**
+
+- [ ] `app/required_docs/` module — models (`ProjectDocumentRequirement`, `ContractorPaymentRecord`, `DepFilingForm`, `ProjectDepFiling`), schemas, CRUD routers, service, tests, README
+- [ ] Add `DocumentType`, `CPRStageStatus` enums to `app/common/enums.py`
+- [ ] Add `requires_daily_log: bool` to the role type model and admin CRUD
+- [ ] `app/time_entries/models.py` — add `EXPECTED` to `TimeEntryStatus`; make employee/datetimes nullable in service-layer validation when status=expected
+- [ ] `app/wa_codes/` — `wa_code_expected_entities` config table + admin CRUD + seed rules (monitoring codes → expected air tech / project monitor entries)
+- [ ] `app/projects/service.py` — `derive_expected_entities_for_project(project_id)`, idempotent; called on WA code add
+- [ ] Hook into project creation / contractor link → auto-create CPR rows
+- [ ] Hook into time entry create → auto-create DAILY_LOG requirement if role requires it
+- [ ] Dedicated dismissal endpoint per silo (requires `dismissal_reason`)
+- [ ] Extend Phase 6's `get_blocking_notes_for_project()` to include outstanding items from all three silos
+- [ ] Consider adding a "system notes as history substitute" entry to `app/PATTERNS.md` if the pattern recurs
+
+**Deferred out of Phase 6.5:**
+
+- File upload infrastructure (a polymorphic `files` table referenced via nullable `file_id` on every silo). `is_saved=true, file_id=null` remains a valid permanent state ("on file outside the system")
+- Project templates proper (`project_templates`, `project_template_wa_codes`) and the apply-template UX
+- Full placeholder sample batches (Phase 4's `time_entry_id=null` + dismiss already covers the lived case)
+- Zipped project-package export (one folder per silo)
+- Reminder/nudge logic ("CPR stuck at internal review N days") — trivial to layer on once dates exist
+
+---
+
 ### Phase 7 — Dashboard Query Endpoints
 
 - [ ] `GET /projects/dashboard/my-outstanding-deliverables`
