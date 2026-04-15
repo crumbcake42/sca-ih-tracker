@@ -1,13 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.enums import SampleBatchStatus, TimeEntryStatus
 from app.database import get_db
 from app.employees.models import Employee
+from app.lab_results.models import SampleBatch
 from app.projects.models import Project
 from app.time_entries.models import TimeEntry
 from app.time_entries.schemas import TimeEntryCreate, TimeEntryRead, TimeEntryUpdate
-from app.time_entries.service import validate_role_for_entry, validate_school_on_project
+from app.time_entries.service import (
+    check_time_entry_overlap,
+    validate_role_for_entry,
+    validate_school_on_project,
+)
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 
@@ -68,6 +74,11 @@ async def create_time_entry(
         body.employee_id, body.employee_role_id, body.start_datetime, db
     )
 
+    # Verify no overlapping entry exists for this employee
+    await check_time_entry_overlap(
+        body.employee_id, body.start_datetime, body.end_datetime, db
+    )
+
     entry = TimeEntry(
         start_datetime=body.start_datetime,
         end_datetime=body.end_datetime,
@@ -116,8 +127,20 @@ async def update_time_entry(
                 detail="end_datetime must be after start_datetime",
             )
 
+    # Verify no overlapping entry exists for this employee after applying updates
+    effective_start = updates.get("start_datetime", entry.start_datetime)
+    effective_end = updates.get("end_datetime", entry.end_datetime)
+    await check_time_entry_overlap(
+        entry.employee_id, effective_start, effective_end, db, exclude_id=entry.id
+    )
+
     for field, value in updates.items():
         setattr(entry, field, value)
+
+    # Any manager edit on an assumed entry promotes it to entered
+    if entry.status == TimeEntryStatus.ASSUMED:
+        entry.status = TimeEntryStatus.ENTERED
+
     entry.updated_by_id = current_user.id
 
     await db.commit()
@@ -134,5 +157,19 @@ async def delete_time_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
     entry = await db.get(TimeEntry, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Time entry not found")
+
+    # Block deletion if active or discarded batches are linked
+    result = await db.execute(
+        select(func.count()).select_from(SampleBatch).where(
+            SampleBatch.time_entry_id == entry_id,
+            SampleBatch.status.in_([SampleBatchStatus.ACTIVE, SampleBatchStatus.DISCARDED]),
+        )
+    )
+    if result.scalar() > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete: time entry has linked batches. Reassign or delete them first.",
+        )
+
     await db.delete(entry)
     await db.commit()

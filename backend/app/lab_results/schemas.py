@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.common.enums import EmployeeRoleType
+from app.common.enums import EmployeeRoleType, SampleBatchStatus
 
 # ---------------------------------------------------------------------------
 # Config schemas
@@ -120,7 +120,7 @@ class SampleBatchCreate(BaseModel):
     sample_type_id: int
     sample_subtype_id: int | None = None
     turnaround_option_id: int | None = None
-    time_entry_id: int
+    time_entry_id: int | None = None
     batch_num: str = Field(..., max_length=50)
     is_report: bool = False
     date_collected: date
@@ -141,11 +141,32 @@ class SampleBatchRead(BaseModel):
     sample_type_id: int
     sample_subtype_id: int | None
     turnaround_option_id: int | None
-    time_entry_id: int
+    time_entry_id: int | None
     batch_num: str
     is_report: bool
+    status: SampleBatchStatus
     date_collected: date
     notes: str | None
     created_at: datetime
     units: list[SampleBatchUnitRead]
     inspectors: list[SampleBatchInspectorRead]
+
+
+class QuickAddBatchCreate(BaseModel):
+    """Creates a TimeEntry (assumed) and a SampleBatch atomically."""
+    # Time entry fields
+    employee_id: int
+    employee_role_id: int
+    project_id: int
+    school_id: int
+    date_on_site: date
+    # Batch fields (same as SampleBatchCreate minus time_entry_id)
+    sample_type_id: int
+    sample_subtype_id: int | None = None
+    turnaround_option_id: int | None = None
+    batch_num: str = Field(..., max_length=50)
+    is_report: bool = False
+    date_collected: date
+    notes: str | None = None
+    units: list[SampleBatchUnitCreate] = Field(..., min_length=1)
+    inspector_ids: list[int] = Field(..., min_length=1)

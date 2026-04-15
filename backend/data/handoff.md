@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-15 (Phase 6.5 design session; no code written)
+# Session Handoff — 2026-04-14 (Phase 4 fully implemented; migration pending)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,45 +6,7 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**307 tests passing (unchanged from last session). Phase 4 migration still pending. No code was written this session — it was a design session for Phase 6.5 (Required Documents and Expected/Placeholder Entities).**
-
-The full Phase 6.5 design now lives in `data/roadmap.md` (Phase 6.5 section) with the exhaustive plan at `.claude/plans/witty-brewing-bentley.md`. Read the roadmap section first; crack the plan only when implementing.
-
----
-
-## What Was Done This Session
-
-Design-only, no code. Agreed with the user:
-
-- **New Phase 6.5** inserted between Phase 6 (closure) and Phase 7 (dashboards)
-- Three silos for required documents: `project_document_requirements` (generic on/off: daily logs, re-occupancy letters, minor letters), `contractor_payment_records` (CPR with its own RFA+RFP sub-flow), `dep_filing_forms` + `project_dep_filings` (DEP package)
-- Cross-cutting **expected/placeholder pattern**: `is_placeholder` bit + nullable identity columns on derived-entity tables; `TimeEntryStatus.EXPECTED` joins the existing `assumed`/`entered`/`locked`; `wa_code_expected_entities` config table drives auto-derivation from WA codes; project templates are a deferred convenience layer on top
-- **Dismissibility generalized** (supersedes the Phase 4 "dismissable requirements" idea, which is rolled into Phase 6.5): every required thing can be satisfied or dismissed via a dedicated endpoint that requires `dismissal_reason`; closure aggregator only checks `is_required=True AND not_satisfied`
-- **CPR history via system notes, not a history table**: on re-submission or stage regression, service writes a `create_system_note()` capturing prior dates before clearing them. No `contractor_payment_record_history` table
-- File upload infrastructure deferred indefinitely. `is_saved=true, file_id=null` is a permanently valid state meaning "on file outside the system"
-
----
-
-## Open Design Risks — Revisit Before Implementation
-
-### ⚠️ Placeholder→actual matching layer — NOT FINALIZED
-
-The service logic that promotes a placeholder row when a matching real entity arrives (a manager creates a real time entry that fulfills an `EXPECTED` placeholder, etc.) has only a sketch in the plan file. **Do not write this code without a dedicated design session.** The sketch is directional only — covers the dedupe key and a candidate match-first-by-role rule, but the user explicitly flagged this for revisit.
-
-### Expected time entries vs existing status invariants
-
-`TimeEntryStatus.EXPECTED` (new) must not collide with `ASSUMED` (system-created placeholder for daily-log backfill). They have different meanings:
-
-- `ASSUMED`: employee known, date known, midnight-to-midnight span, awaiting manager confirmation
-- `EXPECTED`: employee/date/span all unknown; placeholder for "someone with role X will eventually do this work"
-
-Review overlap checks, locked-project guards, and the `assumed → entered` flip rule for interactions with `EXPECTED` before writing.
-
----
-
-## Phase 4 Migration Still Pending
-
-(Unchanged from last session — included here because implementation of any Phase 6.5 work will need this migration applied first.)
+**307 tests passing. Phase 4 code is fully implemented. One Alembic migration is still needed before the changes work against a real DB — the user generates and applies all migrations manually.**
 
 **Migration label:** `add_status_enums_nullable_batch_time_entry`
 
@@ -58,7 +20,27 @@ Review overlap checks, locked-project guards, and the `assumed → entered` flip
 
 ## What Was Done This Session
 
-### Documentation pass — module READMEs written
+### Phase 4 implementation
+
+All Phase 4 code written and tested (307 passing, up from 278):
+
+- `TimeEntryStatus` + `SampleBatchStatus` enums added to `app/common/enums.py`
+- `time_entries.status` column added (default `entered`)
+- `sample_batches.status` column added (default `active`)
+- `sample_batches.time_entry_id` made nullable in model + schema
+- `check_time_entry_overlap()` service function — 422 on cross-project overlap; NULL end treated as full-day
+- PATCH `/time-entries/{id}` flips `assumed → entered` on any manager edit
+- DELETE `/time-entries/{id}` returns 409 if active/discarded batches are linked
+- `POST /lab-results/batches/{id}/discard` endpoint added
+- `POST /lab-results/batches/quick-add` endpoint added (atomic time entry + batch creation)
+- New test classes: `TestTimeEntryStatus`, `TestTimeEntryOverlap`, `TestDeleteTimeEntryGuard`, `TestDiscardBatch`, `TestNullableTimeEntry`, `TestQuickAdd`
+
+### Also this session
+
+- `/gnight` slash command created at `.claude/commands/gnight.md`
+- CLAUDE.md updated: use `.venv/Scripts/python.exe -m pytest` (not `source activate`)
+
+### Documentation pass (prior session)
 
 Nine `README.md` files were created across the project. Each follows the three-section format from `data/roadmap.md`: **Purpose**, **Non-obvious behavior**, **Before you modify**. Mermaid diagrams are embedded in modules with state machines or validation chains.
 
@@ -71,14 +53,8 @@ Nine `README.md` files were created across the project. Each follows the three-s
 | `app/common/README.md`       | AuditMixin is explicit-only, SYSTEM_USER_ID import location, router factory functions                                                  |
 | `app/work_auths/README.md`   | WA code status state machine (Mermaid), RFA state machine (Mermaid), one-pending-RFA-per-WA rule                                       |
 | `app/projects/README.md`     | Link tables via project endpoints only, ProjectManagerAssignment is append-only audit trail, composite FK dependencies                 |
-| `app/time_entries/README.md` | Planned state diagram (Mermaid, status col not yet added), overlap → system notes not 422, SYSTEM_USER_ID identifies quick-add entries |
+| `app/time_entries/README.md` | Planned state diagram (Mermaid, status col not yet added), overlap → 422 not system notes, SYSTEM_USER_ID identifies quick-add entries |
 | `app/lab_results/README.md`  | Config vs data layer, batch validation chain flowchart (Mermaid), sample_unit_type validation is app-layer only                        |
-
-The roadmap's "Files to generate" checklist was updated. Still unchecked: `backend/README.md`, `backend/app/PATTERNS.md` (already exists), `backend/app/notes/README.md` (blocked until Phase 3.6 implements the notes module).
-
-Thin CRUD modules (schools, contractors, hygienists) were deliberately skipped per the roadmap's own rule.
-
----
 
 ---
 
@@ -86,84 +62,213 @@ Thin CRUD modules (schools, contractors, hygienists) were deliberately skipped p
 
 ### `time_entries.source` — DROPPED
 
-The planned `source` column (`manual` | `system`) is redundant. `created_by_id == SYSTEM_USER_ID` already encodes whether an entry was system-created. Do not add this column.
+`created_by_id == SYSTEM_USER_ID` already encodes whether an entry was system-created. Do not add this column.
 
-### `conflicted` status — DROPPED
+### `conflicted` status — DROPPED (replaced with 422 at entry time)
 
-The planned `conflicted` status value and `flag_employee_overlaps` service are removed. The original intent was to detect when two time entries for the same employee overlap and block project closure until resolved.
-
-**Why dropped:** Maintaining `conflicted` as running state requires re-evaluating overlap on every create, update, and delete — querying all entries for an employee, updating flags, and coordinating with the `locked` transition. It's complex, easy to get wrong, and turns a minor data-entry mistake into a hard project-closure block for a small internal team.
-
-**Replacement:** Validate at insert/update time. If the new/updated entry's time span overlaps an existing entry for the same employee, return 422 with a clear message identifying the conflict. No `conflicted` status. No reactive service. The error appears at the point of entry, not later as a blocking flag on the project.
+No `conflicted` status. No reactive service. If a POST or PATCH time entry would overlap an existing entry for the same employee (cross-project), return 422 with the conflicting entry's ID. Error appears at the point of entry.
 
 ### `orphaned` batch status + `orphan_detached_batches` — DROPPED
 
-The planned `orphaned` status value and `orphan_detached_batches` service (which would mark batches orphaned when their time entry was deleted or its span changed past the collection date) are removed.
-
-**Why dropped:** Time entries are rarely deleted in practice — they're logs of work done. The scenario that triggers orphaning (modifying a time entry's date range far enough that the collection date no longer falls within it) is an edge case not described in the original requirements.
-
-**Replacement:** Block deletion of `time_entries` that have `active` or `discarded` batches with a 409 ("this entry has X batches linked to it — reassign or delete them first"). No orphan state to manage.
+Block deletion of `time_entries` that have `active` or `discarded` batches with 409. No orphan state to manage.
 
 ### Revised state models
 
-**`time_entries.status`** (3 values, down from 4):
+**`time_entries.status`** (3 values):
 
-- `assumed` — system placeholder; times not yet confirmed from daily logs
+- `assumed` — system placeholder; times not yet confirmed (always created with `start_datetime` at midnight 00:00:00 of the date, `end_datetime=None`)
 - `entered` — times manually input or confirmed by a manager
 - `locked` — project closed; read-only
 
-When a manager edits a `status=assumed` entry: `status → entered`. `created_by_id` stays as `SYSTEM_USER_ID`. `updated_by_id` = manager's ID.
+When a manager edits a `status=assumed` entry: `status → entered`. `created_by_id` stays as `SYSTEM_USER_ID`. `updated_by_id` = manager's ID. Default for new manager-created entries: `entered`.
 
-**`sample_batches.status`** (3 values, down from 4):
+**`sample_batches.status`** (3 values):
 
 - `active` — normal
-- `discarded` — invalidated by manager
+- `discarded` — invalidated by manager (via dedicated `POST /batches/{id}/discard` endpoint)
 - `locked` — project closed; read-only
 
 ### NULL end_datetime — assumed entries only
 
 `end_datetime` being NULL is valid only on `assumed` entries. These are always created with `start_datetime = 00:00:00` of the work date. For overlap checking, treat NULL end_datetime as midnight of the next day (`DATETIME(start_datetime, '+1 day')`), which works correctly because start is always at midnight.
 
-### Dismissable requirements — ROLLED INTO PHASE 6.5
+### Dismissable requirements — NEW CONCEPT, deferred to after Phase 6
 
-Originally scoped as a Phase 4 follow-up for batches with `time_entry_id=null`. The 2026-04-15 design session generalized this: every required thing (document requirement, CPR, DEP filing, placeholder time entry, etc.) can be **satisfied** (real data arrives) or **dismissed** via a dedicated endpoint that requires a `dismissal_reason`. See Phase 6.5 in `data/roadmap.md`. No separate Phase 4 follow-up work remains on this concept.
+A batch with `time_entry_id=null` is a blocking issue (samples exist but can't be attributed to valid work time). Managers should be able to dismiss such issues, explicitly acknowledging the problem and excluding those samples from billing. Needs design: storage, permissions, billing integration. `time_entry_id` nullable (added in Phase 4 migration) is the prerequisite.
 
 ### Phase 5 (Observability) — DEFERRED
 
 Deferred until the app is deployed and real performance data is available. Do not implement before Phase 6.
 
+### Batch discard — dedicated endpoint, not PATCH field
+
+`POST /lab-results/batches/{id}/discard` rather than adding `status` to `SampleBatchUpdate`. Keeps the schema clean; allows future reason/note fields.
+
 ---
 
-## Next Step — Still Phase 3.6 (Notes and Blockers)
+## Next Step — Phase 3.6 (Notes and Blockers)
 
-Phase sequencing is unchanged by this session's work. Phase 3.6 remains the next thing to build, because both Phase 6 (closure gates) and Phase 6.5 (required docs) depend on the notes infrastructure — CPR auto-notes on re-submission need `create_system_note()` in place.
+Phase 3.6 is the prerequisite for Phase 6 (project closure). Now that Phase 4 is done, Phase 3.6 is the natural next step. Key design is already in `data/roadmap.md` under Phase 3.6. The main work:
 
-Phase 3.6 main work (design in `data/roadmap.md`):
+1. `notes` table — polymorphic (`entity_type` + `entity_id`), `is_blocking`, `is_resolved`, system vs. user notes
+2. Service functions: `create_system_note()`, `auto_resolve_system_notes()`, `get_blocking_notes_for_project()`
+3. Endpoints: `GET/POST /notes/{entity_type}/{entity_id}`, `POST /notes/{id}/reply`, `PATCH /notes/{id}/resolve`
+4. `GET /projects/{id}/blocking-issues`
 
-1. **`time_entries.status`** — add `TimeEntryStatus` enum (`assumed`, `entered`, `locked`); add nullable column with default `entered` (existing manual entries are already confirmed); add server_default as well so the DB column has a fallback
-2. **`sample_batches.status`** — add `SampleBatchStatus` enum (`active`, `discarded`, `locked`); add column with default `active`
-3. **`sample_batches.time_entry_id` nullable** — remove `NOT NULL` constraint
+**Do not start Phase 6 until Phase 3.6 is complete.**
 
-**Do not start Phase 6 or 6.5 until Phase 3.6 is complete.**
+---
 
-### Phase 6.5 build sequencing (when we get there)
+## Phase 4 Implementation — Full Plan (complete — kept for reference)
 
-Each step is its own session:
+### Files to modify
 
-1. Schema + enums: `app/required_docs/` models (all four tables) + `DocumentType`, `CPRStageStatus` enums + migration
-2. `requires_daily_log` on role type + admin toggle
-3. `TimeEntryStatus.EXPECTED` + service-layer nullability guards
-4. `wa_code_expected_entities` config table + admin CRUD + seed rules
-5. `derive_expected_entities_for_project()` — idempotent derivation **(pause here — matching layer design session required before step 6)**
-6. Placeholder→actual matching layer (design not yet finalized)
-7. CRUD routers per silo + dismissal endpoints (require `dismissal_reason`)
-8. Auto-creation hooks: time entry → daily log requirement; project/contractor link → CPR row
-9. CPR auto-note service (requires Phase 3.6)
-10. Extend Phase 6's `get_blocking_notes_for_project()` to include all three silos
+| File                                | Change                                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------- | -------------------- |
+| `app/common/enums.py`               | Add `TimeEntryStatus`, `SampleBatchStatus`                             |
+| `app/time_entries/models.py`        | Add `status` column                                                    |
+| `app/time_entries/schemas.py`       | Add `status` to `TimeEntryRead` only                                   |
+| `app/time_entries/service.py`       | Add `check_time_entry_overlap()`                                       |
+| `app/time_entries/router.py`        | POST/PATCH overlap check; PATCH assumed→entered flip; DELETE 409 guard |
+| `app/lab_results/models.py`         | Add `status` column; make `time_entry_id` nullable                     |
+| `app/lab_results/schemas.py`        | Add `status` to `SampleBatchRead`; `time_entry_id: int                 | None` in Create/Read |
+| `app/lab_results/router/batches.py` | Add `POST /{batch_id}/discard`; add `POST /quick-add`                  |
+| `app/lab_results/service.py`        | Add helpers for discard and quick-add                                  |
 
-Then: implement `POST /lab-results/batches/quick-add`.
+### Step 1 — Enums (`app/common/enums.py`)
 
-**Do not start Phase 6 until the quick-add endpoint is working and tested.**
+```python
+class TimeEntryStatus(StrEnum):
+    ASSUMED = "assumed"
+    ENTERED = "entered"
+    LOCKED  = "locked"
+
+class SampleBatchStatus(StrEnum):
+    ACTIVE    = "active"
+    DISCARDED = "discarded"
+    LOCKED    = "locked"
+```
+
+### Step 2 — Models
+
+`app/time_entries/models.py`:
+
+```python
+status: Mapped[TimeEntryStatus] = mapped_column(
+    SQLEnum(TimeEntryStatus), nullable=False,
+    default=TimeEntryStatus.ENTERED, server_default=TimeEntryStatus.ENTERED,
+)
+```
+
+`app/lab_results/models.py`:
+
+```python
+# Add status:
+status: Mapped[SampleBatchStatus] = mapped_column(
+    SQLEnum(SampleBatchStatus), nullable=False,
+    default=SampleBatchStatus.ACTIVE, server_default=SampleBatchStatus.ACTIVE,
+)
+# Make time_entry_id nullable:
+time_entry_id: Mapped[int | None] = mapped_column(
+    ForeignKey("time_entries.id", ondelete="RESTRICT"), index=True, nullable=True
+)
+time_entry: Mapped["TimeEntry | None"] = relationship("TimeEntry", ...)
+```
+
+### Step 3 — Migration (user runs manually)
+
+Three changes in one migration:
+
+1. `ALTER TABLE time_entries ADD COLUMN status VARCHAR NOT NULL DEFAULT 'entered'`
+2. `ALTER TABLE sample_batches ADD COLUMN status VARCHAR NOT NULL DEFAULT 'active'`
+3. Make `sample_batches.time_entry_id` nullable (SQLite: recreate table)
+
+### Step 4 — Schemas
+
+- `TimeEntryRead`: add `status: TimeEntryStatus`
+- Do NOT add status to `TimeEntryCreate` or `TimeEntryUpdate`
+- `SampleBatchRead`: add `status: SampleBatchStatus`; change `time_entry_id: int | None`
+- `SampleBatchCreate`: change `time_entry_id: int | None = None`
+- Do NOT add status to `SampleBatchUpdate`
+
+### Step 5 — Overlap service function (`app/time_entries/service.py`)
+
+```python
+async def check_time_entry_overlap(
+    employee_id: int, start_dt: datetime, end_dt: datetime | None,
+    db: AsyncSession, exclude_id: int | None = None,
+) -> None:
+    from datetime import timedelta
+    effective_new_end = end_dt if end_dt is not None else datetime.combine(
+        start_dt.date() + timedelta(days=1), time.min
+    )
+    stmt = select(TimeEntry).where(
+        TimeEntry.employee_id == employee_id,
+        TimeEntry.start_datetime < effective_new_end,
+        func.coalesce(
+            TimeEntry.end_datetime,
+            func.datetime(TimeEntry.start_datetime, "+1 day")
+        ) > start_dt,
+    )
+    if exclude_id is not None:
+        stmt = stmt.where(TimeEntry.id != exclude_id)
+    result = await db.execute(stmt)
+    conflict = result.scalars().first()
+    if conflict:
+        raise HTTPException(422, detail=f"Time entry overlaps with existing entry {conflict.id}.")
+```
+
+### Step 6 — Time entry router changes (`app/time_entries/router.py`)
+
+- **POST**: call `check_time_entry_overlap(body.employee_id, body.start_datetime, body.end_datetime, db)` after existing validations
+- **PATCH**: call `check_time_entry_overlap(entry.employee_id, effective_start, effective_end, db, exclude_id=entry.id)`, then flip `if entry.status == TimeEntryStatus.ASSUMED: entry.status = TimeEntryStatus.ENTERED`
+- **DELETE**: query `COUNT(*) FROM sample_batches WHERE time_entry_id = id AND status IN ('active','discarded')` → 409 if > 0
+
+### Step 7 — Batch discard endpoint (`app/lab_results/router/batches.py`)
+
+`POST /lab-results/batches/{id}/discard` — permission: PROJECT_EDIT
+
+- 404 if not found
+- 422 if status == locked ("Cannot discard a locked batch")
+- 422 if status == discarded ("Batch is already discarded")
+- Set status → discarded, commit, return 200 SampleBatchRead
+
+### Step 8 — Quick-add endpoint
+
+`POST /lab-results/batches/quick-add` — permission: PROJECT_EDIT
+
+New schema `QuickAddBatchCreate`: all `SampleBatchCreate` fields except `time_entry_id`, plus `employee_id`, `employee_role_id`, `project_id`, `school_id`, `date`.
+
+Service `quick_add_batch()`:
+
+1. Validate employee, project, school link, role (reuse from `app/time_entries/service.py`)
+2. Run `check_time_entry_overlap` for assumed entry (midnight to midnight of date)
+3. Create `TimeEntry` with `status=assumed`, `created_by_id=SYSTEM_USER_ID`
+4. Create `SampleBatch` linked to new time entry
+5. Run batch validators (reuse from `app/lab_results/service.py`)
+6. Commit; return `SampleBatchRead`
+
+### Tests to write/update
+
+`app/time_entries/test_time_entries.py`:
+
+- Update all response assertions to handle new `status` field
+- `TestTimeEntryStatus`: POST → status=entered; manually set assumed in DB, PATCH → status flips to entered
+- `TestTimeEntryOverlap`: same employee overlap → 422; different employee → 201; back-to-back → 201; PATCH into/out of overlap; assumed entry (NULL end) treated as full day
+- `TestDeleteTimeEntryGuard`: no batches → 204; active batch → 409; discarded batch → 409
+
+`app/lab_results/tests/test_batches.py`:
+
+- Update response assertions for new `status` field (default active)
+- `TestDiscardBatch`: discard active → 200; already discarded → 422; missing → 404
+- `TestNullableTimeEntry`: create batch with `time_entry_id=null` → 201
+
+`app/lab_results/tests/test_quick_add.py` (new file):
+
+- Happy path: time entry + batch created atomically; status=assumed; created_by_id=SYSTEM_USER_ID
+- Missing employee → 404
+- Overlap on date → 422
+- Invalid batch fields → 422
 
 ---
 
@@ -175,22 +280,20 @@ Use `select()` with `.execution_options(populate_existing=True)` instead. Applie
 
 ### FK validation in service functions that return early
 
-SQLite does not enforce FK constraints by default. Any service function that conditionally returns early must explicitly check that FK targets exist via `db.get(TargetModel, fk_id)`. Applied in `app/lab_results/router/batches.py`.
+SQLite does not enforce FK constraints by default. Validate FK targets via `db.get(TargetModel, fk_id)` in any service function that returns early.
 
 ### `PermissionChecker` returns the user
 
-`PermissionChecker.__call__` returns the user object. Use `current_user: User = Depends(PermissionChecker(X))` to both enforce permissions and capture the user in one dependency — no redundant `get_current_user` call needed.
+`current_user: User = Depends(PermissionChecker(X))` — no separate `get_current_user` call needed.
 
 ### Audit field testing pattern
 
-Audit fields (`created_by_id`, `updated_by_id`) are not in any Read schemas, so they can't be checked from response JSON. After an API call via `auth_client`, query `db_session` directly:
+Audit fields are not in Read schemas. After an API call, query `db_session` directly:
 
 ```python
 obj = await db_session.get(Model, response.json()["id"])
-assert obj.created_by_id == 1  # fake_user.id from auth_client fixture
+assert obj.created_by_id == 1
 ```
-
-Or for an object already in scope, use `await db_session.refresh(obj)` then check the field.
 
 ### User-managed migrations
 

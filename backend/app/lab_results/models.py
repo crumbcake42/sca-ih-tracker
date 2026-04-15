@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.common.enums import EmployeeRoleType
+from app.common.enums import EmployeeRoleType, SampleBatchStatus
 from app.database import AuditMixin, Base
 
 if TYPE_CHECKING:
@@ -146,18 +146,24 @@ class SampleBatch(Base, AuditMixin):
     turnaround_option_id: Mapped[int | None] = mapped_column(
         ForeignKey("turnaround_options.id", ondelete="SET NULL"), nullable=True
     )
-    time_entry_id: Mapped[int] = mapped_column(
-        ForeignKey("time_entries.id", ondelete="RESTRICT"), index=True
+    time_entry_id: Mapped[int | None] = mapped_column(
+        ForeignKey("time_entries.id", ondelete="RESTRICT"), index=True, nullable=True
     )
     batch_num: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     is_report: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    status: Mapped[SampleBatchStatus] = mapped_column(
+        SQLEnum(SampleBatchStatus),
+        nullable=False,
+        default=SampleBatchStatus.ACTIVE,
+        server_default=SampleBatchStatus.ACTIVE,
+    )
     date_collected: Mapped[date] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     sample_type: Mapped["SampleType"] = relationship()
     subtype: Mapped["SampleSubtype | None"] = relationship()
     turnaround_option: Mapped["TurnaroundOption | None"] = relationship()
-    time_entry: Mapped["TimeEntry"] = relationship()
+    time_entry: Mapped["TimeEntry | None"] = relationship()
     units: Mapped[list["SampleBatchUnit"]] = relationship(
         back_populates="batch", cascade="all, delete-orphan", lazy="selectin"
     )

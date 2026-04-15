@@ -2,8 +2,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, ForeignKeyConstraint, String
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.common.enums import TimeEntryStatus
 from app.database import AuditMixin, Base
 
 if TYPE_CHECKING:
@@ -36,6 +38,12 @@ class TimeEntry(Base, AuditMixin):
     )
     school_id: Mapped[int] = mapped_column(index=True)
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[TimeEntryStatus] = mapped_column(
+        SQLEnum(TimeEntryStatus),
+        nullable=False,
+        default=TimeEntryStatus.ENTERED,
+        server_default=TimeEntryStatus.ENTERED,
+    )
 
     employee: Mapped["Employee"] = relationship()
     employee_role: Mapped["EmployeeRole"] = relationship()
