@@ -1,14 +1,29 @@
 from sqlalchemy import or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.enums import NoteEntityType
+from app.common.config import SYSTEM_USER_ID
+from app.common.enums import (
+    NoteEntityType,
+    NoteType,
+    SCADeliverableStatus,
+    WACodeLevel,
+    WACodeStatus,
+)
 from app.contractors.models import Contractor
-from app.deliverables.models import ProjectBuildingDeliverable, ProjectDeliverable
-from app.lab_results.models import SampleBatch
+from app.deliverables.models import (
+    Deliverable,
+    DeliverableWACodeTrigger,
+    ProjectBuildingDeliverable,
+    ProjectDeliverable,
+)
+from app.lab_results.models import SampleBatch, SampleTypeWACode
 from app.notes.models import Note
 from app.notes.schemas import BlockingIssue
+from app.notes.service import auto_resolve_system_notes, create_system_note
 from app.projects.models import Project, ProjectContractorLink
 from app.time_entries.models import TimeEntry
+from app.wa_codes.models import WACode
+from app.work_auths.models import WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
 
 
 async def process_project_import(db: AsyncSession, project_data: dict):
@@ -58,6 +73,331 @@ async def process_project_import(db: AsyncSession, project_data: dict):
                     project_id=project.id, contractor_id=contractor.id, is_current=True
                 )
                 db.add(new_link)
+
+
+_DERIVABLE_SCA_STATUSES = {
+    SCADeliverableStatus.PENDING_WA,
+    SCADeliverableStatus.PENDING_RFA,
+    SCADeliverableStatus.OUTSTANDING,
+}
+
+_ACTIVE_CODE_STATUSES = {WACodeStatus.ACTIVE, WACodeStatus.ADDED_BY_RFA}
+
+
+def _compute_sca_status(
+    trigger_ids: set[int], codes: dict[int, WACodeStatus]
+) -> SCADeliverableStatus:
+    """
+    Derive SCA deliverable status from trigger WA code IDs and the current
+    status of those codes on the WA. `codes` maps wa_code_id → status for
+    all non-removed codes relevant to the deliverable's level and scope.
+    """
+    relevant = {
+        code_id: status
+        for code_id, status in codes.items()
+        if code_id in trigger_ids and status != WACodeStatus.REMOVED
+    }
+    if not relevant:
+        return SCADeliverableStatus.PENDING_WA
+    if any(s in _ACTIVE_CODE_STATUSES for s in relevant.values()):
+        return SCADeliverableStatus.OUTSTANDING
+    return SCADeliverableStatus.PENDING_RFA
+
+
+async def recalculate_deliverable_sca_status(project_id: int, db: AsyncSession) -> None:
+    """
+    Recompute `sca_status` for every derivable project_deliverable and
+    project_building_deliverable row on this project.
+
+    Derivable statuses: PENDING_WA, PENDING_RFA, OUTSTANDING.
+    Manual terminal statuses (UNDER_REVIEW, REJECTED, APPROVED) are never
+    overwritten.
+    """
+    wa = (
+        await db.execute(select(WorkAuth).where(WorkAuth.project_id == project_id))
+    ).scalar_one_or_none()
+
+    if wa is None:
+        # No WA at all — everything reverts to pending_wa.
+        for model in (ProjectDeliverable, ProjectBuildingDeliverable):
+            await db.execute(
+                update(model)
+                .where(model.project_id == project_id)
+                .where(model.sca_status.in_(_DERIVABLE_SCA_STATUSES))
+                .values(sca_status=SCADeliverableStatus.PENDING_WA)
+                .execution_options(synchronize_session=False)
+            )
+        return
+
+    # Load project-level WA codes: {wa_code_id: status}
+    proj_code_rows = (
+        await db.execute(
+            select(WorkAuthProjectCode.wa_code_id, WorkAuthProjectCode.status).where(
+                WorkAuthProjectCode.work_auth_id == wa.id
+            )
+        )
+    ).all()
+    proj_codes: dict[int, WACodeStatus] = {r.wa_code_id: r.status for r in proj_code_rows}
+
+    # Load building-level WA codes: {(wa_code_id, school_id): status}
+    bldg_code_rows = (
+        await db.execute(
+            select(
+                WorkAuthBuildingCode.wa_code_id,
+                WorkAuthBuildingCode.school_id,
+                WorkAuthBuildingCode.status,
+            ).where(
+                WorkAuthBuildingCode.work_auth_id == wa.id,
+                WorkAuthBuildingCode.project_id == project_id,
+            )
+        )
+    ).all()
+    bldg_codes: dict[tuple[int, int], WACodeStatus] = {
+        (r.wa_code_id, r.school_id): r.status for r in bldg_code_rows
+    }
+
+    # Load all trigger mappings: {deliverable_id: {wa_code_id, ...}}
+    trigger_rows = (
+        await db.execute(
+            select(
+                DeliverableWACodeTrigger.deliverable_id,
+                DeliverableWACodeTrigger.wa_code_id,
+            )
+        )
+    ).all()
+    triggers: dict[int, set[int]] = {}
+    for r in trigger_rows:
+        triggers.setdefault(r.deliverable_id, set()).add(r.wa_code_id)
+
+    # Update project-level deliverables.
+    pd_rows = (
+        await db.execute(
+            select(ProjectDeliverable)
+            .where(ProjectDeliverable.project_id == project_id)
+            .where(ProjectDeliverable.sca_status.in_(_DERIVABLE_SCA_STATUSES))
+        )
+    ).scalars().all()
+
+    for pd in pd_rows:
+        new_status = _compute_sca_status(triggers.get(pd.deliverable_id, set()), proj_codes)
+        if pd.sca_status != new_status:
+            pd.sca_status = new_status
+
+    # Update building-level deliverables.
+    pbd_rows = (
+        await db.execute(
+            select(ProjectBuildingDeliverable)
+            .where(ProjectBuildingDeliverable.project_id == project_id)
+            .where(ProjectBuildingDeliverable.sca_status.in_(_DERIVABLE_SCA_STATUSES))
+        )
+    ).scalars().all()
+
+    for pbd in pbd_rows:
+        codes_for_school: dict[int, WACodeStatus] = {
+            code_id: status
+            for (code_id, school_id), status in bldg_codes.items()
+            if school_id == pbd.school_id
+        }
+        new_status = _compute_sca_status(
+            triggers.get(pbd.deliverable_id, set()), codes_for_school
+        )
+        if pbd.sca_status != new_status:
+            pbd.sca_status = new_status
+
+    await db.flush()
+
+
+async def ensure_deliverables_exist(project_id: int, db: AsyncSession) -> None:
+    """
+    Create any missing project_deliverable / project_building_deliverable rows
+    implied by the WA codes currently on the project.
+
+    Idempotent: rows that already exist are never re-created.
+    Respects Deliverable.level: PROJECT deliverables are triggered by
+    project-level WA codes; BUILDING deliverables by building-level codes
+    (one row per linked school).
+    """
+    wa = (
+        await db.execute(select(WorkAuth).where(WorkAuth.project_id == project_id))
+    ).scalar_one_or_none()
+
+    if wa is None:
+        return
+
+    # Project-level code IDs on this WA.
+    proj_code_ids: set[int] = set(
+        (
+            await db.execute(
+                select(WorkAuthProjectCode.wa_code_id).where(
+                    WorkAuthProjectCode.work_auth_id == wa.id
+                )
+            )
+        ).scalars().all()
+    )
+
+    # Building-level codes: {school_id: {wa_code_id, ...}}
+    bldg_rows = (
+        await db.execute(
+            select(WorkAuthBuildingCode.wa_code_id, WorkAuthBuildingCode.school_id).where(
+                WorkAuthBuildingCode.work_auth_id == wa.id,
+                WorkAuthBuildingCode.project_id == project_id,
+            )
+        )
+    ).all()
+    bldg_codes_by_school: dict[int, set[int]] = {}
+    for r in bldg_rows:
+        bldg_codes_by_school.setdefault(r.school_id, set()).add(r.wa_code_id)
+
+    all_code_ids = proj_code_ids | {r.wa_code_id for r in bldg_rows}
+    if not all_code_ids:
+        return
+
+    # Deliverables triggered by any of those codes, with their level.
+    trigger_rows = (
+        await db.execute(
+            select(
+                DeliverableWACodeTrigger.deliverable_id,
+                DeliverableWACodeTrigger.wa_code_id,
+                Deliverable.level,
+            )
+            .join(Deliverable, DeliverableWACodeTrigger.deliverable_id == Deliverable.id)
+            .where(DeliverableWACodeTrigger.wa_code_id.in_(all_code_ids))
+        )
+    ).all()
+
+    if not trigger_rows:
+        return
+
+    # {deliverable_id: (level, {wa_code_id, ...})}
+    deliv_info: dict[int, tuple[WACodeLevel, set[int]]] = {}
+    for r in trigger_rows:
+        if r.deliverable_id not in deliv_info:
+            deliv_info[r.deliverable_id] = (r.level, set())
+        deliv_info[r.deliverable_id][1].add(r.wa_code_id)
+
+    # Existing rows (avoid duplicate inserts).
+    existing_pd: set[int] = set(
+        (
+            await db.execute(
+                select(ProjectDeliverable.deliverable_id).where(
+                    ProjectDeliverable.project_id == project_id
+                )
+            )
+        ).scalars().all()
+    )
+    existing_pbd: set[tuple[int, int]] = set(
+        (
+            await db.execute(
+                select(
+                    ProjectBuildingDeliverable.deliverable_id,
+                    ProjectBuildingDeliverable.school_id,
+                ).where(ProjectBuildingDeliverable.project_id == project_id)
+            )
+        ).scalars().all()
+    )
+
+    for deliv_id, (level, code_ids) in deliv_info.items():
+        if level == WACodeLevel.PROJECT:
+            if code_ids & proj_code_ids and deliv_id not in existing_pd:
+                db.add(
+                    ProjectDeliverable(
+                        project_id=project_id,
+                        deliverable_id=deliv_id,
+                        created_by_id=SYSTEM_USER_ID,
+                        updated_by_id=SYSTEM_USER_ID,
+                    )
+                )
+        else:
+            for school_id, school_code_ids in bldg_codes_by_school.items():
+                if code_ids & school_code_ids and (deliv_id, school_id) not in existing_pbd:
+                    db.add(
+                        ProjectBuildingDeliverable(
+                            project_id=project_id,
+                            deliverable_id=deliv_id,
+                            school_id=school_id,
+                            created_by_id=SYSTEM_USER_ID,
+                            updated_by_id=SYSTEM_USER_ID,
+                        )
+                    )
+
+    await db.flush()
+
+
+async def check_sample_type_gap_note(project_id: int, db: AsyncSession) -> None:
+    """
+    Emit a blocking system note if any sample type used on this project requires a
+    WA code not present on the project's work auth. Auto-resolves if all gaps are filled.
+    """
+    wa = (
+        await db.execute(select(WorkAuth).where(WorkAuth.project_id == project_id))
+    ).scalar_one_or_none()
+    if wa is None:
+        return
+
+    proj_code_ids: set[int] = set(
+        (
+            await db.execute(
+                select(WorkAuthProjectCode.wa_code_id).where(
+                    WorkAuthProjectCode.work_auth_id == wa.id
+                )
+            )
+        ).scalars().all()
+    )
+    bldg_code_ids: set[int] = set(
+        (
+            await db.execute(
+                select(WorkAuthBuildingCode.wa_code_id).where(
+                    WorkAuthBuildingCode.work_auth_id == wa.id,
+                    WorkAuthBuildingCode.project_id == project_id,
+                )
+            )
+        ).scalars().all()
+    )
+    wa_code_ids = proj_code_ids | bldg_code_ids
+
+    sample_type_ids: set[int] = set(
+        (
+            await db.execute(
+                select(SampleBatch.sample_type_id)
+                .join(TimeEntry, SampleBatch.time_entry_id == TimeEntry.id)
+                .where(TimeEntry.project_id == project_id)
+                .distinct()
+            )
+        ).scalars().all()
+    )
+
+    if not sample_type_ids:
+        await auto_resolve_system_notes(
+            NoteEntityType.PROJECT, project_id, NoteType.MISSING_SAMPLE_TYPE_WA_CODE, db
+        )
+        return
+
+    required_code_ids: set[int] = set(
+        (
+            await db.execute(
+                select(SampleTypeWACode.wa_code_id).where(
+                    SampleTypeWACode.sample_type_id.in_(sample_type_ids)
+                )
+            )
+        ).scalars().all()
+    )
+
+    missing = required_code_ids - wa_code_ids
+    if missing:
+        codes = (
+            await db.execute(select(WACode.code).where(WACode.id.in_(missing)))
+        ).scalars().all()
+        body = (
+            "Sample type requires WA code(s) not on this project's work auth: "
+            + ", ".join(sorted(codes))
+        )
+        await create_system_note(
+            NoteEntityType.PROJECT, project_id, NoteType.MISSING_SAMPLE_TYPE_WA_CODE, body, db
+        )
+    else:
+        await auto_resolve_system_notes(
+            NoteEntityType.PROJECT, project_id, NoteType.MISSING_SAMPLE_TYPE_WA_CODE, db
+        )
 
 
 _ENTITY_LINK_TEMPLATES = {

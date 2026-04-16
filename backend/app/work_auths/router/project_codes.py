@@ -4,6 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import WACodeLevel
 from app.database import get_db
+from app.projects.services import (
+    check_sample_type_gap_note,
+    ensure_deliverables_exist,
+    recalculate_deliverable_sca_status,
+)
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 from app.wa_codes.models import WACode
@@ -48,7 +53,7 @@ async def add_project_code(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
-    await _get_work_auth_or_404(work_auth_id, db)
+    wa = await _get_work_auth_or_404(work_auth_id, db)
 
     wa_code = await db.get(WACode, body.wa_code_id)
     if not wa_code:
@@ -80,6 +85,10 @@ async def add_project_code(
         created_by_id=current_user.id,
     )
     db.add(pc)
+    await db.flush()
+    await ensure_deliverables_exist(wa.project_id, db)
+    await recalculate_deliverable_sca_status(wa.project_id, db)
+    await check_sample_type_gap_note(wa.project_id, db)
     await db.commit()
     await db.refresh(pc)
     return pc
@@ -115,6 +124,9 @@ async def delete_project_code(
     wa_code_id: int,
     db: AsyncSession = Depends(get_db),
 ):
+    wa = await _get_work_auth_or_404(work_auth_id, db)
     pc = await _get_project_code_or_404(work_auth_id, wa_code_id, db)
     await db.delete(pc)
+    await db.flush()
+    await recalculate_deliverable_sca_status(wa.project_id, db)
     await db.commit()

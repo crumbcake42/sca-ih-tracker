@@ -37,6 +37,8 @@ stateDiagram-v2
 
 **One pending RFA per WA at a time.** Enforced at the application layer. Attempting to create a second RFA for a WA that already has a `pending` RFA returns 409.
 
+**WA code mutations automatically maintain deliverable state (Phase 6 Session B).** Every endpoint that adds, removes, or changes a WA code — `POST /work-auths/`, `POST/DELETE /work-auths/{id}/project-codes`, `POST/DELETE /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` — calls `ensure_deliverables_exist(project_id)` followed by `recalculate_deliverable_sca_status(project_id)` before the final commit. The call order matters: `ensure` creates any missing deliverable rows first; `recalculate` then sets their status correctly in the same transaction.
+
 **RFA resolution has side effects on code statuses:**
 - **Approved**: applies `budget_adjustment` to `work_auth_building_codes.budget` for each `RFABuildingCode` in the RFA; transitions affected code statuses to `active` or `added_by_rfa`.
 - **Rejected or withdrawn**: reverts all affected code statuses back to `rfa_needed`.
@@ -49,7 +51,7 @@ stateDiagram-v2
 
 ## Before you modify
 
-- **RFA resolution** will be wired to call `recalculate_deliverable_sca_status(project_id)` in Phase 5. When adding that wiring, call it inside the `resolve` endpoint after the status transitions are committed.
+- **WA code deliverable wiring is already in place** (Phase 6 Session B). Do not add another `recalculate_deliverable_sca_status` or `ensure_deliverables_exist` call — they are already called in every code-mutation endpoint before commit.
 - **`is_saved`** on `WorkAuth` is a manual flag (WA file saved on the office server) — it has no automated logic and is toggled by users only.
 - **Do not add a second pending RFA** check at the model layer — keep it in the service where it can return a clean 409 with explanation.
 - **Tests**: RFA resolution tests must verify both the code status transitions and the budget adjustments in a single transaction; do not split them across separate test cases.

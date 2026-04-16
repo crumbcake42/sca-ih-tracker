@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.projects.models import Project
+from app.projects.services import ensure_deliverables_exist, recalculate_deliverable_sca_status
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 from app.work_auths import models, schemas
@@ -42,6 +43,9 @@ async def create_work_auth(
 
     wa = models.WorkAuth(**body.model_dump(), created_by_id=current_user.id)
     db.add(wa)
+    await db.flush()
+    await ensure_deliverables_exist(body.project_id, db)
+    await recalculate_deliverable_sca_status(body.project_id, db)
     await db.commit()
     await db.refresh(wa)
     return wa

@@ -4,6 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import WACodeLevel
 from app.database import get_db
+from app.projects.services import (
+    check_sample_type_gap_note,
+    ensure_deliverables_exist,
+    recalculate_deliverable_sca_status,
+)
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 from app.wa_codes.models import WACode
@@ -95,6 +100,10 @@ async def add_building_code(
         created_by_id=current_user.id,
     )
     db.add(bc)
+    await db.flush()
+    await ensure_deliverables_exist(wa.project_id, db)
+    await recalculate_deliverable_sca_status(wa.project_id, db)
+    await check_sample_type_gap_note(wa.project_id, db)
     await db.commit()
     await db.refresh(bc)
     return bc
@@ -133,5 +142,8 @@ async def delete_building_code(
     db: AsyncSession = Depends(get_db),
 ):
     bc = await _get_building_code_or_404(work_auth_id, wa_code_id, school_id, db)
+    project_id = bc.project_id
     await db.delete(bc)
+    await db.flush()
+    await recalculate_deliverable_sca_status(project_id, db)
     await db.commit()

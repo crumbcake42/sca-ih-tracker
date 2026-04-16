@@ -7,6 +7,7 @@ from app.database import get_db
 from app.employees.models import Employee
 from app.lab_results.models import SampleBatch
 from app.projects.models import Project
+from app.projects.services import ensure_deliverables_exist, recalculate_deliverable_sca_status
 from app.time_entries.models import TimeEntry
 from app.time_entries.schemas import TimeEntryCreate, TimeEntryRead, TimeEntryUpdate
 from app.time_entries.service import (
@@ -90,6 +91,9 @@ async def create_time_entry(
         created_by_id=current_user.id,
     )
     db.add(entry)
+    await db.flush()
+    await ensure_deliverables_exist(body.project_id, db)
+    await recalculate_deliverable_sca_status(body.project_id, db)
     await db.commit()
     await db.refresh(entry)
     return entry

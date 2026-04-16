@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import RFAAction, RFAStatus, WACodeStatus
 from app.database import get_db
+from app.projects.services import ensure_deliverables_exist, recalculate_deliverable_sca_status
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 from app.work_auths import models, schemas
@@ -146,7 +147,7 @@ async def resolve_rfa(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
 ):
-    await _get_work_auth_or_404(wa_id, db)
+    wa = await _get_work_auth_or_404(wa_id, db)
     rfa = await _get_rfa_or_404(rfa_id, wa_id, db)
 
     if rfa.status != RFAStatus.PENDING:
@@ -235,6 +236,8 @@ async def resolve_rfa(
         rfa.notes = body.notes
     rfa.updated_by_id = current_user.id
 
+    await ensure_deliverables_exist(wa.project_id, db)
+    await recalculate_deliverable_sca_status(wa.project_id, db)
     await db.commit()
     await db.refresh(rfa)
     return rfa

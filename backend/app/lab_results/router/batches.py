@@ -26,6 +26,11 @@ from app.lab_results.service import (
     validate_turnaround_for_batch,
     validate_unit_types_for_batch,
 )
+from app.projects.services import (
+    check_sample_type_gap_note,
+    ensure_deliverables_exist,
+    recalculate_deliverable_sca_status,
+)
 from app.time_entries.models import TimeEntry
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
@@ -71,8 +76,11 @@ async def create_batch(
         raise HTTPException(status_code=409, detail="Batch number already exists")
 
     # Validate time entry exists when one is provided
-    if body.time_entry_id is not None and not await db.get(TimeEntry, body.time_entry_id):
-        raise HTTPException(status_code=404, detail="Time entry not found")
+    time_entry: TimeEntry | None = None
+    if body.time_entry_id is not None:
+        time_entry = await db.get(TimeEntry, body.time_entry_id)
+        if not time_entry:
+            raise HTTPException(status_code=404, detail="Time entry not found")
 
     # Validate optional FK fields belong to the sample type
     if body.sample_subtype_id is not None:
@@ -121,6 +129,10 @@ async def create_batch(
     for emp_id in body.inspector_ids:
         db.add(SampleBatchInspector(batch_id=batch.id, employee_id=emp_id))
 
+    if time_entry is not None:
+        await ensure_deliverables_exist(time_entry.project_id, db)
+        await recalculate_deliverable_sca_status(time_entry.project_id, db)
+        await check_sample_type_gap_note(time_entry.project_id, db)
     await db.commit()
     await db.refresh(batch)
     return batch
@@ -174,4 +186,9 @@ async def quick_add(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(_edit_dep),
 ):
-    return await quick_add_batch(body, db)
+    batch = await quick_add_batch(body, db)
+    await ensure_deliverables_exist(body.project_id, db)
+    await recalculate_deliverable_sca_status(body.project_id, db)
+    await check_sample_type_gap_note(body.project_id, db)
+    await db.commit()
+    return batch

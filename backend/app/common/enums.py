@@ -106,6 +106,7 @@ class NoteType(StrEnum):
     """System-generated note types. NULL for user-authored notes."""
 
     TIME_ENTRY_CONFLICT = "time_entry_conflict"
+    MISSING_SAMPLE_TYPE_WA_CODE = "missing_sample_type_wa_code"
 
 
 class EmployeeRoleType(StrEnum):

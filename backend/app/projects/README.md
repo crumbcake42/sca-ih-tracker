@@ -22,7 +22,13 @@ This module does **not** own time entries, lab results, work authorizations, or 
 
 **`GET /projects/{id}/blocking-issues`** (Phase 3.6, in `app/projects/router/base.py`) is a thin endpoint that calls `get_blocking_notes_for_project()` and returns `list[BlockingIssue]`. It is wired here rather than in the notes module because the aggregation logic spans multiple project-owned entities.
 
-**`derive_project_status()` does not exist yet (Phase 6).** Project status is currently a manually managed field. When Phase 6 is implemented, `derive_project_status(project_id)` will be a pure function with no side effects. Do not cache its result on a `computed_status` column until that function is finalized.
+**`recalculate_deliverable_sca_status(project_id, db)`** (Phase 6 Session A, in `services.py`) recomputes `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`PENDING_WA`, `PENDING_RFA`, `OUTSTANDING`). Never touches manual terminal statuses (`UNDER_REVIEW`, `REJECTED`, `APPROVED`). Safe to call after any mutation that may affect WA codes or RFA state. Calls `await db.flush()` at the end to persist in-place attribute changes. Session B wires this into the work-auth, WA-code, and RFA-resolve endpoints.
+
+**`ensure_deliverables_exist(project_id, db)`** (Phase 6 Session A, in `services.py`) inserts any missing `project_deliverables` / `project_building_deliverables` rows implied by the WA codes currently on the project. PROJECT-level deliverables are triggered by project-level WA codes; BUILDING-level by building-level codes (one row per linked school). Idempotent — safe to call on every mutation path. Session B wires this into time-entry and batch-creation endpoints.
+
+**`check_sample_type_gap_note(project_id, db)`** (Phase 6 Session B, in `services.py`) checks whether any sample type used on the project requires a WA code not currently on the project's work auth. If gaps exist, creates a blocking `MISSING_SAMPLE_TYPE_WA_CODE` system note on the project. If no gaps remain (or no batches on the project), auto-resolves any existing note of that type. Called from batch-creation and WA code-add paths.
+
+**`derive_project_status()` does not exist yet (Phase 6 Session C).** Project status is currently a manually managed field. When Session C is implemented, `derive_project_status(project_id)` will be a pure function with no side effects. Do not cache its result on a `computed_status` column until that function is finalized.
 
 ---
 

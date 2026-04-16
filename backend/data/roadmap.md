@@ -333,16 +333,16 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 **Session A — Deliverable derivation services:**
 
-- [ ] `recalculate_deliverable_sca_status(project_id, db)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); never overwrites manual terminal states (`under_review` / `rejected` / `approved`)
-- [ ] `ensure_deliverables_exist(project_id, db)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; respects `Deliverable.level` (project vs. building); idempotent so it is safe to call on every mutation path
-- [ ] Unit tests in `app/projects/tests/test_projects_service.py`: status promotion across `pending_wa → pending_rfa → outstanding`; manual statuses untouched; `ensure_deliverables_exist` idempotency and level-aware row creation
+- [x] `recalculate_deliverable_sca_status(project_id, db)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); never overwrites manual terminal states (`under_review` / `rejected` / `approved`)
+- [x] `ensure_deliverables_exist(project_id, db)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; respects `Deliverable.level` (project vs. building); idempotent so it is safe to call on every mutation path
+- [x] Unit tests in `app/projects/tests/test_projects_service.py`: status promotion across `pending_wa → pending_rfa → outstanding`; manual statuses untouched; `ensure_deliverables_exist` idempotency and level-aware row creation
 
-**Session B — Integration: wire derivation into mutation paths:**
+**Session B — Integration: wire derivation into mutation paths:** ✓ COMPLETE
 
-- [ ] Call `recalculate_deliverable_sca_status()` from: `POST /work-auths/`, `POST/DELETE /work-auths/{id}/project-codes`, `POST/DELETE /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve — approved / rejected / withdrawn)
-- [ ] Call `ensure_deliverables_exist()` from: `POST /time-entries/`, `POST /lab-results/batches/`, `POST /lab-results/batches/quick-add` — so deliverables are tracked as soon as work is recorded, before the WA exists
-- [ ] **Sample-type WA-code gap flag:** on batch creation, inspect `sample_type_wa_codes` for the batch's sample type; for any required code not on the project's WA, emit a blocking system note on the project via `create_system_note()` with new enum value `NoteType.missing_sample_type_wa_code`; add an `auto_resolve_system_notes()` call to the project-codes POST path so the note clears when the missing code is added
-- [ ] Integration tests: WA code added → deliverables exist with correct `sca_status`; RFA approved → statuses advance; batch with missing sample-type WA code → blocking note present; add the missing code → note auto-resolves
+- [x] Call `recalculate_deliverable_sca_status()` from: `POST /work-auths/`, `POST/DELETE /work-auths/{id}/project-codes`, `POST/DELETE /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve — approved / rejected / withdrawn)
+- [x] Call `ensure_deliverables_exist()` from all of the above WA paths plus: `POST /time-entries/`, `POST /lab-results/batches/`, `POST /lab-results/batches/quick-add` — so deliverables are tracked as soon as work is recorded, before the WA exists; also called from WA paths so newly triggered rows are created and immediately recalculated in one shot
+- [x] **Sample-type WA-code gap flag:** `check_sample_type_gap_note(project_id, db)` in `app/projects/services.py`; `NoteType.MISSING_SAMPLE_TYPE_WA_CODE` added to enums; called from batch-creation paths (emit note) and WA code-add paths (auto-resolve if gap is filled)
+- [x] Integration tests: WA code added → deliverables exist with correct `sca_status`; RFA approved → statuses advance; RFA rejected → status unchanged; batch with missing sample-type WA code → blocking note; add the missing code → note auto-resolves
 
 **Session C — Project status read-side:**
 
