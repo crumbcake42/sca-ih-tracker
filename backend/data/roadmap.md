@@ -322,15 +322,41 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 ### Phase 6 — Project Status Engine
 
-- [ ] Service: `recalculate_deliverable_sca_status(project_id)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); called from any endpoint that mutates WA, WA codes, or RFA resolution; `under_review` / `rejected` / `approved` are manual and never overwritten
-- [ ] Wire `recalculate_deliverable_sca_status()` into: `POST /work-auths/`, `POST /work-auths/{id}/project-codes`, `POST /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve)
-- [ ] Service: `ensure_deliverables_exist(project_id)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; called from time entry and lab result creation so deliverables are tracked as soon as work is recorded, before the WA exists
-- [ ] **Gap from design doc:** when a batch is recorded, check `sample_type_wa_codes` for the batch's sample type and surface any WA codes not yet on the project's WA as a project flag ("needs RFA to add LAMP30, LAMP32"); the `sample_type_wa_codes` table and FK are already in place — this wiring is not yet planned as a concrete task
-- [ ] Service: `derive_project_status(project_id)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, unconfirmed time entries, and unresolved blocking notes; returns computed status; calls `get_blocking_notes_for_project()` (Phase 3.6) as part of the check
-- [ ] Service: `lock_project_records(project_id)` — before locking, calls `get_blocking_notes_for_project()` and hard-blocks closure if any unresolved blocking notes exist (returns 409 listing each blocking issue); on success, transitions all linked `time_entries` from `assumed`/`entered` → `locked` and all `sample_batches` from `active` → `locked`; locked records are read-only; guards on update endpoints check `status != locked` before allowing changes
-- [ ] Wire status derivation into project update endpoints
-- [ ] `GET /projects/{id}/status` — returns full status breakdown; includes output of `get_blocking_notes_for_project()` as a `blocking_issues` list so the frontend can surface each issue with a navigation link to its entity
-- [ ] `GET /projects/{id}/blocking-issues` — direct endpoint for the aggregated blocking notes view (implemented in Phase 3.6; wired into project status here)
+> No new models. All four services land in `app/projects/services.py` alongside the existing `get_blocking_notes_for_project()` from Phase 3.6. The `GET /projects/{id}/blocking-issues` endpoint is already live from Phase 3.6 — Phase 6 consumes it, does not re-create it.
+
+**Session breakdown** (one building step per session):
+
+- **Session A — Deliverable derivation services:** `recalculate_deliverable_sca_status(project_id)` and `ensure_deliverables_exist(project_id)` as pure service functions in `app/projects/services.py`, with unit tests. No endpoint wiring in this session.
+- **Session B — Integration: wire derivation into mutation paths:** call `recalculate_deliverable_sca_status` from work-auth, WA-code, and RFA-resolve endpoints; call `ensure_deliverables_exist` from time-entry and batch creation; emit the sample-type WA-code gap flag as a blocking system note when a batch is recorded.
+- **Session C — Project status read-side:** `derive_project_status(project_id)` pure function + `ProjectStatusRead` schema + `GET /projects/{id}/status` endpoint (reuses the Phase 3.6 blocking-issues aggregator).
+- **Session D — Project closure and record locking:** `lock_project_records(project_id)` service (blocking-note gate + cascade to `time_entries`/`sample_batches`), `POST /projects/{id}/close` endpoint, and `status != locked` guards on time-entry and batch mutation endpoints.
+
+**Session A — Deliverable derivation services:**
+
+- [ ] `recalculate_deliverable_sca_status(project_id, db)` — updates `sca_status` on all `project_deliverables` and `project_building_deliverables` rows where status is still derivable (`pending_wa`, `pending_rfa`, `outstanding`); never overwrites manual terminal states (`under_review` / `rejected` / `approved`)
+- [ ] `ensure_deliverables_exist(project_id, db)` — checks `deliverable_wa_code_triggers` and inserts any missing deliverable rows; respects `Deliverable.level` (project vs. building); idempotent so it is safe to call on every mutation path
+- [ ] Unit tests in `app/projects/tests/test_projects_service.py`: status promotion across `pending_wa → pending_rfa → outstanding`; manual statuses untouched; `ensure_deliverables_exist` idempotency and level-aware row creation
+
+**Session B — Integration: wire derivation into mutation paths:**
+
+- [ ] Call `recalculate_deliverable_sca_status()` from: `POST /work-auths/`, `POST/DELETE /work-auths/{id}/project-codes`, `POST/DELETE /work-auths/{id}/building-codes`, `PATCH /work-auths/{id}/rfas/{rfa_id}` (on resolve — approved / rejected / withdrawn)
+- [ ] Call `ensure_deliverables_exist()` from: `POST /time-entries/`, `POST /lab-results/batches/`, `POST /lab-results/batches/quick-add` — so deliverables are tracked as soon as work is recorded, before the WA exists
+- [ ] **Sample-type WA-code gap flag:** on batch creation, inspect `sample_type_wa_codes` for the batch's sample type; for any required code not on the project's WA, emit a blocking system note on the project via `create_system_note()` with new enum value `NoteType.missing_sample_type_wa_code`; add an `auto_resolve_system_notes()` call to the project-codes POST path so the note clears when the missing code is added
+- [ ] Integration tests: WA code added → deliverables exist with correct `sca_status`; RFA approved → statuses advance; batch with missing sample-type WA code → blocking note present; add the missing code → note auto-resolves
+
+**Session C — Project status read-side:**
+
+- [ ] `derive_project_status(project_id, db)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, unconfirmed time entries, and unresolved blocking notes via `get_blocking_notes_for_project()`; returns computed status; no writes
+- [ ] `ProjectStatusRead` schema in `app/projects/schemas.py` — structured breakdown including a `blocking_issues` list so the frontend can surface each issue with a navigation link to its entity
+- [ ] `GET /projects/{id}/status` endpoint in `app/projects/router/base.py` — serializes `derive_project_status` output
+- [ ] Tests: table-driven status derivation across the input combinations; endpoint shape test
+
+**Session D — Project closure and record locking:**
+
+- [ ] `lock_project_records(project_id, db, user_id)` — first calls `get_blocking_notes_for_project()` and raises 409 listing each blocking issue if any unresolved blocking notes exist; on success, transitions all linked `time_entries` from `assumed`/`entered` → `locked` and all `active` `sample_batches` → `locked` (discarded batches remain discarded but become read-only)
+- [ ] `POST /projects/{id}/close` endpoint — calls `lock_project_records`; 409 with `blocking_issues` payload on refusal, 200 on success
+- [ ] Add `status != locked` guards to update/delete endpoints on `time_entries` and `sample_batches` (422 when attempting to mutate a locked record)
+- [ ] Tests: closure blocked by unresolved blocking note (assert 409 + payload); closure succeeds and cascades lock; locked time entries and batches reject further edits with 422
 
 ---
 
