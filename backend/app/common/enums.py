@@ -95,6 +95,14 @@ class SampleBatchStatus(StrEnum):
     LOCKED = "locked"
 
 
+class ProjectStatus(StrEnum):
+    SETUP = "setup"                    # no time entries recorded yet
+    IN_PROGRESS = "in_progress"        # active work, deliverables outstanding
+    BLOCKED = "blocked"                # unresolved blocking notes
+    READY_TO_CLOSE = "ready_to_close"  # no outstanding deliverables, no blockers
+    LOCKED = "locked"                  # project closed (Session D)
+
+
 class NoteEntityType(StrEnum):
     PROJECT = "project"
     TIME_ENTRY = "time_entry"

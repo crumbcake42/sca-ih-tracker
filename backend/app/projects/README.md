@@ -28,7 +28,7 @@ This module does **not** own time entries, lab results, work authorizations, or 
 
 **`check_sample_type_gap_note(project_id, db)`** (Phase 6 Session B, in `services.py`) checks whether any sample type used on the project requires a WA code not currently on the project's work auth. If gaps exist, creates a blocking `MISSING_SAMPLE_TYPE_WA_CODE` system note on the project. If no gaps remain (or no batches on the project), auto-resolves any existing note of that type. Called from batch-creation and WA code-add paths.
 
-**`derive_project_status()` does not exist yet (Phase 6 Session C).** Project status is currently a manually managed field. When Session C is implemented, `derive_project_status(project_id)` will be a pure function with no side effects. Do not cache its result on a `computed_status` column until that function is finalized.
+**`derive_project_status(project_id, db)`** (Phase 6 Session C, in `services.py`) — pure read function, no writes. Returns `ProjectStatusRead` with a `ProjectStatus` enum value, counts for pending RFAs / outstanding deliverables / unconfirmed time entries, and the full `blocking_issues` list. Derivation priority: `BLOCKED` (any unresolved blocking notes) → `SETUP` (no time entries) → `READY_TO_CLOSE` (all counts zero) → `IN_PROGRESS`. `ProjectStatusRead` is imported locally inside the function to avoid a module-level circular import with `schemas.py`. Exposed via `GET /projects/{id}/status`.
 
 ---
 

@@ -17,6 +17,7 @@ from app.common.enums import (
     EmployeeRoleType,
     NoteEntityType,
     NoteType,
+    ProjectStatus,
     SCADeliverableStatus,
     WACodeLevel,
     WACodeStatus,
@@ -33,6 +34,7 @@ from app.notes.models import Note
 from app.projects.models import Project
 from app.projects.services import (
     check_sample_type_gap_note,
+    derive_project_status,
     ensure_deliverables_exist,
     get_blocking_notes_for_project,
     recalculate_deliverable_sca_status,
@@ -996,3 +998,158 @@ class TestCheckSampleTypeGapNote:
         await check_sample_type_gap_note(project.id, db_session)
         await db_session.refresh(note)
         assert note.is_resolved is True
+
+
+# ---------------------------------------------------------------------------
+# Tests: derive_project_status
+# ---------------------------------------------------------------------------
+
+
+class TestDeriveProjectStatus:
+    async def test_no_time_entries_returns_setup(self, db_session: AsyncSession):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="80")
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.status == ProjectStatus.SETUP
+        assert result.has_work_auth is False
+        assert result.blocking_issues == []
+
+    async def test_blocking_note_returns_blocked(self, db_session: AsyncSession):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="81")
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+        await _seed_time_entry(db_session, project, school, emp, role)
+        await _seed_blocking_note(db_session, NoteEntityType.PROJECT, project.id)
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.status == ProjectStatus.BLOCKED
+        assert len(result.blocking_issues) == 1
+
+    async def test_blocking_note_overrides_setup(self, db_session: AsyncSession):
+        """BLOCKED takes priority even when no time entries exist."""
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="82")
+        await _seed_blocking_note(db_session, NoteEntityType.PROJECT, project.id)
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.status == ProjectStatus.BLOCKED
+
+    async def test_outstanding_deliverable_returns_in_progress(self, db_session: AsyncSession):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="83")
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        # Flip the entry to ENTERED so it's not unconfirmed
+        entry.status = "entered"
+        await db_session.flush()
+        wa_code = await _seed_wa_code(db_session, code="A-83", level=WACodeLevel.PROJECT)
+        deliv = await _seed_deliverable_with_trigger(
+            db_session, name="Deliv 83", level=WACodeLevel.PROJECT, wa_code=wa_code
+        )
+        await _seed_project_deliverable_row(
+            db_session, project, deliv, SCADeliverableStatus.OUTSTANDING
+        )
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.status == ProjectStatus.IN_PROGRESS
+        assert result.outstanding_deliverable_count == 1
+
+    async def test_assumed_time_entry_returns_in_progress(self, db_session: AsyncSession):
+        """Unconfirmed (assumed) time entries block READY_TO_CLOSE."""
+        from app.common.enums import TimeEntryStatus
+
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="84")
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        entry.status = TimeEntryStatus.ASSUMED
+        await db_session.flush()
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.status == ProjectStatus.IN_PROGRESS
+        assert result.unconfirmed_time_entry_count == 1
+
+    async def test_all_clear_returns_ready_to_close(self, db_session: AsyncSession):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="85")
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        entry.status = "entered"
+        await db_session.flush()
+        # Deliverable exists but is approved (not outstanding)
+        wa_code = await _seed_wa_code(db_session, code="A-85", level=WACodeLevel.PROJECT)
+        deliv = await _seed_deliverable_with_trigger(
+            db_session, name="Deliv 85", level=WACodeLevel.PROJECT, wa_code=wa_code
+        )
+        await _seed_project_deliverable_row(
+            db_session, project, deliv, SCADeliverableStatus.APPROVED
+        )
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.status == ProjectStatus.READY_TO_CLOSE
+        assert result.outstanding_deliverable_count == 0
+        assert result.unconfirmed_time_entry_count == 0
+        assert result.pending_rfa_count == 0
+
+    async def test_counts_are_accurate(self, db_session: AsyncSession):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="86")
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+        await _seed_time_entry(db_session, project, school, emp, role)
+        wa_code = await _seed_wa_code(db_session, code="A-86", level=WACodeLevel.PROJECT)
+        deliv_a = await _seed_deliverable_with_trigger(
+            db_session, name="Deliv 86a", level=WACodeLevel.PROJECT, wa_code=wa_code
+        )
+        deliv_b = await _seed_deliverable_with_trigger(
+            db_session, name="Deliv 86b", level=WACodeLevel.PROJECT, wa_code=wa_code
+        )
+        await _seed_project_deliverable_row(
+            db_session, project, deliv_a, SCADeliverableStatus.OUTSTANDING
+        )
+        await _seed_project_deliverable_row(
+            db_session, project, deliv_b, SCADeliverableStatus.APPROVED
+        )
+
+        result = await derive_project_status(project.id, db_session)
+
+        from app.common.enums import TimeEntryStatus
+        from app.time_entries.models import TimeEntry as TE
+        from sqlalchemy import select as _sel
+        te = (await db_session.execute(
+            _sel(TE).where(TE.project_id == project.id)
+        )).scalar_one()
+        te.status = TimeEntryStatus.ASSUMED
+        await db_session.flush()
+
+        result2 = await derive_project_status(project.id, db_session)
+        assert result2.outstanding_deliverable_count == 1
+        assert result2.unconfirmed_time_entry_count == 1
+
+    async def test_has_work_auth_flag(self, db_session: AsyncSession):
+        school = await _seed_school(db_session)
+        project = await _seed_project(db_session, school, suffix="87")
+        emp = await _seed_employee(db_session)
+        role = await _seed_role(db_session, emp)
+        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        entry.status = "entered"
+        await db_session.flush()
+
+        result_before = await derive_project_status(project.id, db_session)
+        assert result_before.has_work_auth is False
+
+        await _seed_work_auth(db_session, project)
+
+        result_after = await derive_project_status(project.id, db_session)
+        assert result_after.has_work_auth is True

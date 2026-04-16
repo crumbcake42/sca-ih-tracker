@@ -7,7 +7,7 @@ from app.common.crud import get_by_ids
 from app.database import get_db
 from app.notes.schemas import BlockingIssue
 from app.projects import models, schemas
-from app.projects.services import get_blocking_notes_for_project
+from app.projects.services import derive_project_status, get_blocking_notes_for_project
 from app.schools.models import School
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
@@ -107,6 +107,15 @@ async def update_project(
     await db.commit()
     await db.refresh(db_project)
     return db_project
+
+
+@router.get("/{project_id}/status", response_model=schemas.ProjectStatusRead)
+async def get_project_status(project_id: int, db: AsyncSession = Depends(get_db)):
+    """Computed project status: summary flag, counts, and blocking issues."""
+    project = await db.get(models.Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return await derive_project_status(project_id, db)
 
 
 @router.get("/{project_id}/blocking-issues", response_model=list[BlockingIssue])

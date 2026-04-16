@@ -3,6 +3,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.common.enums import ProjectStatus
+from app.notes.schemas import BlockingIssue
+
 PROJECT_NUMBER_REGEX = r"^\d{2}\-[1-3]{3}-\d{2}([:;]\d{2})?$"
 
 
@@ -50,6 +53,16 @@ class AssignManager(BaseModel):
     """Write schema for POST /projects/{id}/manager."""
 
     user_id: int
+
+
+class ProjectStatusRead(BaseModel):
+    project_id: int
+    status: ProjectStatus
+    has_work_auth: bool
+    pending_rfa_count: int
+    outstanding_deliverable_count: int
+    unconfirmed_time_entry_count: int
+    blocking_issues: list[BlockingIssue]
 
 
 class Project(ProjectBase):

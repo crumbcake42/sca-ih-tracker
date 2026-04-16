@@ -344,12 +344,14 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 - [x] **Sample-type WA-code gap flag:** `check_sample_type_gap_note(project_id, db)` in `app/projects/services.py`; `NoteType.MISSING_SAMPLE_TYPE_WA_CODE` added to enums; called from batch-creation paths (emit note) and WA code-add paths (auto-resolve if gap is filled)
 - [x] Integration tests: WA code added → deliverables exist with correct `sca_status`; RFA approved → statuses advance; RFA rejected → status unchanged; batch with missing sample-type WA code → blocking note; add the missing code → note auto-resolves
 
-**Session C — Project status read-side:**
+**Session C — Project status read-side:** ✓ COMPLETE
 
-- [ ] `derive_project_status(project_id, db)` — pure function inspecting WA codes, deliverable statuses, pending RFAs, unconfirmed time entries, and unresolved blocking notes via `get_blocking_notes_for_project()`; returns computed status; no writes
-- [ ] `ProjectStatusRead` schema in `app/projects/schemas.py` — structured breakdown including a `blocking_issues` list so the frontend can surface each issue with a navigation link to its entity
-- [ ] `GET /projects/{id}/status` endpoint in `app/projects/router/base.py` — serializes `derive_project_status` output
-- [ ] Tests: table-driven status derivation across the input combinations; endpoint shape test
+- [x] `derive_project_status(project_id, db)` — pure function inspecting deliverable statuses, pending RFAs, unconfirmed time entries, and unresolved blocking notes via `get_blocking_notes_for_project()`; returns `ProjectStatusRead`; no writes
+- [x] `ProjectStatusRead` schema in `app/projects/schemas.py` — `status`, `has_work_auth`, `pending_rfa_count`, `outstanding_deliverable_count`, `unconfirmed_time_entry_count`, `blocking_issues`
+- [x] `GET /projects/{id}/status` endpoint in `app/projects/router/base.py`
+- [x] Tests: 8 service tests (`TestDeriveProjectStatus`) + 2 endpoint tests
+
+**Design note — `ProjectStatus.SETUP`:** Defined as "no time entries recorded yet" (no work has started), not "no WA issued." A project can have a WA but be in `SETUP` if no field work has been recorded. `BLOCKED` overrides all other states including `SETUP`.
 
 **Session D — Project closure and record locking:**
 

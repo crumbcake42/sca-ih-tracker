@@ -1,11 +1,14 @@
-from sqlalchemy import or_, select, union, update
+from sqlalchemy import func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import (
     NoteEntityType,
     NoteType,
+    ProjectStatus,
+    RFAStatus,
     SCADeliverableStatus,
+    TimeEntryStatus,
     WACodeLevel,
     WACodeStatus,
 )
@@ -23,7 +26,7 @@ from app.notes.service import auto_resolve_system_notes, create_system_note
 from app.projects.models import Project, ProjectContractorLink
 from app.time_entries.models import TimeEntry
 from app.wa_codes.models import WACode
-from app.work_auths.models import WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
+from app.work_auths.models import RFA, WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
 
 
 async def process_project_import(db: AsyncSession, project_data: dict):
@@ -398,6 +401,95 @@ async def check_sample_type_gap_note(project_id: int, db: AsyncSession) -> None:
         await auto_resolve_system_notes(
             NoteEntityType.PROJECT, project_id, NoteType.MISSING_SAMPLE_TYPE_WA_CODE, db
         )
+
+
+async def derive_project_status(
+    project_id: int,
+    db: AsyncSession,
+) -> "ProjectStatusRead":
+    from app.projects.schemas import ProjectStatusRead
+
+    blocking_issues = await get_blocking_notes_for_project(project_id, db)
+
+    wa = (
+        await db.execute(select(WorkAuth).where(WorkAuth.project_id == project_id))
+    ).scalar_one_or_none()
+
+    has_work_auth = wa is not None
+
+    pending_rfa_count: int = 0
+    if wa is not None:
+        pending_rfa_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(RFA)
+                .where(RFA.work_auth_id == wa.id, RFA.status == RFAStatus.PENDING)
+            )
+        ).scalar_one()
+
+    pd_count: int = (
+        await db.execute(
+            select(func.count())
+            .select_from(ProjectDeliverable)
+            .where(
+                ProjectDeliverable.project_id == project_id,
+                ProjectDeliverable.sca_status.in_(_DERIVABLE_SCA_STATUSES),
+            )
+        )
+    ).scalar_one()
+    pbd_count: int = (
+        await db.execute(
+            select(func.count())
+            .select_from(ProjectBuildingDeliverable)
+            .where(
+                ProjectBuildingDeliverable.project_id == project_id,
+                ProjectBuildingDeliverable.sca_status.in_(_DERIVABLE_SCA_STATUSES),
+            )
+        )
+    ).scalar_one()
+    outstanding_deliverable_count = pd_count + pbd_count
+
+    time_entry_count: int = (
+        await db.execute(
+            select(func.count())
+            .select_from(TimeEntry)
+            .where(TimeEntry.project_id == project_id)
+        )
+    ).scalar_one()
+
+    unconfirmed_time_entry_count: int = (
+        await db.execute(
+            select(func.count())
+            .select_from(TimeEntry)
+            .where(
+                TimeEntry.project_id == project_id,
+                TimeEntry.status == TimeEntryStatus.ASSUMED,
+            )
+        )
+    ).scalar_one()
+
+    if blocking_issues:
+        status = ProjectStatus.BLOCKED
+    elif time_entry_count == 0:
+        status = ProjectStatus.SETUP
+    elif (
+        outstanding_deliverable_count == 0
+        and pending_rfa_count == 0
+        and unconfirmed_time_entry_count == 0
+    ):
+        status = ProjectStatus.READY_TO_CLOSE
+    else:
+        status = ProjectStatus.IN_PROGRESS
+
+    return ProjectStatusRead(
+        project_id=project_id,
+        status=status,
+        has_work_auth=has_work_auth,
+        pending_rfa_count=pending_rfa_count,
+        outstanding_deliverable_count=outstanding_deliverable_count,
+        unconfirmed_time_entry_count=unconfirmed_time_entry_count,
+        blocking_issues=blocking_issues,
+    )
 
 
 _ENTITY_LINK_TEMPLATES = {

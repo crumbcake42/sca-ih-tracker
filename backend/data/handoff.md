@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-16 (Phase 6 Session B complete)
+# Session Handoff — 2026-04-16 (Phase 6 Session C complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,59 +6,68 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**380 tests passing.** Phase 6 Session B is complete. Session C is next.
+**390 tests passing.** Phase 6 Session C is complete. Session D is next.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 6 Session B — Wire derivation into mutation paths
+### Phase 6 Session C — Project status read-side
 
-**`NoteType.MISSING_SAMPLE_TYPE_WA_CODE`** added to `app/common/enums.py`.
+**`ProjectStatus` enum** added to `app/common/enums.py`:
+- `SETUP` — no time entries recorded yet (no work has started on the project)
+- `IN_PROGRESS` — work is recorded, deliverables still outstanding
+- `BLOCKED` — unresolved blocking notes (highest priority; overrides all other states)
+- `READY_TO_CLOSE` — no outstanding deliverables, no pending RFAs, no assumed entries
+- `LOCKED` — project closed (used in Session D; not yet returned by derivation)
 
-**`check_sample_type_gap_note(project_id, db)`** added to `app/projects/services.py`. Checks all sample types on the project against the project's WA codes; creates a blocking system note if any required code is missing, auto-resolves if all gaps are filled or if the project has no batches.
+**`ProjectStatusRead` schema** added to `app/projects/schemas.py`:
+```python
+class ProjectStatusRead(BaseModel):
+    project_id: int
+    status: ProjectStatus
+    has_work_auth: bool
+    pending_rfa_count: int
+    outstanding_deliverable_count: int
+    unconfirmed_time_entry_count: int
+    blocking_issues: list[BlockingIssue]
+```
 
-**`recalculate_deliverable_sca_status` wired into:**
-- `POST /work-auths/` (create)
-- `POST/DELETE /work-auths/{id}/project-codes`
-- `POST/DELETE /work-auths/{id}/building-codes`
-- `PATCH /work-auths/{id}/rfas/{rfa_id}` (resolve)
+**`derive_project_status(project_id, db)`** added to `app/projects/services.py`. Pure function, no writes. Derivation priority:
+1. `BLOCKED` if any unresolved blocking notes
+2. `SETUP` if no time entries on the project
+3. `READY_TO_CLOSE` if outstanding_deliverable_count == 0 AND pending_rfa_count == 0 AND unconfirmed_time_entry_count == 0
+4. `IN_PROGRESS` otherwise
 
-**`ensure_deliverables_exist` wired into:**
-- All of the above WA paths (before recalculate, so newly triggered rows are created and immediately recalculated)
-- `POST /time-entries/`
-- `POST /lab-results/batches/`
-- `POST /lab-results/batches/quick-add`
+Uses a local import of `ProjectStatusRead` inside the function body to avoid a circular import (`services.py` → `schemas.py` → `enums.py` is fine, but `schemas.py` imports `BlockingIssue` from `notes.schemas`; keeping the import local avoids any module-load ordering issue).
 
-**`check_sample_type_gap_note` wired into:**
-- `POST /work-auths/{id}/project-codes` (add) — auto-resolves gap if this code fills it
-- `POST /work-auths/{id}/building-codes` (add) — same
-- `POST /lab-results/batches/` — emits note if batch's sample type needs codes not on WA
-- `POST /lab-results/batches/quick-add` — same
+**`GET /projects/{id}/status`** endpoint added to `app/projects/router/base.py`. Returns `ProjectStatusRead`. 404 if project not found.
 
-**9 new tests** across `app/work_auths/tests/test_deliverable_integration.py` (4 tests) and `app/projects/tests/test_projects_service.py` `TestCheckSampleTypeGapNote` (5 tests).
+**10 new tests**: 8 service tests in `TestDeriveProjectStatus` (`app/projects/tests/test_projects_service.py`) and 2 endpoint tests in `app/projects/tests/test_project_status.py`.
 
 ---
 
 ## Design Decisions Made This Session
 
-### `recalculate_deliverable_sca_status` called from time-entry/batch paths too
+### `SETUP` = no time entries, not "no work auth"
 
-The roadmap only specified `recalculate` on WA paths and `ensure` on work-recording paths. However, `ensure_deliverables_exist` creates rows with a `PENDING_WA` default status. Without also calling `recalculate` from those same paths, rows would sit at `PENDING_WA` even when active WA codes exist — until the next WA mutation. Both functions are now called together from all mutation paths where deliverable state may change.
+The initial instinct was to define `SETUP` as "no WA issued yet." Corrected before implementation: `SETUP` means no work has been recorded on the project (no time entries), which is the operationally meaningful threshold. A project can have a WA but no field work started and is still in setup. A project with time entries but no WA is unusual but is `IN_PROGRESS` (or `BLOCKED` if a gap note was emitted).
 
-### `ensure_deliverables_exist` called from all WA code mutation paths too
+### `ProjectStatusRead` imported locally inside `derive_project_status`
 
-Same reasoning as above. When a WA code is added, it may trigger new deliverable rows. Calling `ensure` before `recalculate` on WA code paths ensures the newly triggered rows are created and immediately given their correct status.
+`services.py` is imported by `router/base.py`, which imports `schemas.py`. If `services.py` also imported `schemas.py` at module level, Python resolves the import chain at startup and it works fine — but using a local import inside the function body avoids any fragility if the import order ever changes. No performance concern since `derive_project_status` is not a hot path.
 
 ---
 
 ## Next Step
 
-**Phase 6 Session C — Project status read-side.**
+**Phase 6 Session D — Project closure and record locking.**
 
-- `derive_project_status(project_id, db)` — pure function in `app/projects/services.py`
-- `ProjectStatusRead` schema in `app/projects/schemas.py`
-- `GET /projects/{id}/status` endpoint in `app/projects/router/base.py`
-- Tests: table-driven status derivation + endpoint shape test
+- `lock_project_records(project_id, db, user_id)` in `app/projects/services.py`
+  - First calls `get_blocking_notes_for_project()` → raises 409 with blocking issues if any
+  - On success: transitions `time_entries` (`assumed`/`entered` → `locked`) and `active` `sample_batches` → `locked`
+- `POST /projects/{id}/close` endpoint — calls `lock_project_records`; 409 with `blocking_issues` payload on refusal, 200 on success
+- `status != locked` guards on update/delete endpoints for `time_entries` and `sample_batches` (422)
+- Tests: closure blocked by unresolved note (409 + payload); closure succeeds and cascades lock; locked records reject edits with 422
 
-See the "Session C" checklist in `data/roadmap.md` under Phase 6.
+See the "Session D" checklist in `data/roadmap.md` under Phase 6.
