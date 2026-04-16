@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.enums import InternalDeliverableStatus, NoteEntityType, SCADeliverableStatus
 from app.database import get_db
 from app.deliverables import schemas as deliverable_schemas
 from app.deliverables.models import (
@@ -9,11 +10,36 @@ from app.deliverables.models import (
     ProjectBuildingDeliverable,
     ProjectDeliverable,
 )
+from app.notes.models import Note
 from app.projects.models import Project
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 
 router = APIRouter()
+
+# Statuses that require no unresolved blocking notes on the deliverable.
+_BLOCKED_INTERNAL = {InternalDeliverableStatus.IN_REVIEW}
+_BLOCKED_SCA = {SCADeliverableStatus.UNDER_REVIEW, SCADeliverableStatus.APPROVED}
+
+
+async def _check_no_blocking_notes(deliverable_id: int, db: AsyncSession) -> None:
+    """Raise 422 if there are unresolved blocking notes on this deliverable."""
+    result = await db.execute(
+        select(Note).where(
+            Note.entity_type == NoteEntityType.DELIVERABLE,
+            Note.entity_id == deliverable_id,
+            Note.is_blocking.is_(True),
+            Note.is_resolved.is_(False),
+            Note.parent_note_id.is_(None),
+        )
+    )
+    blocking = result.scalars().all()
+    if blocking:
+        count = len(blocking)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot advance deliverable status: {count} unresolved blocking note(s) must be resolved first.",
+        )
 
 
 async def _get_project_or_404(project_id: int, db: AsyncSession) -> Project:
@@ -95,6 +121,8 @@ async def update_project_deliverable(
     pd = await db.get(ProjectDeliverable, (project_id, deliverable_id))
     if not pd:
         raise HTTPException(status_code=404, detail="Project deliverable not found")
+    if body.internal_status in _BLOCKED_INTERNAL or body.sca_status in _BLOCKED_SCA:
+        await _check_no_blocking_notes(deliverable_id, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(pd, field, value)
     pd.updated_by_id = current_user.id
