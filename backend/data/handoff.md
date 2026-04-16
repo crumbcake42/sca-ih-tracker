@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-16 (Phase 6 Session C complete)
+# Session Handoff — 2026-04-16 (Phase 6 Session D complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,68 +6,72 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**390 tests passing.** Phase 6 Session C is complete. Session D is next.
+**401 tests passing.** Phase 6 is fully complete. Phase 6.5 is next.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 6 Session C — Project status read-side
+### Phase 6 Session D — Project closure and record locking
 
-**`ProjectStatus` enum** added to `app/common/enums.py`:
-- `SETUP` — no time entries recorded yet (no work has started on the project)
-- `IN_PROGRESS` — work is recorded, deliverables still outstanding
-- `BLOCKED` — unresolved blocking notes (highest priority; overrides all other states)
-- `READY_TO_CLOSE` — no outstanding deliverables, no pending RFAs, no assumed entries
-- `LOCKED` — project closed (used in Session D; not yet returned by derivation)
+**`Project.is_locked: bool`** added to `app/projects/models/base.py`:
+- `server_default="0"`, `default=False`
+- **Migration required** — user must generate and apply before running the app against a real DB
 
-**`ProjectStatusRead` schema** added to `app/projects/schemas.py`:
-```python
-class ProjectStatusRead(BaseModel):
-    project_id: int
-    status: ProjectStatus
-    has_work_auth: bool
-    pending_rfa_count: int
-    outstanding_deliverable_count: int
-    unconfirmed_time_entry_count: int
-    blocking_issues: list[BlockingIssue]
-```
+**`lock_project_records(project_id, db, user_id)`** added to `app/projects/services.py`:
+- Calls `get_blocking_notes_for_project()` → raises `HTTPException(409, detail={"blocking_issues": [...]})` if any unresolved
+- Bulk-updates `time_entries` (assumed/entered → locked) via `update()` with `execution_options(synchronize_session=False)`
+- Bulk-updates `active` `sample_batches` linked to those time entries → locked (same pattern)
+- Sets `project.is_locked = True` and `project.updated_by_id = user_id`
 
-**`derive_project_status(project_id, db)`** added to `app/projects/services.py`. Pure function, no writes. Derivation priority:
-1. `BLOCKED` if any unresolved blocking notes
-2. `SETUP` if no time entries on the project
-3. `READY_TO_CLOSE` if outstanding_deliverable_count == 0 AND pending_rfa_count == 0 AND unconfirmed_time_entry_count == 0
-4. `IN_PROGRESS` otherwise
+**`derive_project_status`** updated: short-circuits to `ProjectStatus.LOCKED` (with all counts zeroed) when `project.is_locked` is True.
 
-Uses a local import of `ProjectStatusRead` inside the function body to avoid a circular import (`services.py` → `schemas.py` → `enums.py` is fine, but `schemas.py` imports `BlockingIssue` from `notes.schemas`; keeping the import local avoids any module-load ordering issue).
+**`POST /projects/{id}/close`** added to `app/projects/router/base.py`:
+- 404 if project not found
+- 409 if already closed
+- Calls `lock_project_records` (which 409s on blocking issues), then commits
+- Returns `ProjectStatusRead` (status=LOCKED) on success
 
-**`GET /projects/{id}/status`** endpoint added to `app/projects/router/base.py`. Returns `ProjectStatusRead`. 404 if project not found.
+**Locked guards** added:
+- `PATCH /time-entries/{id}` → 422 if `entry.status == LOCKED`
+- `DELETE /time-entries/{id}` → 422 if `entry.status == LOCKED`
+- `PATCH /lab-results/batches/{id}` → 422 if `batch.status == LOCKED`
+- `DELETE /lab-results/batches/{id}` → 422 if `batch.status == LOCKED`
+- (Discard endpoint already had a LOCKED check from Phase 4)
 
-**10 new tests**: 8 service tests in `TestDeriveProjectStatus` (`app/projects/tests/test_projects_service.py`) and 2 endpoint tests in `app/projects/tests/test_project_status.py`.
+**11 new tests** in `app/projects/tests/test_project_closure.py`.
 
 ---
 
 ## Design Decisions Made This Session
 
-### `SETUP` = no time entries, not "no work auth"
+### `is_locked` on `Project` rather than inferring from time entry statuses
 
-The initial instinct was to define `SETUP` as "no WA issued yet." Corrected before implementation: `SETUP` means no work has been recorded on the project (no time entries), which is the operationally meaningful threshold. A project can have a WA but no field work started and is still in setup. A project with time entries but no WA is unusual but is `IN_PROGRESS` (or `BLOCKED` if a gap note was emitted).
+A project with no time entries would have no locked entries after closure — inference is ambiguous. An explicit flag is unambiguous and makes `derive_project_status` a simple early return.
 
-### `ProjectStatusRead` imported locally inside `derive_project_status`
+### `lock_project_records` raises `HTTPException` directly
 
-`services.py` is imported by `router/base.py`, which imports `schemas.py`. If `services.py` also imported `schemas.py` at module level, Python resolves the import chain at startup and it works fine — but using a local import inside the function body avoids any fragility if the import order ever changes. No performance concern since `derive_project_status` is not a hot path.
+Consistent with every other service function in this codebase (`validate_role_for_entry`, `check_time_entry_overlap`, etc.). The router doesn't need to re-wrap the error.
+
+### Discarded batches are not re-locked
+
+`lock_project_records` only transitions `ACTIVE → LOCKED`. Discarded batches stay discarded — they're already excluded from billing and are effectively read-only post-discard. Locking them too would change their status without adding any new constraint.
+
+---
+
+## Open Item (deferred, recorded in memory)
+
+**Assumed entries at closure:** `lock_project_records` currently locks assumed entries silently. `unconfirmed_time_entry_count > 0` is already surfaced in `ProjectStatusRead`. Whether to make this a hard closure gate (block with 409) is deferred — the `READY_TO_CLOSE` status already requires zero assumed entries, so the UI can guide users before they hit close.
 
 ---
 
 ## Next Step
 
-**Phase 6 Session D — Project closure and record locking.**
+**Phase 6.5 — Required Documents and Expected/Placeholder Entities.**
 
-- `lock_project_records(project_id, db, user_id)` in `app/projects/services.py`
-  - First calls `get_blocking_notes_for_project()` → raises 409 with blocking issues if any
-  - On success: transitions `time_entries` (`assumed`/`entered` → `locked`) and `active` `sample_batches` → `locked`
-- `POST /projects/{id}/close` endpoint — calls `lock_project_records`; 409 with `blocking_issues` payload on refusal, 200 on success
-- `status != locked` guards on update/delete endpoints for `time_entries` and `sample_batches` (422)
-- Tests: closure blocked by unresolved note (409 + payload); closure succeeds and cascades lock; locked records reject edits with 422
+Full design in `data/roadmap.md` under Phase 6.5. Three data silos:
+1. `project_document_requirements` — daily logs, reoccupancy/minor letters
+2. `contractor_payment_records` — CPR with RFA+RFP sub-flow
+3. `dep_filing_forms` + `project_dep_filings`
 
-See the "Session D" checklist in `data/roadmap.md` under Phase 6.
+⚠️ The placeholder→actual matching layer (promoting a placeholder when a matching real entity is created) is **design not finalized** — must be resolved in a dedicated session before any implementation begins.

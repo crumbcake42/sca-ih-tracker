@@ -146,6 +146,8 @@ async def update_batch(
     current_user: User = Depends(_edit_dep),
 ):
     batch = await get_batch_or_404(batch_id, db)
+    if batch.status == SampleBatchStatus.LOCKED:
+        raise HTTPException(status_code=422, detail="Cannot modify a locked batch")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(batch, field, value)
     batch.updated_by_id = current_user.id
@@ -158,6 +160,8 @@ async def update_batch(
                dependencies=[Depends(_edit_dep)])
 async def delete_batch(batch_id: int, db: AsyncSession = Depends(get_db)):
     batch = await get_batch_or_404(batch_id, db)
+    if batch.status == SampleBatchStatus.LOCKED:
+        raise HTTPException(status_code=422, detail="Cannot delete a locked batch")
     await db.delete(batch)
     await db.commit()
 

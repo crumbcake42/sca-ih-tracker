@@ -7,7 +7,11 @@ from app.common.crud import get_by_ids
 from app.database import get_db
 from app.notes.schemas import BlockingIssue
 from app.projects import models, schemas
-from app.projects.services import derive_project_status, get_blocking_notes_for_project
+from app.projects.services import (
+    derive_project_status,
+    get_blocking_notes_for_project,
+    lock_project_records,
+)
 from app.schools.models import School
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
@@ -125,6 +129,27 @@ async def get_blocking_issues(project_id: int, db: AsyncSession = Depends(get_db
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return await get_blocking_notes_for_project(project_id, db)
+
+
+@router.post(
+    "/{project_id}/close",
+    status_code=status.HTTP_200_OK,
+    response_model=schemas.ProjectStatusRead,
+)
+async def close_project(
+    project_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
+):
+    """Close a project: lock all time entries and active batches. 409 if blocking issues exist."""
+    project = await db.get(models.Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.is_locked:
+        raise HTTPException(status_code=409, detail="Project is already closed")
+    await lock_project_records(project_id, db, current_user.id)
+    await db.commit()
+    return await derive_project_status(project_id, db)
 
 
 @router.delete(

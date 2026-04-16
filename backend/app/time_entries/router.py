@@ -112,6 +112,8 @@ async def update_time_entry(
     entry = await db.get(TimeEntry, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Time entry not found")
+    if entry.status == TimeEntryStatus.LOCKED:
+        raise HTTPException(status_code=422, detail="Cannot modify a locked time entry")
 
     updates = body.model_dump(exclude_unset=True)
 
@@ -161,6 +163,8 @@ async def delete_time_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
     entry = await db.get(TimeEntry, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Time entry not found")
+    if entry.status == TimeEntryStatus.LOCKED:
+        raise HTTPException(status_code=422, detail="Cannot delete a locked time entry")
 
     # Block deletion if active or discarded batches are linked
     result = await db.execute(

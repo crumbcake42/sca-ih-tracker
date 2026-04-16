@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String
+from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import AuditMixin, Base
@@ -24,6 +24,7 @@ class Project(Base, AuditMixin):
     project_number: Mapped[str] = mapped_column(
         String(20), unique=True, index=True, nullable=False
     )
+    is_locked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     # Many-to-many: a project takes place at one or more schools
     schools: Mapped[list["School"]] = relationship(

@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy import func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,6 +8,7 @@ from app.common.enums import (
     NoteType,
     ProjectStatus,
     RFAStatus,
+    SampleBatchStatus,
     SCADeliverableStatus,
     TimeEntryStatus,
     WACodeLevel,
@@ -409,6 +411,18 @@ async def derive_project_status(
 ) -> "ProjectStatusRead":
     from app.projects.schemas import ProjectStatusRead
 
+    project = await db.get(Project, project_id)
+    if project and project.is_locked:
+        return ProjectStatusRead(
+            project_id=project_id,
+            status=ProjectStatus.LOCKED,
+            has_work_auth=False,
+            pending_rfa_count=0,
+            outstanding_deliverable_count=0,
+            unconfirmed_time_entry_count=0,
+            blocking_issues=[],
+        )
+
     blocking_issues = await get_blocking_notes_for_project(project_id, db)
 
     wa = (
@@ -490,6 +504,47 @@ async def derive_project_status(
         unconfirmed_time_entry_count=unconfirmed_time_entry_count,
         blocking_issues=blocking_issues,
     )
+
+
+async def lock_project_records(project_id: int, db: AsyncSession, user_id: int) -> None:
+    """
+    Close a project: cascade LOCKED status to all time entries and active batches.
+    Raises 409 if any unresolved blocking notes exist on the project.
+    """
+    blocking_issues = await get_blocking_notes_for_project(project_id, db)
+    if blocking_issues:
+        raise HTTPException(
+            status_code=409,
+            detail={"blocking_issues": [bi.model_dump() for bi in blocking_issues]},
+        )
+
+    await db.execute(
+        update(TimeEntry)
+        .where(
+            TimeEntry.project_id == project_id,
+            TimeEntry.status.in_([TimeEntryStatus.ASSUMED, TimeEntryStatus.ENTERED]),
+        )
+        .values(status=TimeEntryStatus.LOCKED, updated_by_id=user_id)
+        .execution_options(synchronize_session=False)
+    )
+
+    te_ids_sq = (
+        select(TimeEntry.id).where(TimeEntry.project_id == project_id).scalar_subquery()
+    )
+    await db.execute(
+        update(SampleBatch)
+        .where(
+            SampleBatch.time_entry_id.in_(te_ids_sq),
+            SampleBatch.status == SampleBatchStatus.ACTIVE,
+        )
+        .values(status=SampleBatchStatus.LOCKED, updated_by_id=user_id)
+        .execution_options(synchronize_session=False)
+    )
+
+    project = await db.get(Project, project_id)
+    project.is_locked = True
+    project.updated_by_id = user_id
+    await db.flush()
 
 
 _ENTITY_LINK_TEMPLATES = {

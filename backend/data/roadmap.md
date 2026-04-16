@@ -353,12 +353,15 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 **Design note — `ProjectStatus.SETUP`:** Defined as "no time entries recorded yet" (no work has started), not "no WA issued." A project can have a WA but be in `SETUP` if no field work has been recorded. `BLOCKED` overrides all other states including `SETUP`.
 
-**Session D — Project closure and record locking:**
+**Session D — Project closure and record locking:** ✓ COMPLETE
 
-- [ ] `lock_project_records(project_id, db, user_id)` — first calls `get_blocking_notes_for_project()` and raises 409 listing each blocking issue if any unresolved blocking notes exist; on success, transitions all linked `time_entries` from `assumed`/`entered` → `locked` and all `active` `sample_batches` → `locked` (discarded batches remain discarded but become read-only)
-- [ ] `POST /projects/{id}/close` endpoint — calls `lock_project_records`; 409 with `blocking_issues` payload on refusal, 200 on success
-- [ ] Add `status != locked` guards to update/delete endpoints on `time_entries` and `sample_batches` (422 when attempting to mutate a locked record)
-- [ ] Tests: closure blocked by unresolved blocking note (assert 409 + payload); closure succeeds and cascades lock; locked time entries and batches reject further edits with 422
+- [x] `lock_project_records(project_id, db, user_id)` — raises 409 with `blocking_issues` payload if any unresolved blocking notes exist; transitions `time_entries` (`assumed`/`entered` → `locked`) and `active` `sample_batches` → `locked`; sets `Project.is_locked = True`
+- [x] `POST /projects/{id}/close` endpoint — 409 with `blocking_issues` payload on refusal, 200 + `ProjectStatusRead` (status=LOCKED) on success; 409 if already closed
+- [x] `status != locked` guards on PATCH/DELETE for `time_entries` and PATCH/DELETE for `sample_batches` (422)
+- [x] `Project.is_locked: bool` column added (migration needed — user-managed); `derive_project_status` short-circuits to `LOCKED` when set
+- [x] 11 tests in `app/projects/tests/test_project_closure.py`
+
+**Design note — assumed entries at closure:** `lock_project_records` currently locks assumed entries without blocking. `unconfirmed_time_entry_count > 0` is already surfaced in `ProjectStatusRead`; whether to make it a hard closure gate is deferred (see memory).
 
 ---
 
