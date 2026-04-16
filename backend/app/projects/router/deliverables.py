@@ -240,6 +240,8 @@ async def update_building_deliverable(
     )
     if not bd:
         raise HTTPException(status_code=404, detail="Building deliverable not found")
+    if body.internal_status in _BLOCKED_INTERNAL or body.sca_status in _BLOCKED_SCA:
+        await _check_no_blocking_notes(deliverable_id, db)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(bd, field, value)
     bd.updated_by_id = current_user.id

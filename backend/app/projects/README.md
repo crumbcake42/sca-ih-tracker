@@ -20,6 +20,8 @@ This module does **not** own time entries, lab results, work authorizations, or 
 
 **`get_blocking_notes_for_project(project_id, db)`** (Phase 3.6, in `services.py`) aggregates all unresolved blocking top-level notes across the project itself, its time entries, its deliverables, and its sample batches. Returns `list[BlockingIssue]` (schema in `app/notes/schemas.py`). Two caveats: (1) deliverable notes use the deliverable template's `id` as `entity_id` — a note on template #5 surfaces for any project with that deliverable; (2) sample batches with `time_entry_id=NULL` are excluded because they have no project association. Called by Phase 6's `lock_project_records` and `derive_project_status`.
 
+**`GET /projects/{id}/blocking-issues`** (Phase 3.6, in `app/projects/router/base.py`) is a thin endpoint that calls `get_blocking_notes_for_project()` and returns `list[BlockingIssue]`. It is wired here rather than in the notes module because the aggregation logic spans multiple project-owned entities.
+
 **`derive_project_status()` does not exist yet (Phase 6).** Project status is currently a manually managed field. When Phase 6 is implemented, `derive_project_status(project_id)` will be a pure function with no side effects. Do not cache its result on a `computed_status` column until that function is finalized.
 
 ---

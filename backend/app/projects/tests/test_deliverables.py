@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.enums import (
     Boro,
     InternalDeliverableStatus,
+    NoteEntityType,
     SCADeliverableStatus,
     WACodeLevel,
 )
@@ -26,6 +27,7 @@ from app.deliverables.models import (
     ProjectBuildingDeliverable,
     ProjectDeliverable,
 )
+from app.notes.models import Note
 from app.projects.models import Project
 from app.schools.models import School
 
@@ -65,6 +67,26 @@ async def _seed_deliverable(
     db.add(d)
     await db.flush()
     return d
+
+
+async def _seed_blocking_note(
+    db: AsyncSession,
+    deliverable_id: int,
+    *,
+    is_resolved: bool = False,
+) -> Note:
+    note = Note(
+        entity_type=NoteEntityType.DELIVERABLE,
+        entity_id=deliverable_id,
+        body="Blocking issue",
+        is_blocking=True,
+        is_resolved=is_resolved,
+        created_by_id=1,
+        updated_by_id=1,
+    )
+    db.add(note)
+    await db.flush()
+    return note
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +233,52 @@ class TestUpdateProjectDeliverable:
             json={"internal_status": "completed"},
         )
         assert response.status_code == 404
+
+    async def test_blocking_note_blocks_in_review(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, code="K010")
+        project = await _seed_project(db_session, school, number="26-110-01")
+        d = await _seed_deliverable(db_session, name="Report A")
+        db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
+        await _seed_blocking_note(db_session, d.id)
+
+        response = await auth_client.patch(
+            f"/projects/{project.id}/deliverables/{d.id}",
+            json={"internal_status": "in_review"},
+        )
+        assert response.status_code == 422
+        assert "blocking note" in response.json()["detail"]
+
+    async def test_blocking_note_does_not_block_non_gated_status(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, code="K011")
+        project = await _seed_project(db_session, school, number="26-111-01")
+        d = await _seed_deliverable(db_session, name="Report B")
+        db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
+        await _seed_blocking_note(db_session, d.id)
+
+        response = await auth_client.patch(
+            f"/projects/{project.id}/deliverables/{d.id}",
+            json={"internal_status": "completed"},
+        )
+        assert response.status_code == 200
+
+    async def test_resolved_blocking_note_allows_in_review(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, code="K012")
+        project = await _seed_project(db_session, school, number="26-112-01")
+        d = await _seed_deliverable(db_session, name="Report C")
+        db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
+        await _seed_blocking_note(db_session, d.id, is_resolved=True)
+
+        response = await auth_client.patch(
+            f"/projects/{project.id}/deliverables/{d.id}",
+            json={"internal_status": "in_review"},
+        )
+        assert response.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -387,6 +455,58 @@ class TestUpdateBuildingDeliverable:
             json={"internal_status": "completed"},
         )
         assert response.status_code == 404
+
+    async def test_blocking_note_blocks_under_review(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, code="K020")
+        project = await _seed_project(db_session, school, number="26-120-01")
+        d = await _seed_deliverable(db_session, name="Bldg Report A", level=WACodeLevel.BUILDING)
+        db_session.add(ProjectBuildingDeliverable(
+            project_id=project.id, deliverable_id=d.id, school_id=school.id
+        ))
+        await _seed_blocking_note(db_session, d.id)
+
+        response = await auth_client.patch(
+            f"/projects/{project.id}/building-deliverables/{d.id}/{school.id}",
+            json={"sca_status": "under_review"},
+        )
+        assert response.status_code == 422
+        assert "blocking note" in response.json()["detail"]
+
+    async def test_blocking_note_does_not_block_non_gated_status(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, code="K021")
+        project = await _seed_project(db_session, school, number="26-121-01")
+        d = await _seed_deliverable(db_session, name="Bldg Report B", level=WACodeLevel.BUILDING)
+        db_session.add(ProjectBuildingDeliverable(
+            project_id=project.id, deliverable_id=d.id, school_id=school.id
+        ))
+        await _seed_blocking_note(db_session, d.id)
+
+        response = await auth_client.patch(
+            f"/projects/{project.id}/building-deliverables/{d.id}/{school.id}",
+            json={"sca_status": "outstanding"},
+        )
+        assert response.status_code == 200
+
+    async def test_resolved_blocking_note_allows_approved(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await _seed_school(db_session, code="K022")
+        project = await _seed_project(db_session, school, number="26-122-01")
+        d = await _seed_deliverable(db_session, name="Bldg Report C", level=WACodeLevel.BUILDING)
+        db_session.add(ProjectBuildingDeliverable(
+            project_id=project.id, deliverable_id=d.id, school_id=school.id
+        ))
+        await _seed_blocking_note(db_session, d.id, is_resolved=True)
+
+        response = await auth_client.patch(
+            f"/projects/{project.id}/building-deliverables/{d.id}/{school.id}",
+            json={"sca_status": "approved"},
+        )
+        assert response.status_code == 200
 
 
 # ---------------------------------------------------------------------------

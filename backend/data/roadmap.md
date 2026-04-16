@@ -212,17 +212,17 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 ---
 
-### Phase 3.6 — Notes and Blockers _(next step)_
+### Phase 3.6 — Notes and Blockers ✓ COMPLETE
 
 > Prerequisite for Phase 6: project closure gates on unresolved blocking notes across all project entities.
 > Phase 4 no longer requires Phase 3.6 — overlap detection was changed to return 422 at entry time rather than creating system notes (see Phase 4 design decisions).
 
 **Session breakdown** (one building step per session):
 
-- **Session A — Data model + migration:** `app/notes/` module scaffold; `Note` model; `NoteEntityType` + `NoteType` enums in `app/common/enums.py`; Pydantic schemas (no endpoints yet); module README. Stop for user-generated migration.
+- **Session A — Data model + migration:** `app/notes/` module scaffold; `Note` model; `NoteEntityType` + `NoteType` enums in `app/common/enums.py`; Pydantic schemas (no endpoints yet); module README. Stop for user-generated migration. ✓ COMPLETE
 - **Session B — Service layer:** `create_system_note()`, `auto_resolve_system_notes()`, `get_blocking_notes_for_project()` with unit tests. ✓ COMPLETE
-- **Session C — Endpoints:** `GET/POST /notes/{entity_type}/{entity_id}`, `POST /notes/{id}/reply`, `PATCH /notes/{id}/resolve`, `GET /projects/{id}/blocking-issues` + API tests.
-- **Session D — Integration:** wire `create_system_note` into any service paths that should emit system notes (e.g. deliverable blocking-note gate on status transitions); update relevant module READMEs.
+- **Session C — Endpoints:** `GET/POST /notes/{entity_type}/{entity_id}`, `POST /notes/{id}/reply`, `PATCH /notes/{id}/resolve`, `GET /projects/{id}/blocking-issues` + API tests. ✓ COMPLETE
+- **Session D — Integration:** wire `create_system_note` into any service paths that should emit system notes (e.g. deliverable blocking-note gate on status transitions); update relevant module READMEs. ✓ COMPLETE
 
 **Data model:** ✓ Session A complete
 
@@ -240,16 +240,16 @@ Rows can be created from multiple trigger sources (WA code added, lab result rec
 
 **Endpoints:**
 
-- [ ] `GET /notes/{entity_type}/{entity_id}` — all notes on this entity, threaded (top-level notes with their replies nested); ordered by `created_at`
-- [ ] `POST /notes/{entity_type}/{entity_id}` — create a user note; request body includes `is_blocking` (bool) and `body` (text); validates entity exists before inserting
-- [ ] `POST /notes/{note_id}/reply` — add a reply to a top-level note; replies are never blocking
-- [ ] `PATCH /notes/{note_id}/resolve` — mark a user-authored blocking note as resolved; requires a `resolution_note` field in the request body (auto-appended as a reply to preserve the resolution rationale); system notes (`note_type IS NOT NULL`) cannot be manually resolved — they auto-resolve when the condition clears
-- [ ] `GET /projects/{id}/blocking-issues` — aggregated unresolved blocking notes across all entities belonging to the project; used by the project status engine and by `lock_project_records()`
+- [x] `GET /notes/{entity_type}/{entity_id}` — all notes on this entity, threaded (top-level notes with their replies nested); ordered by `created_at`
+- [x] `POST /notes/{entity_type}/{entity_id}` — create a user note; request body includes `is_blocking` (bool) and `body` (text); validates entity exists before inserting
+- [x] `POST /notes/{note_id}/reply` — add a reply to a top-level note; replies are never blocking
+- [x] `PATCH /notes/{note_id}/resolve` — mark a user-authored blocking note as resolved; requires a `resolution_note` field in the request body (auto-appended as a reply to preserve the resolution rationale); system notes (`note_type IS NOT NULL`) cannot be manually resolved — they auto-resolve when the condition clears
+- [x] `GET /projects/{id}/blocking-issues` — aggregated unresolved blocking notes across all entities belonging to the project; used by the project status engine and by `lock_project_records()`
 
 **Integration rules:**
 
 - `entity_type + entity_id` is a polymorphic reference — no DB-level FK; service validates entity existence before creating a note
-- Blocking notes on a deliverable block status transitions to `submitted` or `approved` — checked in the deliverable PATCH endpoint
+- [x] Blocking notes on a deliverable block status transitions to `in_review` (internal) or `under_review`/`approved` (SCA) — checked in both deliverable PATCH endpoints (`update_project_deliverable`, `update_building_deliverable`) in `app/projects/router/deliverables.py`
 - Future `@mention` support: do not sanitize or strip `@username` patterns from note bodies; the body is stored as-is so a future mention parser can extract them without a data migration (see Follow-up Project — User Notifications)
 
 ---
