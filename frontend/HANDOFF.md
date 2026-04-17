@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Phase 0 complete. Session 1.1 complete.** Project list page is live at `/projects`. Next session is **1.2 — Field comboboxes / form primitives**.
+**Phase 0 complete. Session 1.1 complete.** Project list page is live at `/projects`. Next session is **1.2 — Field comboboxes / form primitives** (must migrate `src/components/` → `src/shared/components/` first — see ROADMAP.md Session 0.4 note).
 
 ## What Was Done This Session (1.1)
 
@@ -56,6 +56,20 @@ resolver: standardSchemaResolver(myZodSchema)
 ```
 
 All future protected routes go under `src/routes/_authenticated/`.
+
+## Roadmap update (this session)
+
+**Done:**
+
+- Added testing conventions to ROADMAP.md — Session 0.5 (Vitest + RTL setup) + inline Test: bullet per session across Phases 1–4
+- Added Documentation conventions section — PATTERNS.md, Storybook (Session 1.6), JSDoc/TSDoc, HANDOFF.md format
+- Corrected repo layout: `src/shared/components/` replaces `src/components/`; migration note added for Session 1.2
+
+**Next:** Session 0.5 (testing infra) or Session 1.2 (migrate components + field comboboxes) — do the migration first as it is a prerequisite for 1.2
+
+**Blockers:** none
+
+---
 
 ## Next Step
 

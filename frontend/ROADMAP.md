@@ -103,6 +103,28 @@ These shape every decision below. Skim before each session.
 
 ---
 
+## Documentation conventions
+
+### PATTERNS.md
+Create `src/PATTERNS.md` at the end of Session 1.4 once DataTable, EntityConfig, and field combobox shapes are stable. Capture: DataTable column config shape, EntityConfig type, form field patterns, query invalidation patterns. Update it whenever a pattern solidifies or changes.
+
+### Storybook
+Add as Session 1.6 (after Session 1.5 fields stabilize). One story per exported shared component. Add component stories during the same session a component is built for Phase 2+. Promoted from "Ongoing" because waiting until polish means context is lost.
+
+### JSDoc / TSDoc
+Convention: every exported React component and hook gets a single-line `/** … */` doc comment describing its purpose and any non-obvious props or return values. No multi-paragraph blocks.
+
+### HANDOFF.md updates
+Each session must end with an update to `frontend/HANDOFF.md` using this format:
+
+```
+**Done:** one bullet per meaningful outcome
+**Next:** the next session to run
+**Blockers:** anything that needs resolution before next session (or "none")
+```
+
+---
+
 ## Suggested repo layout
 
 ```
@@ -123,7 +145,8 @@ src/
 │   └── hooks.ts                   # useCurrentUser, useLogin, useLogout
 │
 ├── shared/
-│   ├── components/                # buttons, dialogs, layout shells, empty states
+│   ├── components/                # layout shells (AppShell, Header, Footer, ThemeToggle), empty states
+│   │   └── ui/                    # shadcn primitives (moved from src/components/ui/)
 │   ├── fields/                    # <SchoolCombobox>, <EmployeeCombobox>, ...
 │   ├── tables/                    # <DataTable>, pagination, filter bar
 │   └── hooks/                     # useDebouncedValue, useBreakpoint, etc.
@@ -145,7 +168,7 @@ src/
 │   ├── notes/                     # <NotesPanel> polymorphic
 │   └── manager/
 │
-└── routes/                        # tanstack-router file-based tree
+└── routes/                        # tanstack-router file-based tree (do not hand-edit routeTree.gen.ts)
     ├── __root.tsx
     ├── index.tsx                  # redirects to /projects
     ├── login.tsx
@@ -155,6 +178,8 @@ src/
         │   └── index.tsx          # project list ✓
         └── … (all future protected routes)
 ```
+
+> **Current state / migration needed:** `src/components/` (AppShell, Header, Footer, ThemeToggle, `ui/`) must be moved to `src/shared/components/` before Session 1.2. Delete the now-empty `src/common/` directory at the same time.
 
 ---
 
@@ -177,8 +202,15 @@ src/
   - `src/routes/index.tsx` — `beforeLoad` redirects to `/projects`
 
 - [x] **Session 0.4** — Layout shell _(simplified vs original plan)_
-  - `src/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out
+  - `src/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out — **needs move to `src/shared/components/`** before Session 1.2
   - Single shell for now (no AdminShell / ManagerShell split yet — deferred until admin/manager routing split is built)
+
+- [ ] **Session 0.5** — Testing infrastructure
+  - Install: `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`
+  - `vitest.config.ts` — jsdom environment, globals: true, setupFiles pointing to `src/test/setup.ts`
+  - `src/test/setup.ts` — imports `@testing-library/jest-dom` matchers
+  - Smoke test: router renders without crashing
+  - Convention: test files live as `*.test.tsx` siblings inside the same feature folder as the component they test
 
 ---
 
@@ -187,28 +219,39 @@ src/
 - [x] **Session 1.1** — Project list page _(pulled forward from Phase 3)_
   - `src/routes/_authenticated/projects/index.tsx` — table with Project #, Name, Schools columns; `name_search` wired to search input; loading skeleton + empty state
   - No status column (deferred until dashboard endpoints exist)
+  - Test: table renders rows; empty state appears on empty response; search input debounces
 
-- [ ] **Session 1.2** — Form primitives + field comboboxes
+- [ ] **Session 1.2** — Form primitives + field comboboxes _(migrate `src/components/` → `src/shared/components/` first)_
   - Server-error adapter: map FastAPI 422 `detail[{loc, msg}]` onto react-hook-form `setError`
   - `<SchoolCombobox>`, `<EmployeeCombobox>` — Command + Popover, async search, debounced, pre-fetch on mount
   - `useFormDialog()` — opens form in Dialog, closes on success, resolves to created entity
   - Lives in `src/shared/fields/`
+  - Test: 422 adapter maps `detail[{loc,msg}]` to correct field errors; combobox opens, filters list, selects value
 
 - [ ] **Session 1.3** — DataTable primitive
   - `<DataTable columns data pagination filters>` built on TanStack Table + shadcn `<Table>`
   - URL-synced pagination + filters via TanStack Router search params
   - Empty state, loading skeleton, error state slots
   - Row click → navigate to detail route
+  - Test: renders with data; empty state slot appears on empty array; loading skeleton renders; row click fires navigation
 
 - [ ] **Session 1.4** — EntityListPage + EntityFormPage
   - Generic pages driven by `EntityConfig<T>` (see original roadmap for type shape)
   - `<EntityListPage>`, `<EntityFormPage mode="create"|"edit">`, `<EntityFormDialog>` (for inline create)
   - Resist over-abstracting: if an entity needs a custom layout, hand-write it
+  - Create `src/PATTERNS.md` at end of this session once shapes are stable
+  - Test: EntityListPage renders config-driven columns; EntityFormPage calls correct mutation on submit; inline EntityFormDialog closes on success
 
 - [ ] **Session 1.5** — Notes panel (polymorphic)
   - `<NotesPanel entityType entityId>` — threaded notes, create, reply, resolve
   - System notes (`note_type != null`): distinct visual treatment, no resolve button
   - Replies collapse/expand
+  - Test: system note hides Resolve button; reply thread expands/collapses; new note form submits and invalidates query
+
+- [ ] **Session 1.6** — Storybook setup
+  - Install and configure Storybook for Vite + React
+  - One story per exported shared component (DataTable, NotesPanel, field comboboxes, EntityListPage)
+  - Convention going forward: new shared components get a story in the same session they are built
 
 ---
 
@@ -216,57 +259,73 @@ src/
 
 - [ ] **Session 2.1** — Schools _(pattern-setter)_
   - `EntityConfig` for schools; `/admin/schools` list + detail; filters, pagination, create, edit, delete, CSV batch import modal
+  - Test: create form validates required fields; delete shows confirm dialog; CSV import modal opens
 
 - [ ] **Session 2.2** — Employees + employee roles
   - Nested `employee_roles` (time-bound) — employee detail gets a **Roles** tab
   - Date-overlap validation is backend-side; surface 422s cleanly
+  - Test: Roles tab renders; date-overlap 422 surfaces on the correct field
 
 - [ ] **Session 2.3** — Contractors, hygienists, WA codes, deliverables
   - `WaCode.level` (`project` | `building`) is immutable once in use — read-only in edit form when codes have linked records
   - Deliverables: **Triggers** sub-section via multi-select of WA codes
+  - Test: WaCode level field is read-only when codes have linked records; deliverable triggers multi-select saves correctly
 
 - [ ] **Session 2.4** — Users, roles, permissions
   - Password reset as a separate row-menu action → dialog
   - Permissions are read-only seed data; expose as reference table
+  - Test: password reset dialog opens from row menu; permissions table is read-only
 
 - [ ] **Session 2.5** — Sample type config
   - Master-detail layout: sample type on left, subtypes/unit types/turnaround/required-roles/WA-codes in right tabs
+  - Test: selecting sample type loads its subtypes; `<SampleUnitTypeSelect>` filters by sampleTypeId
 
 - [ ] **Session 2.6** — Sample batches (admin corrections)
+  - Test: discard action requires a reason; discarded batch shows visual distinction
 
 ---
 
 ## Phase 3 — Admin projects
 
 - [ ] **Session 3.1** — Project list + filters _(basic version built in Session 1.1; this session adds filters, manager/school/locked filters, column for current manager + contractor)_
+  - Test: filter by locked status shows only locked/unlocked rows; manager filter narrows results
 
 - [ ] **Session 3.2** — Project create + core edit
   - Create wizard: project number (regex-validated), name, manager, schools
   - `project_number` immutable after create — enforce in UI
+  - Test: project_number field is read-only in edit mode; regex validation rejects bad formats
 
 - [ ] **Session 3.3** — Schools, contractors, hygienists, managers tabs
   - Four link-table editors; 409 on unlinking a school with downstream records
+  - Test: 409 on school unlink surfaces inline error with context, not a generic toast
 
 - [ ] **Session 3.4** — Work auth + WA codes tab
   - Project-level and building-level code sub-tables — do not merge
+  - Test: project-level and building-level tables render separately; building-level SchoolSelect filters to linked schools
 
 - [ ] **Session 3.5** — RFAs tab
   - RFA history + create (disabled if pending RFA exists); approve/reject/withdraw; invalidate deliverable queries on approval
+  - Test: create button disabled when pending RFA exists; approval invalidates deliverable cache
 
 - [ ] **Session 3.6** — Deliverables tab
   - Two tables (project-level + building-level); inline status edit; guard derived `sca_status` values as read-only
+  - Test: first three sca_status values render read-only with "auto" hint; internal_status "blocked" requires notes
 
 - [ ] **Session 3.7** — Time entries tab
   - Filter by employee, date range; row expansion shows linked batches
+  - Test: row expansion reveals linked sample batches; assumed entry shows "system" badge
 
 - [ ] **Session 3.8** — Sample batches tab
   - Grouped under time entries; discard action with reason
+  - Test: discard requires a reason field; system-created batches show badge and hide edit controls
 
 - [ ] **Session 3.9** — Status + blocking issues panel
   - Right-rail panel from `GET /projects/{id}/status`; "Close project" button → 409 renders `blocking_issues[]` inline
+  - Test: 409 from close renders blocking issues with deep links, not a toast; panel reflects live status
 
 - [ ] **Session 3.10** — Notes tab
   - Wrap `<NotesPanel entityType="project" entityId={projectId} />` as its own tab
+  - Test: delegates correctly to NotesPanel; tab navigates without remounting panel
 
 ---
 
@@ -275,27 +334,35 @@ src/
 - [ ] **Session 4.1** — Manager dashboard _(get real-manager feedback before continuing Phase 4)_
   - Cards: attention-needed, outstanding deliverables, unresolved blockers, recent activity
   - Client-side N+1 synthesis until Phase 7 dashboard endpoints exist — document the known limitation
+  - Test: cards render with mocked data; attention-needed card shows correct count
 
 - [ ] **Session 4.2** — Project workspace layout
   - Tabs are verbs: "Log time", "Record samples", "Update deliverables", "Add note", "Close project"
+  - Test: each tab renders its section without crashing; route guard redirects non-managers
 
 - [ ] **Session 4.3** — Log time (focused task)
   - 422 overlap → conflicting entry as clickable card, not a toast
+  - Test: 422 response renders conflicting entry card with link; valid submission invalidates time-entries query
 
 - [ ] **Session 4.4** — Record samples (quick-add)
   - Wraps `POST /lab-results/batches/quick-add`; times are optional
+  - Test: form submits without times; successful quick-add invalidates both time-entries and batches queries
 
 - [ ] **Session 4.5** — Update deliverables
   - Derived `sca_status` values read-only with info tooltip
+  - Test: derived sca_status picker is disabled with tooltip; manual status saves correctly
 
 - [ ] **Session 4.6** — Notes and blockers
   - Filter chips: Blocking only / My notes / System notes
+  - Test: filter chip hides/shows correct note subsets; system filter hides manual notes
 
 - [ ] **Session 4.7** — Close project
   - Dedicated page; confirm button disabled until blocking issues is empty
+  - Test: confirm button disabled when blocking issues exist; 409 body renders issues with deep links
 
 - [ ] **Session 4.8** — Conflict resolution UX
   - Side-by-side comparison of overlapping time entries with keep/edit/delete per pair
+  - Test: both entries render side-by-side; keep/edit/delete actions call correct mutations
 
 ---
 
