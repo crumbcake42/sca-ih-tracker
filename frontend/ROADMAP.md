@@ -10,7 +10,7 @@ Companion to `backend/data/roadmap.md`. The backend is feature-complete through 
 - **TanStack Router** (file-based routing, route-level loaders + `beforeLoad` guards)
 - **TanStack Query** (server state, cache invalidation, optimistic updates)
 - **shadcn/ui** (`radix-lyra` style) + Tailwind (component primitives)
-- **react-hook-form + zod v4** — use `standardSchemaResolver` from `@hookform/resolvers/standard-schema`; no `form` shadcn component in this style — use `Field` / `FieldGroup` / `FieldError` from `#/components/ui/field`
+- **react-hook-form + zod v4** — use `standardSchemaResolver` from `@hookform/resolvers/standard-schema`; no `form` shadcn component in this style — use `Field` / `FieldGroup` / `FieldError` from `@/components/ui/field`
 - **`@hey-api/openapi-ts`** with the `@tanstack/react-query` plugin (client + typed query/mutation hooks generated from `/openapi.json`)
 - **Zustand** for the tiny amount of true client state (auth user, admin-view toggle) — context would also work but Zustand survives refactors better
 
@@ -179,7 +179,7 @@ src/
         └── … (all future protected routes)
 ```
 
-> **Current state / migration needed:** `src/components/` (AppShell, Header, Footer, ThemeToggle, `ui/`) must be moved to `src/shared/components/` before Session 1.2. Delete the now-empty `src/common/` directory at the same time.
+> **Current state:** Migration complete. All components live under `src/shared/components/`. Import alias is `@/` throughout — `@/components/*` resolves to `src/shared/components/*` via tsconfig paths.
 
 ---
 
@@ -202,7 +202,7 @@ src/
   - `src/routes/index.tsx` — `beforeLoad` redirects to `/projects`
 
 - [x] **Session 0.4** — Layout shell _(simplified vs original plan)_
-  - `src/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out — **needs move to `src/shared/components/`** before Session 1.2
+  - `src/shared/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out
   - Single shell for now (no AdminShell / ManagerShell split yet — deferred until admin/manager routing split is built)
 
 - [ ] **Session 0.5** — Testing infrastructure
@@ -221,12 +221,12 @@ src/
   - No status column (deferred until dashboard endpoints exist)
   - Test: table renders rows; empty state appears on empty response; search input debounces
 
-- [ ] **Session 1.2** — Form primitives + field comboboxes _(migrate `src/components/` → `src/shared/components/` first)_
-  - Server-error adapter: map FastAPI 422 `detail[{loc, msg}]` onto react-hook-form `setError`
-  - `<SchoolCombobox>`, `<EmployeeCombobox>` — Command + Popover, async search, debounced, pre-fetch on mount
-  - `useFormDialog()` — opens form in Dialog, closes on success, resolves to created entity
-  - Lives in `src/shared/fields/`
-  - Test: 422 adapter maps `detail[{loc,msg}]` to correct field errors; combobox opens, filters list, selects value
+- [x] **Session 1.2** — Form primitives + field comboboxes
+  - `src/lib/form-errors.ts` — `applyServerErrors<T>` maps FastAPI 422 `detail[]` onto RHF `setError`
+  - `src/shared/hooks/useDebounce.ts` — `useDebounce<T>(value, delayMs)`
+  - `src/shared/fields/SchoolCombobox.tsx` — server-side search, debounced 250ms
+  - `src/shared/fields/EmployeeCombobox.tsx` — full list fetched once, client-side filter
+  - `useFormDialog()` — deferred; build when first needed by a concrete form
 
 - [ ] **Session 1.3** — DataTable primitive
   - `<DataTable columns data pagination filters>` built on TanStack Table + shadcn `<Table>`

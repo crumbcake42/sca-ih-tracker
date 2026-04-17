@@ -2,87 +2,59 @@
 
 ## Current State
 
-**Phase 0 complete. Session 1.1 complete.** Project list page is live at `/projects`. Next session is **1.2 — Field comboboxes / form primitives** (must migrate `src/components/` → `src/shared/components/` first — see ROADMAP.md Session 0.4 note).
+**Phase 0 complete. Sessions 1.1 and 1.2 complete.** Form primitives and field comboboxes are live. Next session is **1.3 — DataTable primitive**.
 
-## What Was Done This Session (1.1)
+## What Was Done This Session (1.2)
 
 ### Created
 
-- `src/routes/_authenticated/projects/index.tsx` — project list at `/projects`. Fetches via `getProjectsProjectsGetOptions`, supports `name_search` query param wired to a search input. Table columns: Project #, Name, Schools (count). Includes loading skeleton and empty state. No status column (status is derived — deferred until dashboard endpoints exist).
+- `src/lib/form-errors.ts` — `applyServerErrors<T>` maps FastAPI 422 `detail[{loc, msg}]` onto react-hook-form `setError`. Returns `true` if it handled a recognized 422 (so callers can fall back to a toast on `false`).
+- `src/shared/hooks/useDebounce.ts` — generic `useDebounce<T>(value, delayMs)` hook.
+- `src/shared/fields/SchoolCombobox.tsx` — Popover + Command combobox. Server-side search via `listEntriesSchoolsGetOptions({ query: { search } })`, debounced 250ms. Props: `value: number | null`, `onChange: (id: number | null) => void`.
+- `src/shared/fields/EmployeeCombobox.tsx` — same pattern, but full list fetched once and filtered client-side (no server search param on that endpoint). Props: same as above.
 
-### Modified
+### Config changes
 
-- `src/routes/index.tsx` — replaced AppShell placeholder with a bare `beforeLoad` redirect to `/projects`.
-- `src/components/AppShell.tsx` — both nav links updated from `to="/"` to `to="/projects"`.
-- `src/routes/login.tsx` — migrated off the removed `form` component to shadcn `Field` / `FieldGroup` / `FieldError` from `#/components/ui/field`. Switched from `zodResolver` to `standardSchemaResolver` from `@hookform/resolvers/standard-schema` to fix a type overload conflict introduced by zod v4.
+- `tsconfig.json` — removed `#/*` alias; now uses `@/*` only. Added `@/components/*` → `src/shared/components/*` and `@/hooks/*` → `src/shared/hooks/*`.
+- `components.json` — updated all aliases from `#/` to `@/`. `"hooks"` resolves to `src/shared/hooks/` via the new tsconfig alias.
+- `package.json` — `imports` field now correctly uses `#/*` (required by Node.js subpath imports spec).
+
+### Deferred from 1.2 scope
+
+- `useFormDialog()` — deferred to Session 1.3 or when first needed by a concrete form.
 
 ## Architecture Notes
 
-### shadcn style is `radix-lyra` — no `form` component
+### Import alias convention
 
-The `form` shadcn component does not exist in this style. Use `Field`, `FieldLabel`, `FieldError`, `FieldGroup` from `#/components/ui/field` with react-hook-form's `register` / `formState.errors` directly:
+Use `@/` for all absolute imports. The `#/` prefix was an early mistake and has been removed. `src/lib/utils.ts` remains at that path (shadcn-managed); `components.json` references it as `@/lib/utils`.
 
-```tsx
-<Field data-invalid={!!errors.fieldName}>
-  <FieldLabel htmlFor="fieldName">Label</FieldLabel>
-  <Input
-    id="fieldName"
-    aria-invalid={!!errors.fieldName}
-    {...register('fieldName')}
-  />
-  <FieldError errors={[errors.fieldName]} />
-</Field>
-```
+### Folder organization
 
-`FieldError` accepts `errors: Array<{ message?: string } | undefined>` — pass the RHF error object directly in an array.
+| Kind | Location |
+|---|---|
+| shadcn primitives + `cn()` | `src/lib/utils.ts`, `src/shared/components/ui/` |
+| Pure JS utilities (no React) | `src/lib/[domain].ts` (e.g. `form-errors.ts`) |
+| React hooks | `src/shared/hooks/` |
+| Field/combobox components | `src/shared/fields/` |
+| Layout components | `src/shared/components/` |
 
-### Use `standardSchemaResolver` not `zodResolver`
+Do **not** create `src/shared/utils/` — pure utilities belong in `src/lib/`.
 
-Zod v4 + `@hookform/resolvers` v5 have a type overload conflict when using `zodResolver`. Use `standardSchemaResolver` from `@hookform/resolvers/standard-schema` instead — zod v4 implements the Standard Schema spec natively.
+### Combobox pattern
 
-```ts
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema'
-// ...
-resolver: standardSchemaResolver(myZodSchema)
-```
-
-### Route architecture
-
-```
-/ (index.tsx)                        — beforeLoad redirects to /projects
-/login (login.tsx)                   — public; redirects to / if authenticated
-/_authenticated (_authenticated.tsx) — layout: auth guard + AppShell wraps Outlet
-/_authenticated/projects/            — project list
-```
-
-All future protected routes go under `src/routes/_authenticated/`.
-
-## Roadmap update (this session)
-
-**Done:**
-
-- Added testing conventions to ROADMAP.md — Session 0.5 (Vitest + RTL setup) + inline Test: bullet per session across Phases 1–4
-- Added Documentation conventions section — PATTERNS.md, Storybook (Session 1.6), JSDoc/TSDoc, HANDOFF.md format
-- Corrected repo layout: `src/shared/components/` replaces `src/components/`; migration note added for Session 1.2
-
-**Next:** Session 0.5 (testing infra) or Session 1.2 (migrate components + field comboboxes) — do the migration first as it is a prerequisite for 1.2
-
-**Blockers:** none
-
----
+Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handled explicitly (server-side for School, client-side for Employee). Trigger button width is matched to the popover via `w-[var(--radix-popover-trigger-width)]`. Selecting the already-selected value deselects (toggles to `null`).
 
 ## Next Step
 
-**Session 1.2 — Field combobox components and form primitives.**
+**Session 1.3 — DataTable primitive.**
 
 Key tasks:
 
-1. Server-error adapter: map FastAPI 422 `detail: [{loc, msg, type}]` responses onto react-hook-form `setError` calls. This is needed by every form that mutates data.
-2. `<SchoolCombobox>`, `<EmployeeCombobox>` — the two most immediately needed FK pickers. Each wraps shadcn `Command` + `Popover` with async search via TanStack Query. Debounce ~250ms. Pre-fetch first page on mount.
-3. `useFormDialog()` hook — opens a form in a `<Dialog>`, closes on success, resolves to the created entity. Powers inline-create in every combobox.
+1. `<DataTable columns data pagination filters>` built on TanStack Table + shadcn `<Table>`.
+2. URL-synced pagination + filters via TanStack Router search params.
+3. Empty state, loading skeleton, error state slots.
+4. Row click → navigate to detail route.
+5. `useFormDialog()` hook — can be built here if DataTable scope is light, otherwise push to 1.4.
 
-Notes:
-
-- Combobox components belong in `src/shared/fields/` per the roadmap's suggested layout.
-- Each combobox should accept `value` / `onChange` that plugs directly into react-hook-form's `Controller` render prop or `useController`.
-- The `createForm` inline-create prop can be deferred to a follow-up session if scope is too large.
+**Blockers:** none
