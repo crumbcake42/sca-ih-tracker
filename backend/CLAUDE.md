@@ -13,8 +13,8 @@
 
 | File | Purpose |
 |------|---------|
-| `data/roadmap.md` | Design intent, decisions made, what's coming next |
-| `data/handoff.md` | Per-session continuity; non-obvious context for the current phase |
+| `data/ROADMAP.md` | Design intent, decisions made, what's coming next |
+| `data/HANDOFF.md` | Per-session continuity; non-obvious context for the current phase |
 | `app/PATTERNS.md` | Cross-cutting SQLAlchemy/FastAPI patterns — read this before adding any endpoint, service, or test |
 | `app/{module}/README.md` | Module purpose, non-obvious behavior, what to check before modifying |
 | Inline comments | The "why" behind non-obvious logic only |
