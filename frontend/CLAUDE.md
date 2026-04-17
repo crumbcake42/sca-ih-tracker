@@ -10,10 +10,10 @@
 
 ## Documentation: What Goes Where
 
-| File | Purpose |
-|---|---|
-| `ROADMAP.md` | Design intent, stack decisions, non-obvious API behaviors, phase plan |
-| `HANDOFF.md` | Per-session continuity; what was done last, what's next |
+| File              | Purpose                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| `ROADMAP.md`      | Design intent, stack decisions, non-obvious API behaviors, phase plan                |
+| `HANDOFF.md`      | Per-session continuity; what was done last, what's next                              |
 | `src/PATTERNS.md` | (create when patterns solidify) Component conventions, query patterns, form patterns |
 
 ---

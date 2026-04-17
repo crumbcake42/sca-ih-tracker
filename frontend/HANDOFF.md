@@ -2,61 +2,60 @@
 
 ## Current State
 
-**Phase 0, Session 0.1 complete.** Tooling and API client are wired up. Next session is **0.2 — Auth skeleton**.
+**Phase 0, Session 0.3 complete.** Auth skeleton, login page, and route guards are in place. Next session is **1.x — Project list**.
 
-## What Was Done This Session (0.1)
-
-### Installed
-
-- `zod`, `react-hook-form`, `@hookform/resolvers`, `zustand`
-- `@hey-api/openapi-ts` (codegen tool)
-- `@tanstack/react-query-devtools`
-- shadcn/ui (radix-lyra style) with components: button, input, label, form, dialog, dropdown-menu, command, popover, select, checkbox, table, tabs, sonner (toast), badge, card, skeleton
+## What Was Done This Session (0.3)
 
 ### Created
 
-- `openapi-ts.config.ts` — codegen config; `bundle: true` (no external client-fetch package needed); `runtimeConfigPath: '../client'` wires base URL from our config function
-- `.env.local` — `VITE_API_BASE_URL=http://127.0.0.1:8000`
-- `src/api/client.ts` — exports `createClientConfig` (called by generated client on init); exports `setTokenGetter` / `getToken` stubs to be wired in Session 0.2
-- `src/api/queryClient.ts` — singleton `QueryClient` with `staleTime: 30s`, smart retry (no retry on 401)
-- `src/api/generated/` — full OpenAPI client generated from `/openapi.json`; includes `@tanstack/react-query.gen.ts` with typed `queryOptions` and `UseMutationOptions` for every endpoint
+- `src/routes/login.tsx` — login form (react-hook-form + zod). `beforeLoad` redirects to `/` if already authenticated. On success navigates to `?redirect` param or `/`. Shows toast on bad credentials.
+- `src/routes/_authenticated.tsx` — pathless layout route. `beforeLoad` guards all `_authenticated/*` child routes; renders `AppShell` with `<Outlet />`. Future protected routes go under `_authenticated/`.
+- `src/components/AppShell.tsx` — top nav bar with app name, Projects nav link, username display, and Sign out button. Wraps children in a max-width content area.
 
 ### Modified
 
-- `src/router.tsx` — added `setupRouterSsrQueryIntegration({ router, queryClient })` via `@tanstack/react-router-ssr-query`
-- `src/routes/__root.tsx` — stripped marketing Header/Footer, updated title to "SCA IH Tracker", added `<Toaster />`
-- `src/routes/index.tsx` — replaced marketing content with a smoke test page (hits `GET /`, shows connection status with shadcn Badge + Button)
-- `package.json` — added `gen:api` script (`openapi-ts`)
+- `src/routes/index.tsx` — replaced smoke test with `beforeLoad` guard + `AppShell`-wrapped home placeholder. The `/` route is still a direct root child (not under `_authenticated/`) to avoid the duplicate-path conflict.
+
+## Route Architecture Notes
+
+```
+/ (index.tsx)           — guards itself via beforeLoad; uses AppShell directly
+/login (login.tsx)      — public; redirects to / if already authenticated
+/_authenticated         — pathless layout for all future protected routes
+/_authenticated/...     — future protected routes (projects, deliverables, etc.)
+```
+
+Future routes should be created under `src/routes/_authenticated/` and will inherit the guard + AppShell automatically.
 
 ## Non-Obvious Notes for Next Session
 
-### shadcn style is "radix-lyra" (not "default")
+### `beforeLoad` guard is SSR-safe
 
-This is a newer shadcn preset. Components use Phosphor icons (`@phosphor-icons/react`), not Lucide. When adding icons to UI, import from `@phosphor-icons/react`.
+Both guards check `typeof window === 'undefined'` and skip on the server side. Auth state lives in `localStorage` (Zustand persist), which is client-only. On SSR the page renders unauthenticated; the client-side `beforeLoad` fires on hydration and redirects if needed. This avoids a server-side redirect loop.
 
-### Auth token injection is a stub
+### `index.tsx` is not under `_authenticated/`
 
-`src/api/client.ts` exports `setTokenGetter(getter)`. In Session 0.2, the Zustand store calls `setTokenGetter(() => useAuthStore.getState().token)` once on app mount. The generated client already calls `createClientConfig` on init, but that only sets the base URL — it does NOT handle per-request auth headers. Per-request auth needs to be added via `client.interceptors.request.use()` on the generated `client` from `src/api/generated/client.gen.ts`.
+Because TanStack Router would generate two routes at path `/` (conflict). The `/` route guards itself. All other protected routes should go under `_authenticated/`.
 
-### `pnpm gen:api` requires the backend running
+### `useLogout()` returns the `clearAuth` function directly
 
-Backend must be at `http://127.0.0.1:8000`. Run `just api` from the project root first.
+It's not a hook that wraps `useMutation` — it just returns `useAuthStore((s) => s.clearAuth)`. Call it directly: `const logout = useLogout(); logout()`.
 
-### Generated code is in `src/api/generated/` — do not hand-edit
+### Route tree auto-generated
 
-Re-run `pnpm gen:api` after any backend endpoint change. The `output.clean: true` config will delete and regenerate the entire folder.
+`src/routeTree.gen.ts` is regenerated by the `tanstackStart()` Vite plugin at dev-server startup / when route files change. The new `login` and `_authenticated` routes will appear there after the dev server runs.
 
 ## Next Step
 
-**Session 0.2 — Auth skeleton.**
+**Session 1.1 — Project list page.**
 
 Key tasks:
 
-1. `src/auth/store.ts` — Zustand store: `{ user, token, setAuth, clearAuth }`. Persist token to localStorage (SSR-safe: guard `typeof window !== 'undefined'`).
-2. Wire `setTokenGetter` into the store: after `setAuth`, call `setTokenGetter(() => store.getState().token)`.
-3. Add response interceptor to `client` for 401 → `clearAuth()`.
-4. `src/auth/hooks.ts` — `useLogin()` that calls `loginForAccessTokenAuthTokenPost` with **form-encoded body** (NOT JSON — the generated client may need a manual override; the backend uses OAuth2 password flow with `application/x-www-form-urlencoded`).
-5. After login success, call `getMeUsersMeGet` to hydrate the user in the store.
-6. `useLogout()`, `useCurrentUser()` hooks.
+1. `src/routes/_authenticated/projects/index.tsx` — list view using `useQuery` + `listProjectsProjectsGet` generated hook. Table with columns: name, client, status badge, created date. Clicking a row navigates to the project detail.
+2. Nav link in `AppShell` updated to point to `/projects`.
+3. Update `src/routes/index.tsx` to redirect to `/projects` (the real home is the project list).
 
-Critical gotcha: `POST /auth/token` must send `Content-Type: application/x-www-form-urlencoded`. Check what the generated `loginForAccessTokenAuthTokenPost` sends — it may default to JSON. If so, override it manually rather than using the generated function.
+Notes:
+- Project status is **derived** — comes from `GET /projects/{id}/status`, not a column. Don't show status in the list table until the status endpoint is called per-row or a batch endpoint exists.
+- Use the generated `listProjectsProjectsGetOptions` from `@tanstack/react-query.gen.ts` for the query.
+- Paginate if the backend supports it (check the generated type for `ListProjectsProjectsGetData` query params).

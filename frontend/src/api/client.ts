@@ -1,3 +1,5 @@
+import type { Config } from './generated/client'
+
 // Called by the generated client bundle to get initial configuration.
 // Auth header injection is wired in Session 0.2 once the Zustand store exists.
 
@@ -12,7 +14,7 @@ export function getToken() {
   return _getToken()
 }
 
-export function createClientConfig(override?: Record<string, unknown>) {
+export function createClientConfig(override?: Partial<Config>) {
   return {
     baseUrl:
       typeof import.meta !== 'undefined'
