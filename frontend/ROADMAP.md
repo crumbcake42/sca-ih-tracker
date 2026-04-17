@@ -42,11 +42,11 @@ These are things a Claude session must know before designing screens — schema 
 
 Three paired sets of endpoints. Each pair corresponds to the same logical concept but at different granularity, and **they must be rendered as two tabs or two sections, not merged**:
 
-| Project-level | Building-level |
-|---|---|
-| `work_auth_project_codes` | `work_auth_building_codes` |
-| `project_deliverables` | `project_building_deliverables` |
-| `rfa_project_codes` | `rfa_building_codes` |
+| Project-level             | Building-level                  |
+| ------------------------- | ------------------------------- |
+| `work_auth_project_codes` | `work_auth_building_codes`      |
+| `project_deliverables`    | `project_building_deliverables` |
+| `rfa_project_codes`       | `rfa_building_codes`            |
 
 Building-level records are keyed by composite `(project_id, school_id)` referring to `project_school_links`. Any building-level form must first pick a school that is actually linked to the project. A `<SchoolSelect>` scoped to the current project is a required primitive — do not reuse a global school picker here.
 
@@ -178,7 +178,7 @@ Set up everything every later session depends on. Do not skip the smoke tests; a
 
 - Install `@hey-api/openapi-ts`, `@tanstack/react-query`, `@tanstack/react-router`, `zod`, `react-hook-form`, `@hookform/resolvers`, `zustand`.
 - Install shadcn CLI; init with Tailwind already wired; add: `button`, `input`, `label`, `form`, `dialog`, `dropdown-menu`, `command`, `popover`, `select`, `checkbox`, `table`, `tabs`, `toast`, `badge`, `card`, `skeleton`.
-- Add `npm run gen:api` script pointing at `http://localhost:8000/openapi.json`. Configure `@hey-api/openapi-ts` to emit: client (`fetch` or `axios`), types, and `@tanstack/react-query` hooks. Output to `src/api/generated/`. Commit output.
+- Add `npm run gen:api` script pointing at `http://127.0.0.1:8000/openapi.json`. Configure `@hey-api/openapi-ts` to emit: client (`fetch` or `axios`), types, and `@tanstack/react-query` hooks. Output to `src/api/generated/`. Commit output.
 - `src/api/client.ts`: configure base URL from env var, inject bearer token from auth store.
 - `src/api/queryClient.ts`: `QueryClient` with `staleTime: 30s`, `retry: (failureCount, error) => error.status !== 401 && failureCount < 2`.
 - `README.md` addition: how to regenerate the client, when to commit.
@@ -250,27 +250,27 @@ Generic pages driven by an `EntityConfig<T>` object:
 
 ```ts
 type EntityConfig<T> = {
-  name: string;                              // "School"
-  namePlural: string;                        // "Schools"
-  basePath: string;                          // "/admin/schools"
+  name: string // "School"
+  namePlural: string // "Schools"
+  basePath: string // "/admin/schools"
   queries: {
-    list: UseQueryHook<T[]>;
-    detail: (id: number) => UseQueryHook<T>;
-    create: UseMutationHook<T, CreateInput>;
-    update: UseMutationHook<T, UpdateInput>;
-    delete: UseMutationHook<void, number>;
-  };
+    list: UseQueryHook<T[]>
+    detail: (id: number) => UseQueryHook<T>
+    create: UseMutationHook<T, CreateInput>
+    update: UseMutationHook<T, UpdateInput>
+    delete: UseMutationHook<void, number>
+  }
   list: {
-    columns: ColumnDef<T>[];
-    filters?: FilterConfig[];
-    searchable?: boolean;
-  };
+    columns: ColumnDef<T>[]
+    filters?: FilterConfig[]
+    searchable?: boolean
+  }
   form: {
-    schema: ZodSchema;
-    defaultValues: Partial<T>;
-    fields: FieldSpec[];                     // ordered list of {name, component, props}
-  };
-};
+    schema: ZodSchema
+    defaultValues: Partial<T>
+    fields: FieldSpec[] // ordered list of {name, component, props}
+  }
+}
 ```
 
 - `<EntityListPage config>` renders the list page for any entity.
@@ -426,9 +426,10 @@ Each card: title, count, top 3 rows, "View all" link. Cards with zero items say 
 **Backend gap:** dashboard endpoints (Phase 7) do not exist. For now, synthesize these client-side by calling `/projects/` + `/projects/{id}/status` for each assigned project. This is N+1 and will not scale — but it works for ~30 projects per manager and can be swapped for the real endpoints transparently once they exist. Document the known limitation in the feature README.
 
 References worth citing in code comments:
+
 - GOV.UK Design System (`design-system.service.gov.uk`) — "one thing per page" patterns
 - Nielsen Norman Group articles on enterprise task-oriented design
-- Caroline Jarrett, *Forms that Work* — specifically chapter on error recovery
+- Caroline Jarrett, _Forms that Work_ — specifically chapter on error recovery
 
 ### Session 4.2 — Project workspace layout
 
