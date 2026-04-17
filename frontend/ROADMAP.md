@@ -228,12 +228,12 @@ src/
   - `src/shared/fields/EmployeeCombobox.tsx` — full list fetched once, client-side filter
   - `useFormDialog()` — deferred; build when first needed by a concrete form
 
-- [ ] **Session 1.3** — DataTable primitive
-  - `<DataTable columns data pagination filters>` built on TanStack Table + shadcn `<Table>`
-  - URL-synced pagination + filters via TanStack Router search params
-  - Empty state, loading skeleton, error state slots
-  - Row click → navigate to detail route
-  - Test: renders with data; empty state slot appears on empty array; loading skeleton renders; row click fires navigation
+- [x] **Session 1.3** — DataTable primitive
+  - `src/shared/components/DataTable.tsx` — generic `<DataTable<TData>>` on TanStack Table v8; `manualPagination: true`; loading skeleton, empty, and error slots; pagination controls hide during non-data states
+  - `src/shared/hooks/useUrlPagination.ts` — `useUrlPagination(defaultPageSize?)` syncs `PaginationState` ↔ `page`/`pageSize` URL params; `useSearch({ strict: false })` for route-agnostic reads
+  - `src/shared/hooks/useUrlSearch.ts` — `useUrlSearch(param?)` returns `[value, setValue]`; setValue resets `page` to prevent stale offsets
+  - Projects list migrated to use `<DataTable>` + `useUrlSearch` + `useUrlPagination`; `pageCount={1}` until backend wraps list responses with a total
+  - Note: `DataTable` lives in `src/shared/components/`, not `src/shared/tables/` (roadmap layout suggestion); adjust if the tables subfolder becomes necessary later
 
 - [ ] **Session 1.4** — EntityListPage + EntityFormPage
   - Generic pages driven by `EntityConfig<T>` (see original roadmap for type shape)

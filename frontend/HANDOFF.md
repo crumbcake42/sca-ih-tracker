@@ -2,32 +2,30 @@
 
 ## Current State
 
-**Phase 0 complete. Sessions 1.1 and 1.2 complete.** Form primitives and field comboboxes are live. Next session is **1.3 — DataTable primitive**.
+**Phase 0 complete. Sessions 1.1 through 1.3 complete.** DataTable primitive and URL-synced hooks are live. Next session is **1.4 — EntityListPage + EntityFormPage**.
 
-## What Was Done This Session (1.2)
+## What Was Done This Session (1.3)
 
 ### Created
 
-- `src/lib/form-errors.ts` — `applyServerErrors<T>` maps FastAPI 422 `detail[{loc, msg}]` onto react-hook-form `setError`. Returns `true` if it handled a recognized 422 (so callers can fall back to a toast on `false`).
-- `src/shared/hooks/useDebounce.ts` — generic `useDebounce<T>(value, delayMs)` hook.
-- `src/shared/fields/SchoolCombobox.tsx` — Popover + Command combobox. Server-side search via `listEntriesSchoolsGetOptions({ query: { search } })`, debounced 250ms. Props: `value: number | null`, `onChange: (id: number | null) => void`.
-- `src/shared/fields/EmployeeCombobox.tsx` — same pattern, but full list fetched once and filtered client-side (no server search param on that endpoint). Props: same as above.
+- `src/shared/components/DataTable.tsx` — generic `<DataTable<TData>>` built on TanStack Table v8 + shadcn `<Table>`. Props: `columns`, `data`, `pagination`, `onPaginationChange`, `pageCount`, `isLoading?`, `error?`, `onRowClick?`, `emptyMessage?`, `skeletonRows?`. Uses `manualPagination: true` — all paging is server-side. Pagination controls (prev/next + "Page X of Y") render only when there are rows (hidden during loading/error/empty states).
+- `src/shared/hooks/useUrlPagination.ts` — `useUrlPagination(defaultPageSize?)` syncs `PaginationState` with `page` / `pageSize` URL search params via TanStack Router. Converts between 1-indexed URL params and 0-indexed table state. Uses `useSearch({ strict: false })` cast to `Record<string, unknown>` so it works from any route without requiring a route-specific schema.
+- `src/shared/hooks/useUrlSearch.ts` — `useUrlSearch(param?)` returns `[value, setValue]` for a single string filter param. Resetting the value also clears `page` so results always restart from page 1.
 
-### Config changes
+### Updated
 
-- `tsconfig.json` — removed `#/*` alias; now uses `@/*` only. Added `@/components/*` → `src/shared/components/*` and `@/hooks/*` → `src/shared/hooks/*`.
-- `components.json` — updated all aliases from `#/` to `@/`. `"hooks"` resolves to `src/shared/hooks/` via the new tsconfig alias.
-- `package.json` — `imports` field now correctly uses `#/*` (required by Node.js subpath imports spec).
+- `src/routes/_authenticated/projects/index.tsx` — migrated from local `useState` to `useUrlSearch` + `useUrlPagination`. Replaced hand-rolled table/loading/empty JSX with `<DataTable>` + `ColumnDef<Project>[]`. Added `validateSearch` to the route so TanStack Router knows the expected params. `pageCount={1}` hardcoded — the projects endpoint returns `Array<Project>` with no total count, so real multi-page support must wait for the backend to wrap the response.
 
-### Deferred from 1.2 scope
+### Deferred
 
-- `useFormDialog()` — deferred to Session 1.3 or when first needed by a concrete form.
+- `useFormDialog()` — still deferred; build when first needed by a concrete form in Session 1.4.
+- `onRowClick` navigation on projects list — detail route doesn't exist yet; wired when the project detail route is built.
 
 ## Architecture Notes
 
 ### Import alias convention
 
-Use `@/` for all absolute imports. The `#/` prefix was an early mistake and has been removed. `src/lib/utils.ts` remains at that path (shadcn-managed); `components.json` references it as `@/lib/utils`.
+Use `@/` for all absolute imports. The `#/` prefix was an early mistake and has been removed from new code. `src/lib/utils.ts` remains at that path (shadcn-managed); `components.json` references it as `@/lib/utils`.
 
 ### Folder organization
 
@@ -37,7 +35,7 @@ Use `@/` for all absolute imports. The `#/` prefix was an early mistake and has 
 | Pure JS utilities (no React) | `src/lib/[domain].ts` (e.g. `form-errors.ts`) |
 | React hooks | `src/shared/hooks/` |
 | Field/combobox components | `src/shared/fields/` |
-| Layout components | `src/shared/components/` |
+| Layout + data components | `src/shared/components/` |
 
 Do **not** create `src/shared/utils/` — pure utilities belong in `src/lib/`.
 
@@ -45,16 +43,23 @@ Do **not** create `src/shared/utils/` — pure utilities belong in `src/lib/`.
 
 Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handled explicitly (server-side for School, client-side for Employee). Trigger button width is matched to the popover via `w-[var(--radix-popover-trigger-width)]`. Selecting the already-selected value deselects (toggles to `null`).
 
+### DataTable pattern
+
+`useReactTable` is called with `manualPagination: true` and `pageCount` from the API response (total ÷ page size). The route is responsible for declaring `validateSearch` with `page` / `pageSize` / filter params; `useUrlPagination` and `useUrlSearch` read them via `useSearch({ strict: false })` so they work generically across routes.
+
+Routes that use pagination must call `useUrlPagination` and pass `{ pagination, onPaginationChange }` to `<DataTable>`. Column definitions are declared as a module-level constant (`const columns: ColumnDef<T>[] = [...]`) outside the component to avoid re-creating the array on each render.
+
 ## Next Step
 
-**Session 1.3 — DataTable primitive.**
+**Session 1.4 — EntityListPage + EntityFormPage.**
 
 Key tasks:
 
-1. `<DataTable columns data pagination filters>` built on TanStack Table + shadcn `<Table>`.
-2. URL-synced pagination + filters via TanStack Router search params.
-3. Empty state, loading skeleton, error state slots.
-4. Row click → navigate to detail route.
-5. `useFormDialog()` hook — can be built here if DataTable scope is light, otherwise push to 1.4.
+1. `EntityConfig<T>` type — drives columns, form fields, API hooks, labels.
+2. `<EntityListPage>` — wraps `<DataTable>` with a title bar, create button, and URL-synced search.
+3. `<EntityFormPage mode="create"|"edit">` — wraps react-hook-form + `Field`/`FieldGroup` with standardized submit/cancel.
+4. `<EntityFormDialog>` — inline create variant (popover/dialog, no navigation).
+5. `useFormDialog()` hook — open/close state + reset on close.
+6. Create `src/PATTERNS.md` at end of this session once the shapes are stable.
 
 **Blockers:** none

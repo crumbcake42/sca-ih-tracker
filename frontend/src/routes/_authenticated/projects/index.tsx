@@ -1,27 +1,48 @@
-import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import type { ColumnDef } from '@tanstack/react-table'
+
 import { getProjectsProjectsGetOptions } from '../../../api/generated/@tanstack/react-query.gen'
-import { Input } from '#/components/ui/input'
-import { Skeleton } from '#/components/ui/skeleton'
-import { Card, CardContent } from '#/components/ui/card'
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '#/components/ui/table'
+import type { Project } from '../../../api/generated/types.gen'
+import { DataTable } from '@/components/DataTable'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
+import { useUrlSearch } from '@/hooks/useUrlSearch'
+import { useUrlPagination } from '@/hooks/useUrlPagination'
 
 export const Route = createFileRoute('/_authenticated/projects/')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    search: typeof search.search === 'string' ? search.search : undefined,
+    page: typeof search.page === 'number' ? search.page : undefined,
+    pageSize: typeof search.pageSize === 'number' ? search.pageSize : undefined,
+  }),
   component: ProjectsPage,
 })
 
-function ProjectsPage() {
-  const [nameSearch, setNameSearch] = useState('')
+const columns: ColumnDef<Project>[] = [
+  {
+    accessorKey: 'project_number',
+    header: 'Project #',
+    cell: ({ getValue }) => (
+      <span className="font-mono">{getValue<string>()}</span>
+    ),
+  },
+  {
+    accessorKey: 'name',
+    header: 'Name',
+  },
+  {
+    accessorKey: 'school_ids',
+    header: 'Schools',
+    cell: ({ getValue }) => getValue<number[] | undefined>()?.length ?? 0,
+  },
+]
 
-  const { data: projects, isLoading } = useQuery(
+function ProjectsPage() {
+  const [nameSearch, setNameSearch] = useUrlSearch('search')
+  const { pagination, onPaginationChange } = useUrlPagination()
+
+  const { data: projects, isLoading, error } = useQuery(
     getProjectsProjectsGetOptions({
       query: { name_search: nameSearch || undefined },
     }),
@@ -41,51 +62,16 @@ function ProjectsPage() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Project #</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Schools</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-48" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-8" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : projects?.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    className="text-muted-foreground py-8 text-center"
-                  >
-                    No projects found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                projects?.map((project) => (
-                  <TableRow key={project.id}>
-                    <TableCell className="font-mono">
-                      {project.project_number}
-                    </TableCell>
-                    <TableCell>{project.name}</TableCell>
-                    <TableCell>{project.school_ids?.length ?? 0}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={projects ?? []}
+            pagination={pagination}
+            onPaginationChange={onPaginationChange}
+            pageCount={1}
+            isLoading={isLoading}
+            error={error}
+            emptyMessage="No projects found."
+          />
         </CardContent>
       </Card>
     </div>
