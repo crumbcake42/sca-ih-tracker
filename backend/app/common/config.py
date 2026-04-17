@@ -39,6 +39,10 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
+    # --- FRONTEND URL FOR CORS WHITELISTING ---
+    FRONTEND_DEV_URL: str ="http://127.0.0.1:3001"
+
+
     @property
     def db_url(self) -> str:
         """

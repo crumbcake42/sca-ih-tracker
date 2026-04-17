@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.contractors.router import router as contractors_router
 from app.database import Base, engine
@@ -16,6 +17,7 @@ from app.users.router import auth_router, users_router
 from app.wa_codes.router import router as wa_codes_router
 from app.work_auths.router import router as work_auths_router
 
+from app.common.config import settings
 
 # Now create the tables in your ./data/dev.db
 # Base.metadata.create_all(bind=engine)
@@ -32,6 +34,14 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="SCA IH Tracker")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_DEV_URL],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(contractors_router)
 app.include_router(lab_results_router)
