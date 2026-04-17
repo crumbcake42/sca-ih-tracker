@@ -1,18 +1,16 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { useAuthStore } from '../auth/store'
 import { useLogin } from '../auth/hooks'
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '#/components/ui/form'
+  Field,
+  FieldLabel,
+  FieldError,
+  FieldGroup,
+} from '#/components/ui/field'
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
@@ -44,8 +42,12 @@ function LoginPage() {
   const search = Route.useSearch()
   const login = useLogin()
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: standardSchemaResolver(loginSchema),
     defaultValues: { username: '', password: '' },
   })
 
@@ -65,39 +67,38 @@ function LoginPage() {
           <CardTitle className="text-center text-xl">SCA IH Tracker</CardTitle>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input autoComplete="username" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="current-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={login.isPending}>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <FieldGroup>
+              <Field data-invalid={!!errors.username}>
+                <FieldLabel htmlFor="username">Username</FieldLabel>
+                <Input
+                  id="username"
+                  autoComplete="username"
+                  aria-invalid={!!errors.username}
+                  {...register('username')}
+                />
+                <FieldError errors={[errors.username]} />
+              </Field>
+              <Field data-invalid={!!errors.password}>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  aria-invalid={!!errors.password}
+                  {...register('password')}
+                />
+                <FieldError errors={[errors.password]} />
+              </Field>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={login.isPending}
+              >
                 {login.isPending ? 'Signing in…' : 'Sign in'}
               </Button>
-            </form>
-          </Form>
+            </FieldGroup>
+          </form>
         </CardContent>
       </Card>
     </div>

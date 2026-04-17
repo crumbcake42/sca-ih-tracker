@@ -30,6 +30,12 @@ Read `ROADMAP.md` fully before building any screen. Key things that the OpenAPI 
 6. **Closure returns 409 with blocking issues** — render the `blocking_issues[]` payload inline in the close dialog with deep links, not a generic toast
 7. **Quick-add is the primary entry point** — `POST /lab-results/batches/quick-add` creates assumed time entry + sample batch atomically; don't route managers through manual time-entry creation
 
+## UI Conventions
+
+- **Phosphor icons** — use the `*Icon` suffix form: `SignOutIcon`, `FolderOpenIcon`, `UserIcon`, etc. The bare names (`SignOut`, `FolderOpen`) are deprecated.
+- **shadcn style is `radix-lyra`** — no `form` component; use `Field` / `FieldLabel` / `FieldError` / `FieldGroup` from `#/components/ui/field` with react-hook-form directly
+- **Zod v4 resolver** — use `standardSchemaResolver` from `@hookform/resolvers/standard-schema`, not `zodResolver`
+
 ## Architecture Notes
 
 - File-based routing via TanStack Router — routes live in `src/routes/`
