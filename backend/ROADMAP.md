@@ -447,8 +447,8 @@ The most common reason documentation goes stale is that it lives somewhere separ
 
 | Location | Purpose | What NOT to put here |
 |---|---|---|
-| `backend/data/roadmap.md` | Design intent, decisions made, what's coming next | Implementation details already in code |
-| `backend/data/handoff.md` | Per-session continuity notes; non-obvious technical context | Long-term design (that belongs in roadmap) |
+| `backend/ROADMAP.md` | Design intent, decisions made, what's coming next | Implementation details already in code |
+| `backend/HANDOFF.md` | Per-session continuity notes; non-obvious technical context | Long-term design (that belongs in roadmap) |
 | `backend/app/PATTERNS.md` | Cross-cutting SQLAlchemy/FastAPI patterns that apply to multiple modules | Module-specific behavior |
 | `backend/app/{module}/README.md` | Module purpose, non-obvious behavior, what to check before modifying | Things the code already says clearly |
 | Inline code comments | The "why" behind non-obvious logic; not what the code does | Obvious or self-documenting operations |

@@ -2,9 +2,9 @@ Give me a pickup briefing for this project. I may have worked on it from another
 
 Do these in parallel:
 
-1. Read `frontend/HANDOFF.md` and `backend/data/HANDOFF.md`.
+1. Read `frontend/HANDOFF.md` and `backend/HANDOFF.md`.
 2. Run `git log --oneline -20` and `git status`.
-3. Read the memory index at `~/.claude/projects/C--Users-GirPs-projects-sca-ih-tracker/memory/MEMORY.md` and skim the project-type memories it links to.
+3. Read the memory index for this session's root folder, and skim the project-type memories it links to.
 
 Then report, tight and scannable, in this order:
 
