@@ -11,7 +11,11 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -28,7 +32,9 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
 
   const filtered = search
     ? employees.filter((e) =>
-        `${e.first_name} ${e.last_name}`.toLowerCase().includes(search.toLowerCase()),
+        `${e.first_name} ${e.last_name}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
       )
     : employees
 
@@ -49,7 +55,9 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
           disabled={disabled}
           className="w-full justify-between font-normal"
         >
-          {selected ? `${selected.first_name} ${selected.last_name}` : 'Select employee…'}
+          {selected
+            ? `${selected.first_name} ${selected.last_name}`
+            : 'Select employee…'}
           <CaretUpDownIcon className="ml-2 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -71,7 +79,10 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
                   data-checked={employee.id === value}
                 >
                   <CheckIcon
-                    className={cn('mr-2', employee.id === value ? 'opacity-100' : 'opacity-0')}
+                    className={cn(
+                      'mr-2',
+                      employee.id === value ? 'opacity-100' : 'opacity-0',
+                    )}
                   />
                   {employee.first_name} {employee.last_name}
                 </CommandItem>

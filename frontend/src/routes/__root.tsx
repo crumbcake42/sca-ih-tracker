@@ -1,7 +1,7 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { Toaster } from '#/components/ui/sonner'
+import { Toaster } from '@/components/ui/sonner'
 import '../auth/store'
 
 import appCss from '../styles.css?url'

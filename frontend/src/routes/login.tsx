@@ -10,10 +10,10 @@ import {
   FieldLabel,
   FieldError,
   FieldGroup,
-} from '#/components/ui/field'
-import { Input } from '#/components/ui/input'
-import { Button } from '#/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+} from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),

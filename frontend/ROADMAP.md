@@ -94,7 +94,7 @@ These shape every decision below. Skim before each session.
 2. **One task per screen in the manager portal.** No 40-field edit forms. Every action is its own focused page or modal.
 3. **All server state through TanStack Query.** Never store API responses in Zustand or component state. Cache invalidation is the routing mechanism — master it early.
 4. **Every entity combobox supports inline create.** A user staring at a combobox with no matching options should be able to create the missing entity in a modal without losing their form context.
-5. **Colocate by feature, not by file type.** `src/features/projects/{routes,components,hooks,types}.ts`, not `src/components/*`, `src/hooks/*`. This is critical for scalability — when feedback lands, you want to change one folder, not grep across five.
+5. **Colocate by feature, not by file type.** `src/features/projects/{routes,components,hooks,types}.ts`, not `src/components/*`, `src/hooks/*`. This is critical for scalability — when feedback lands, you want to change one folder, not grep across five. **Rubric for shared/ vs features/:** a file belongs in `src/shared/` only if it passes all three: (1) _import test_ — no entity-specific type/hook imported; (2) _counterfactual_ — would exist even with only one admin entity; (3) _what-vs-how_ — describes _how_ we render, not _what_ the domain is. "Feature" means domain slice — generic scaffolding never goes under `features/` regardless of size.
 6. **Generated API client is the source of truth for types.** Never hand-write a type that could be derived from the schema. Re-run codegen after every backend change.
 7. **Forms: schema-first.** Derive zod schemas from the generated types where possible. Manual zod only for cross-field rules the backend validates but schema can't express.
 8. **Route-level guards, not component-level.** Authentication + role gating lives in `beforeLoad`. A component that renders is a component that has already passed the gate.
@@ -106,15 +106,19 @@ These shape every decision below. Skim before each session.
 ## Documentation conventions
 
 ### PATTERNS.md
-Create `src/PATTERNS.md` at the end of Session 1.4 once DataTable, EntityConfig, and field combobox shapes are stable. Capture: DataTable column config shape, EntityConfig type, form field patterns, query invalidation patterns. Update it whenever a pattern solidifies or changes.
+
+Create `src/PATTERNS.md` after the generics-extraction session (planned after Employees, ~Session 2.x) once `EntityConfig`, `EntityListPage`, and `EntityFormPage` have been validated against two concrete entities (Schools + Employees). Capture: DataTable column config shape, EntityConfig type, form field patterns, query invalidation patterns. Update it whenever a pattern solidifies or changes.
 
 ### Storybook
+
 Add as Session 1.6 (after Session 1.5 fields stabilize). One story per exported shared component. Add component stories during the same session a component is built for Phase 2+. Promoted from "Ongoing" because waiting until polish means context is lost.
 
 ### JSDoc / TSDoc
+
 Convention: every exported React component and hook gets a single-line `/** … */` doc comment describing its purpose and any non-obvious props or return values. No multi-paragraph blocks.
 
 ### HANDOFF.md updates
+
 Each session must end with an update to `frontend/HANDOFF.md` using this format:
 
 ```
@@ -145,14 +149,13 @@ src/
 │   └── hooks.ts                   # useCurrentUser, useLogin, useLogout
 │
 ├── shared/
-│   ├── components/                # layout shells (AppShell, Header, Footer, ThemeToggle), empty states
-│   │   └── ui/                    # shadcn primitives (moved from src/components/ui/)
-│   ├── fields/                    # <SchoolCombobox>, <EmployeeCombobox>, ...
-│   ├── tables/                    # <DataTable>, pagination, filter bar
-│   └── hooks/                     # useDebouncedValue, useBreakpoint, etc.
+│   ├── components/                # layout shells (AppShell), generic data components (DataTable)
+│   │   └── ui/                    # shadcn primitives
+│   ├── fields/                    # <SchoolCombobox>, <EmployeeCombobox>, ... (may query one entity — still shared because role is reusable field primitive)
+│   └── hooks/                     # useFormDialog, useUrlPagination, useUrlSearch, useDebounce, etc.
+│                                  # generic EntityListPage / EntityFormPage extracted here after Schools+Employees validate the shape
 │
 ├── features/
-│   ├── entity-crud/               # generic EntityListPage / EntityFormPage + config types
 │   ├── schools/
 │   ├── employees/
 │   ├── wa-codes/
@@ -233,14 +236,17 @@ src/
   - `src/shared/hooks/useUrlPagination.ts` — `useUrlPagination(defaultPageSize?)` syncs `PaginationState` ↔ `page`/`pageSize` URL params; `useSearch({ strict: false })` for route-agnostic reads
   - `src/shared/hooks/useUrlSearch.ts` — `useUrlSearch(param?)` returns `[value, setValue]`; setValue resets `page` to prevent stale offsets
   - Projects list migrated to use `<DataTable>` + `useUrlSearch` + `useUrlPagination`; `pageCount={1}` until backend wraps list responses with a total
-  - Note: `DataTable` lives in `src/shared/components/`, not `src/shared/tables/` (roadmap layout suggestion); adjust if the tables subfolder becomes necessary later
+  - `DataTable` lives in `src/shared/components/` (roadmap folder diagram updated to match)
 
-- [ ] **Session 1.4** — EntityListPage + EntityFormPage
-  - Generic pages driven by `EntityConfig<T>` (see original roadmap for type shape)
-  - `<EntityListPage>`, `<EntityFormPage mode="create"|"edit">`, `<EntityFormDialog>` (for inline create)
-  - Resist over-abstracting: if an entity needs a custom layout, hand-write it
-  - Create `src/PATTERNS.md` at end of this session once shapes are stable
-  - Test: EntityListPage renders config-driven columns; EntityFormPage calls correct mutation on submit; inline EntityFormDialog closes on success
+- [x] **Session 1.4** — Schools admin _(generics deferred; build concrete first)_
+  - **Why deferred:** no consumer existed for generics; principle #10 says wait for the third duplicate. Schools + Employees will reveal the real shape.
+  - `src/features/schools/SchoolsListPage.tsx` — list with search, real skip/limit pagination, "Import CSV" button; columns: code, name, borough, address; `onRowClick` navigates to detail
+  - `src/features/schools/SchoolImportDialog.tsx` — file input, calls `POST /schools/batch/import`, invalidates list query, shows created count in toast
+  - `src/features/schools/SchoolDetailPage.tsx` — read-only display of all school fields
+  - `src/shared/hooks/useFormDialog.ts` — `useFormDialog(onClose?)` returns `{ open, setOpen, onOpenChange }` ✓
+  - Routes: `_authenticated/admin.tsx` (layout + `is_admin` guard), `admin/schools/index.tsx`, `admin/schools/$schoolId.tsx`
+  - **Note on Schools API:** backend has no individual create/update/delete — only list, get-by-identifier, and CSV batch import. Admin pages are read-only + import only.
+  - Test: list paginates correctly (real `total` from API); import dialog resets on close; detail page renders all fields
 
 - [ ] **Session 1.5** — Notes panel (polymorphic)
   - `<NotesPanel entityType entityId>` — threaded notes, create, reply, resolve
@@ -250,21 +256,26 @@ src/
 
 - [ ] **Session 1.6** — Storybook setup
   - Install and configure Storybook for Vite + React
-  - One story per exported shared component (DataTable, NotesPanel, field comboboxes, EntityListPage)
+  - One story per exported shared component (DataTable, NotesPanel, field comboboxes; EntityListPage/FormPage once extracted in Session 2.2)
   - Convention going forward: new shared components get a story in the same session they are built
 
 ---
 
 ## Phase 2 — Admin CRUD (simple entities)
 
-- [ ] **Session 2.1** — Schools _(pattern-setter)_
-  - `EntityConfig` for schools; `/admin/schools` list + detail; filters, pagination, create, edit, delete, CSV batch import modal
-  - Test: create form validates required fields; delete shows confirm dialog; CSV import modal opens
-
-- [ ] **Session 2.2** — Employees + employee roles
+- [ ] **Session 2.1** — Employees _(second concrete entity; validates generics shape)_
+  - Build like Schools was built in Session 1.4: concrete feature slice, no generics yet
+  - Individual create/edit/delete (Employees has full CRUD unlike Schools)
   - Nested `employee_roles` (time-bound) — employee detail gets a **Roles** tab
   - Date-overlap validation is backend-side; surface 422s cleanly
-  - Test: Roles tab renders; date-overlap 422 surfaces on the correct field
+  - Test: create form validates required fields; Roles tab renders; date-overlap 422 surfaces on the correct field
+
+- [ ] **Session 2.2** — Extract generics + retrofit _(DRY when two concrete entities exist)_
+  - Extract `EntityListPage`, `EntityFormPage`, `EntityFormDialog` from Schools + Employees patterns
+  - These live in `src/shared/components/` (pass the shared/ rubric — no entity imports, generic over `TData`)
+  - Retrofit Schools and Employees to use the extracted components
+  - Create `src/PATTERNS.md` now that the shapes are stable
+  - Test: retrofitted pages render identically; PATTERNS.md documents the column config shape, form field patterns, query invalidation
 
 - [ ] **Session 2.3** — Contractors, hygienists, WA codes, deliverables
   - `WaCode.level` (`project` | `building`) is immutable once in use — read-only in edit form when codes have linked records

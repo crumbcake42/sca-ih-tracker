@@ -12,7 +12,11 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -26,11 +30,12 @@ export function SchoolCombobox({ value, onChange, disabled }: Props) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 250)
 
-  const { data: schools = [] } = useQuery(
+  const { data } = useQuery(
     listEntriesSchoolsGetOptions({
       query: { search: debouncedSearch || null },
     }),
   )
+  const schools = data?.items ?? []
 
   const selected = schools.find((s) => s.id === value) ?? null
 
@@ -71,7 +76,10 @@ export function SchoolCombobox({ value, onChange, disabled }: Props) {
                   data-checked={school.id === value}
                 >
                   <CheckIcon
-                    className={cn('mr-2', school.id === value ? 'opacity-100' : 'opacity-0')}
+                    className={cn(
+                      'mr-2',
+                      school.id === value ? 'opacity-100' : 'opacity-0',
+                    )}
                   />
                   {school.code} — {school.name}
                 </CommandItem>

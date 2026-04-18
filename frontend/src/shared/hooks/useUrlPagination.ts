@@ -7,7 +7,7 @@ import type { OnChangeFn, PaginationState } from '@tanstack/react-table'
  */
 export function useUrlPagination(defaultPageSize = 20) {
   const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as Record<string, unknown>
+  const search = useSearch({ strict: false })
 
   const pagination: PaginationState = {
     pageIndex: Math.max(0, Number(search.page ?? 1) - 1),
@@ -17,11 +17,11 @@ export function useUrlPagination(defaultPageSize = 20) {
   const onPaginationChange: OnChangeFn<PaginationState> = (updater) => {
     const next = typeof updater === 'function' ? updater(pagination) : updater
     void navigate({
-      search: (prev) => ({
-        ...(prev as Record<string, unknown>),
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
         page: next.pageIndex + 1,
         pageSize: next.pageSize !== defaultPageSize ? next.pageSize : undefined,
-      }),
+      })) as never,
     })
   }
 

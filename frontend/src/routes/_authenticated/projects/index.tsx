@@ -11,7 +11,9 @@ import { useUrlSearch } from '@/hooks/useUrlSearch'
 import { useUrlPagination } from '@/hooks/useUrlPagination'
 
 export const Route = createFileRoute('/_authenticated/projects/')({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { search?: string; page?: number; pageSize?: number } => ({
     search: typeof search.search === 'string' ? search.search : undefined,
     page: typeof search.page === 'number' ? search.page : undefined,
     pageSize: typeof search.pageSize === 'number' ? search.pageSize : undefined,
@@ -42,7 +44,11 @@ function ProjectsPage() {
   const [nameSearch, setNameSearch] = useUrlSearch('search')
   const { pagination, onPaginationChange } = useUrlPagination()
 
-  const { data: projects, isLoading, error } = useQuery(
+  const {
+    data: projects,
+    isLoading,
+    error,
+  } = useQuery(
     getProjectsProjectsGetOptions({
       query: { name_search: nameSearch || undefined },
     }),

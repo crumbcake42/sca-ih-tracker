@@ -1,6 +1,10 @@
 import type { UseFormSetError, FieldValues, Path } from 'react-hook-form'
 
-type FastApiDetail = Array<{ loc: (string | number)[]; msg: string; type: string }>
+type FastApiDetail = Array<{
+  loc: (string | number)[]
+  msg: string
+  type: string
+}>
 
 function isFastApi422(err: unknown): err is { detail: FastApiDetail } {
   return (

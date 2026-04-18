@@ -8,17 +8,17 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
  */
 export function useUrlSearch(param = 'search') {
   const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as Record<string, unknown>
+  const search = useSearch({ strict: false })
 
   const value = String(search[param] ?? '')
 
   const setValue = (v: string) => {
     void navigate({
-      search: (prev) => ({
-        ...(prev as Record<string, unknown>),
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
         [param]: v || undefined,
         page: undefined,
-      }),
+      })) as never,
     })
   }
 

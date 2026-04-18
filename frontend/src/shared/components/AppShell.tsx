@@ -1,7 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { SignOutIcon, FolderOpenIcon, UserIcon } from '@phosphor-icons/react'
-import { Button } from '#/components/ui/button'
-import { useCurrentUser, useLogout } from '../auth/hooks'
+import {
+  SignOutIcon,
+  FolderOpenIcon,
+  UserIcon,
+  GearIcon,
+} from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { useCurrentUser, useLogout } from '@/auth/hooks'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const user = useCurrentUser()
@@ -25,6 +30,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Projects
                 </Link>
               </Button>
+              {user?.is_admin && (
+                <Button variant="ghost" size="sm" asChild>
+                  <Link
+                    to="/admin/schools"
+                    className="flex items-center gap-1.5"
+                  >
+                    <GearIcon size={15} />
+                    Admin
+                  </Link>
+                </Button>
+              )}
             </nav>
           </div>
 

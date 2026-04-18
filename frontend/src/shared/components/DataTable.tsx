@@ -1,5 +1,13 @@
-import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/react-table'
-import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import type {
+  ColumnDef,
+  OnChangeFn,
+  PaginationState,
+} from '@tanstack/react-table'
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 
 import { Button } from '@/components/ui/button'
@@ -21,7 +29,7 @@ interface DataTableProps<TData> {
   /** Total number of pages (from API response). */
   pageCount: number
   isLoading?: boolean
-  error?: Error | null
+  error?: unknown
   /** Called when a data row is clicked. */
   onRowClick?: (row: TData) => void
   emptyMessage?: string
@@ -65,7 +73,10 @@ export function DataTable<TData>({
                 <TableHead key={header.id}>
                   {header.isPlaceholder
                     ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                 </TableHead>
               ))}
             </TableRow>
@@ -74,14 +85,17 @@ export function DataTable<TData>({
         <TableBody>
           {error ? (
             <TableRow>
-              <TableCell colSpan={colCount} className="py-8 text-center text-destructive">
-                {error.message}
+              <TableCell
+                colSpan={colCount}
+                className="py-8 text-center text-destructive"
+              >
+                {error instanceof Error ? error.message : 'An error occurred.'}
               </TableCell>
             </TableRow>
           ) : isLoading ? (
-            Array.from({ length: skeletonRows }).map((_, i) => (
+            Array.from({ length: skeletonRows }).map((_r, i) => (
               <TableRow key={i}>
-                {Array.from({ length: colCount }).map((_, j) => (
+                {Array.from({ length: colCount }).map((_c, j) => (
                   <TableCell key={j}>
                     <Skeleton className="h-4 w-full" />
                   </TableCell>
@@ -90,7 +104,10 @@ export function DataTable<TData>({
             ))
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={colCount} className="py-8 text-center text-muted-foreground">
+              <TableCell
+                colSpan={colCount}
+                className="py-8 text-center text-muted-foreground"
+              >
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -98,7 +115,9 @@ export function DataTable<TData>({
             rows.map((row) => (
               <TableRow
                 key={row.id}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                onClick={
+                  onRowClick ? () => onRowClick(row.original) : undefined
+                }
                 className={onRowClick ? 'cursor-pointer' : undefined}
               >
                 {row.getVisibleCells().map((cell) => (
