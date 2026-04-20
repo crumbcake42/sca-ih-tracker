@@ -8,7 +8,7 @@ This module does **not** own employee operational data (billing rates, role cert
 
 ## Non-obvious behavior
 
-**`PermissionChecker` returns the current user.** The `PermissionChecker(permission_name)` dependency in `dependencies.py` both enforces that the authenticated user has the required permission *and* returns the `User` object. Use it as the sole auth dependency on any protected endpoint — do not add a separate `get_current_user` call alongside it, as that issues a redundant DB query.
+**`PermissionChecker` returns the current user.** The `PermissionChecker(permission_name)` dependency in `dependencies.py` both enforces that the authenticated user has the required permission _and_ returns the `User` object. Use it as the sole auth dependency on any protected endpoint — do not add a separate `get_current_user` call alongside it, as that issues a redundant DB query.
 
 ```python
 # Correct — one dependency does both jobs
@@ -26,8 +26,6 @@ async def my_endpoint(
 **`id=1` is the reserved system user.** The row with `username="system"` and `id=1` is seeded by `app/scripts/db.py` and referenced as `SYSTEM_USER_ID` in `app/common/config.py`. It has no valid password hash and cannot log in. It is used as `created_by_id` / `updated_by_id` on any write performed by an automated service function rather than a human request. Never delete this row or reassign its ID.
 
 **RBAC is role → permissions M2M.** A `User` has one `Role`; a `Role` has many `Permission` rows via the `role_permissions` association table. `PermissionName` in `common/enums.py` is the source of truth for all permission strings — never pass raw strings to `PermissionChecker`.
-
-**`UserRole` and `RoleName` are separate enums that happen to share the same values.** `RoleName` is used for seeding/identifying role rows in the DB. `UserRole` is used for display and access-check logic. They must stay in sync.
 
 ---
 

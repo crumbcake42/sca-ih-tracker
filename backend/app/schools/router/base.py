@@ -15,17 +15,10 @@ router.include_router(
     create_readonly_router(
         model=School,
         read_schema=SchoolRead,
-        # prefix="/list",
         default_sort=School.code.asc(),
         search_attr=School.code,
     )
 )
-
-
-# @router.get("/", response_model=list[SchoolRead])
-# async def list_schools(db: AsyncSession = Depends(get_db)):
-#     result = await db.execute(select(School))
-#     return result.scalars().all()
 
 
 @router.get("/{identifier}", response_model=SchoolRead)

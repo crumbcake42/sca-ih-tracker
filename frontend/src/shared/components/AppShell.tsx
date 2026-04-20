@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import {
   SignOutIcon,
+  SignInIcon,
   FolderOpenIcon,
   UserIcon,
   GearIcon,
@@ -17,10 +18,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="border-b bg-background">
         <div className="mx-auto flex h-14 max-w-screen-xl items-center justify-between px-4">
           <div className="flex items-center gap-6">
-            <Link
-              to="/projects"
-              className="text-sm font-semibold tracking-tight"
-            >
+            <Link to="/" className="text-sm font-semibold tracking-tight">
               SCA IH Tracker
             </Link>
             <nav className="flex items-center gap-1">
@@ -30,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Projects
                 </Link>
               </Button>
-              {user?.is_admin && (
+              {user?.role.name === 'admin' && (
                 <Button variant="ghost" size="sm" asChild>
                   <Link
                     to="/admin/schools"
@@ -44,21 +42,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-              <UserIcon size={15} />
-              {user?.username}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={logout}
-              className="flex items-center gap-1.5"
-            >
-              <SignOutIcon size={15} />
-              Sign out
-            </Button>
-          </div>
+          {user ? (
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                <UserIcon size={15} />
+                {user?.username}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="flex items-center gap-1.5"
+              >
+                <SignOutIcon size={15} />
+                Sign out
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link to="/login">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={logout}
+                  className="flex items-center gap-1.5"
+                >
+                  <SignInIcon size={15} />
+                  Sign In
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 

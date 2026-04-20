@@ -31,7 +31,7 @@ class Role(Base):
 
     # Relationships
     permissions: Mapped[list["Permission"]] = relationship(
-        secondary=role_permissions, lazy="joined"
+        secondary=role_permissions, lazy="selectin"
     )
 
 

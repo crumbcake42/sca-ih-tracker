@@ -5,7 +5,9 @@ import { AppShell } from '@/components/AppShell'
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: () => {
     if (typeof window === 'undefined') return
-    if (!useAuthStore.getState().token) {
+    const state = useAuthStore.getState()
+    console.log({ state })
+    if (!state.token) {
       throw redirect({ to: '/login' })
     }
   },

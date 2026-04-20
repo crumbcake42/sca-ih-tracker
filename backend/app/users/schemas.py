@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from app.common.enums import UserRole
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 
@@ -9,9 +9,11 @@ class PermissionSchema(BaseModel):
 
 
 class RoleSchema(BaseModel):
-    name: str
+    name: UserRole
     permissions: list[PermissionSchema]
-    model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        from_attributes=True, str_strip_whitespace=True, use_enum_values=True
+    )
 
 
 class UserBase(BaseModel):

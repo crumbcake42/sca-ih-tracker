@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 import app.projects.models  # noqa: F401 — registers Project/links mappers
 import app.work_auths.models  # noqa: F401
 from app.common.config import settings
-from app.common.enums import PermissionName, RoleName
+from app.common.enums import PermissionName, UserRole
 from app.common.security import hash_password
 from app.contractors.models import Contractor as ContractorModel
 from app.contractors.schemas import ContractorCreate as ContractorSchema
@@ -129,7 +129,9 @@ async def seed_employee_roles(db: AsyncSession) -> None:
                 )
                 employee = result.scalar_one_or_none()
                 if not employee:
-                    print(f"  [ERROR] Line {line_num}: No employee with adp_id={adp_id!r}")
+                    print(
+                        f"  [ERROR] Line {line_num}: No employee with adp_id={adp_id!r}"
+                    )
                     error_count += 1
                     continue
 
@@ -143,13 +145,15 @@ async def seed_employee_roles(db: AsyncSession) -> None:
                 if existing.scalar_one_or_none():
                     continue
 
-                db.add(EmployeeRoleModel(
-                    employee_id=employee.id,
-                    role_type=validated.role_type,
-                    start_date=validated.start_date,
-                    end_date=validated.end_date,
-                    hourly_rate=validated.hourly_rate,
-                ))
+                db.add(
+                    EmployeeRoleModel(
+                        employee_id=employee.id,
+                        role_type=validated.role_type,
+                        start_date=validated.start_date,
+                        end_date=validated.end_date,
+                        hourly_rate=validated.hourly_rate,
+                    )
+                )
                 added_count += 1
 
             except ValidationError as e:
@@ -194,8 +198,8 @@ async def initialize():
             # 3. Role Configuration
             print("\n[*] Configuring Roles...")
             role_definitions = {
-                RoleName.SUPERADMIN: [p.value for p in PermissionName],
-                RoleName.ADMIN: [
+                UserRole.SUPERADMIN: [p.value for p in PermissionName],
+                UserRole.ADMIN: [
                     PermissionName.PROJECT_CREATE,
                     PermissionName.SCHOOL_EDIT,
                 ],
@@ -236,11 +240,9 @@ async def initialize():
             result = await db.execute(stmt)
             if not result.unique().scalars().first():
                 superadmin_role_stmt = select(Role).where(
-                    Role.name == RoleName.SUPERADMIN.value
+                    Role.name == UserRole.SUPERADMIN.value
                 )
-                superadmin_role = (
-                    await db.execute(superadmin_role_stmt)
-                ).scalar_one()
+                superadmin_role = (await db.execute(superadmin_role_stmt)).scalar_one()
                 system_user = User(
                     first_name="System",
                     last_name="User",
@@ -261,7 +263,7 @@ async def initialize():
             result = await db.execute(stmt)
             if not result.unique().scalars().first():
                 admin_role_stmt = select(Role).where(
-                    Role.name == RoleName.SUPERADMIN.value
+                    Role.name == UserRole.SUPERADMIN.value
                 )
                 admin_role = (await db.execute(admin_role_stmt)).unique().scalar_one()
 
@@ -275,7 +277,10 @@ async def initialize():
                 )
                 db.add(new_admin)
                 print(f"  [CREATE] User '{settings.FIRST_ADMIN_USERNAME}' added.")
-
+            else:
+                print(
+                    f"  [OK] User '{settings.FIRST_ADMIN_USERNAME}' already exists with pw {settings.FIRST_ADMIN_PASSWORD}."
+                )
             # 6. Seed Base Truth Data (CSV)
             print("\n[*] Seeding Business Data...")
             seed_files = [

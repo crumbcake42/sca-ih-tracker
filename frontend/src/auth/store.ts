@@ -1,18 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { client } from '../api/generated/client.gen'
-import { setTokenGetter } from '../api/client'
-
-export interface AuthUser {
-  id: number
-  username: string
-  is_admin: boolean
-}
+import { client } from '@/api/generated/client.gen'
+import { setTokenGetter } from '@/api/client'
+import type { User } from '@/api/generated/types.gen'
 
 interface AuthState {
-  user: AuthUser | null
+  user: User | null
   token: string | null
-  setAuth: (token: string, user: AuthUser) => void
+  setAuth: (token: string, user: User) => void
   clearAuth: () => void
 }
 

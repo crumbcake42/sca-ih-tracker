@@ -40,8 +40,7 @@ class Settings(BaseSettings):
     )
 
     # --- FRONTEND URL FOR CORS WHITELISTING ---
-    FRONTEND_DEV_URL: str ="http://127.0.0.1:3001"
-
+    FRONTEND_DEV_URL: str = "http://127.0.0.1:3000"
 
     @property
     def db_url(self) -> str:

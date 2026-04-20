@@ -18,6 +18,10 @@ export const Route = createRootRoute({
     links: [{ rel: 'stylesheet', href: appCss }],
   }),
   shellComponent: RootDocument,
+  notFoundComponent: () => {
+    // TODO: make this a proper 404 page
+    return <p>This page doesn't exist!</p>
+  },
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {

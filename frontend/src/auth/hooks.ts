@@ -2,9 +2,9 @@ import { useMutation } from '@tanstack/react-query'
 import {
   getMeUsersMeGet,
   loginForAccessTokenAuthTokenPost,
-} from '../api/generated/sdk.gen'
+} from '@/api/generated/sdk.gen'
+// import { loginForAccessTokenAuthTokenPostMutation } from "@/api/generated/@tanstack/react-query.gen"
 import { useAuthStore } from './store'
-import type { AuthUser } from './store'
 
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -32,8 +32,8 @@ export function useLogin() {
       if (meError || !userData)
         throw meError ?? new Error('Failed to fetch user')
 
-      setAuth(token, userData as AuthUser)
-      return userData as AuthUser
+      setAuth(token, userData)
+      return userData
     },
   })
 }

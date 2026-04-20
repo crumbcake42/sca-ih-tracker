@@ -27,13 +27,6 @@ class PermissionName(StrEnum):
     SCHOOL_EDIT = "school:edit"
 
 
-class RoleName(StrEnum):
-    SUPERADMIN = "superadmin"
-    ADMIN = "admin"
-    COORDINATOR = "coordinator"
-    INSPECTOR = "inspector"
-
-
 class UserRole(StrEnum):
     SUPERADMIN = "superadmin"  # Can delete anything, manage users
     ADMIN = "admin"  # Can edit/add/delete projects, schools, contractors
@@ -96,11 +89,11 @@ class SampleBatchStatus(StrEnum):
 
 
 class ProjectStatus(StrEnum):
-    SETUP = "setup"                    # no time entries recorded yet
-    IN_PROGRESS = "in_progress"        # active work, deliverables outstanding
-    BLOCKED = "blocked"                # unresolved blocking notes
+    SETUP = "setup"  # no time entries recorded yet
+    IN_PROGRESS = "in_progress"  # active work, deliverables outstanding
+    BLOCKED = "blocked"  # unresolved blocking notes
     READY_TO_CLOSE = "ready_to_close"  # no outstanding deliverables, no blockers
-    LOCKED = "locked"                  # project closed (Session D)
+    LOCKED = "locked"  # project closed (Session D)
 
 
 class NoteEntityType(StrEnum):
