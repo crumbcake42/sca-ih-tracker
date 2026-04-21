@@ -1,4 +1,4 @@
-import { createContext } from 'react'
-import type { AuthState } from './types'
+import { createContext } from "react";
+import type { AuthState } from "./types";
 
-export const AuthContext = createContext<AuthState | undefined>(undefined)
+export const AuthContext = createContext<AuthState | undefined>(undefined);

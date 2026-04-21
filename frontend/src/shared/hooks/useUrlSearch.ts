@@ -1,4 +1,4 @@
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 /**
  * Syncs a single string filter with a URL search param.
@@ -6,11 +6,11 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
  *
  * @param param - The URL search param key (default: "search")
  */
-export function useUrlSearch(param = 'search') {
-  const navigate = useNavigate()
-  const search = useSearch({ strict: false })
+export function useUrlSearch(param = "search") {
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false });
 
-  const value = String(search[param] ?? '')
+  const value = String(search[param] ?? "");
 
   const setValue = (v: string) => {
     void navigate({
@@ -19,8 +19,8 @@ export function useUrlSearch(param = 'search') {
         [param]: v || undefined,
         page: undefined,
       })) as never,
-    })
-  }
+    });
+  };
 
-  return [value, setValue] as const
+  return [value, setValue] as const;
 }

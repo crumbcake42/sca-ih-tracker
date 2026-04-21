@@ -1,17 +1,17 @@
-import { Link } from '@tanstack/react-router'
+import { Link } from "@tanstack/react-router";
 import {
   SignOutIcon,
   SignInIcon,
   FolderOpenIcon,
   UserIcon,
   GearIcon,
-} from '@phosphor-icons/react'
-import { Button } from '@/components/ui/button'
-import { useCurrentUser, useLogout } from '@/auth/hooks'
+} from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { useCurrentUser, useLogout } from "@/auth/hooks";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const user = useCurrentUser()
-  const logout = useLogout()
+  const user = useCurrentUser();
+  const logout = useLogout();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Projects
                 </Link>
               </Button>
-              {user?.role.name === 'admin' && (
+              {user?.role.name === "admin" && (
                 <Button variant="ghost" size="sm" asChild>
                   <Link
                     to="/admin/schools"
@@ -80,5 +80,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
     </div>
-  )
+  );
 }

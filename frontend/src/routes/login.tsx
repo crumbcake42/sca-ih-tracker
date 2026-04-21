@@ -1,46 +1,46 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useForm } from 'react-hook-form'
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema'
-import { z } from 'zod'
-import { toast } from 'sonner'
-import { useAuthStore } from '../auth/store'
-import { useLogin } from '../auth/hooks'
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useForm } from "react-hook-form";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { z } from "zod";
+import { toast } from "sonner";
+import { useAuthStore } from "../auth/store";
+import { useLogin } from "../auth/hooks";
 import {
   Field,
   FieldLabel,
   FieldError,
   FieldGroup,
-} from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
-})
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
 
-type LoginFormValues = z.infer<typeof loginSchema>
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 const searchSchema = z.object({
   redirect: z.string().optional(),
-})
+});
 
-export const Route = createFileRoute('/login')({
+export const Route = createFileRoute("/login")({
   validateSearch: searchSchema,
   beforeLoad: () => {
-    if (typeof window === 'undefined') return
+    if (typeof window === "undefined") return;
     if (useAuthStore.getState().token) {
-      throw redirect({ to: '/' })
+      throw redirect({ to: "/" });
     }
   },
   component: LoginPage,
-})
+});
 
 function LoginPage() {
-  const navigate = useNavigate()
-  const search = Route.useSearch()
-  const login = useLogin()
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const login = useLogin();
 
   const {
     register,
@@ -48,15 +48,15 @@ function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: standardSchemaResolver(loginSchema),
-    defaultValues: { username: '', password: '' },
-  })
+    defaultValues: { username: "", password: "" },
+  });
 
   async function onSubmit(values: LoginFormValues) {
     try {
-      await login.mutateAsync(values)
-      navigate({ to: search.redirect ?? '/' })
+      await login.mutateAsync(values);
+      navigate({ to: search.redirect ?? "/" });
     } catch {
-      toast.error('Invalid username or password')
+      toast.error("Invalid username or password");
     }
   }
 
@@ -75,7 +75,7 @@ function LoginPage() {
                   id="username"
                   autoComplete="username"
                   aria-invalid={!!errors.username}
-                  {...register('username')}
+                  {...register("username")}
                 />
                 <FieldError errors={[errors.username]} />
               </Field>
@@ -86,7 +86,7 @@ function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   aria-invalid={!!errors.password}
-                  {...register('password')}
+                  {...register("password")}
                 />
                 <FieldError errors={[errors.password]} />
               </Field>
@@ -95,12 +95,12 @@ function LoginPage() {
                 className="w-full"
                 disabled={login.isPending}
               >
-                {login.isPending ? 'Signing in…' : 'Sign in'}
+                {login.isPending ? "Signing in…" : "Sign in"}
               </Button>
             </FieldGroup>
           </form>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

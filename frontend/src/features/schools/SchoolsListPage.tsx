@@ -1,45 +1,45 @@
-import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import type { ColumnDef } from '@tanstack/react-table'
-import { UploadSimpleIcon } from '@phosphor-icons/react'
-import { listEntriesSchoolsGetOptions } from '@/api/generated/@tanstack/react-query.gen'
-import type { School } from '@/api/generated/types.gen'
-import { DataTable } from '@/components/DataTable'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { useUrlSearch } from '@/hooks/useUrlSearch'
-import { useUrlPagination } from '@/hooks/useUrlPagination'
-import { useFormDialog } from '@/hooks/useFormDialog'
-import { SchoolImportDialog } from './SchoolImportDialog'
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
+import { UploadSimpleIcon } from "@phosphor-icons/react";
+import { listEntriesSchoolsGetOptions } from "@/api/generated/@tanstack/react-query.gen";
+import type { School } from "@/api/generated/types.gen";
+import { DataTable } from "@/components/DataTable";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useUrlSearch } from "@/hooks/useUrlSearch";
+import { useUrlPagination } from "@/hooks/useUrlPagination";
+import { useFormDialog } from "@/hooks/useFormDialog";
+import { SchoolImportDialog } from "./SchoolImportDialog";
 
 const columns: ColumnDef<School>[] = [
   {
-    accessorKey: 'code',
-    header: 'Code',
+    accessorKey: "code",
+    header: "Code",
     cell: ({ getValue }) => (
       <span className="font-mono text-xs">{getValue<string>()}</span>
     ),
   },
   {
-    accessorKey: 'name',
-    header: 'Name',
+    accessorKey: "name",
+    header: "Name",
   },
   {
-    accessorKey: 'city',
-    header: 'Borough',
+    accessorKey: "city",
+    header: "Borough",
   },
   {
-    accessorKey: 'address',
-    header: 'Address',
+    accessorKey: "address",
+    header: "Address",
   },
-]
+];
 
 export function SchoolsListPage() {
-  const navigate = useNavigate()
-  const [search, setSearch] = useUrlSearch('search')
-  const { pagination, onPaginationChange } = useUrlPagination()
-  const importDialog = useFormDialog()
+  const navigate = useNavigate();
+  const [search, setSearch] = useUrlSearch("search");
+  const { pagination, onPaginationChange } = useUrlPagination();
+  const importDialog = useFormDialog();
 
   const { data, isLoading, error } = useQuery(
     listEntriesSchoolsGetOptions({
@@ -49,9 +49,9 @@ export function SchoolsListPage() {
         limit: pagination.pageSize,
       },
     }),
-  )
+  );
 
-  const pageCount = data ? Math.ceil(data.total / data.limit) : 1
+  const pageCount = data ? Math.ceil(data.total / data.limit) : 1;
 
   return (
     <div className="space-y-4">
@@ -84,7 +84,7 @@ export function SchoolsListPage() {
             emptyMessage="No schools found."
             onRowClick={(row) =>
               void navigate({
-                to: '/admin/schools/$schoolId',
+                to: "/admin/schools/$schoolId",
                 params: { schoolId: String(row.id) },
               })
             }
@@ -97,5 +97,5 @@ export function SchoolsListPage() {
         onOpenChange={importDialog.onOpenChange}
       />
     </div>
-  )
+  );
 }

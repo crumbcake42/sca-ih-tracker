@@ -39,6 +39,7 @@ Read `ROADMAP.md` fully before building any screen. Key things that the OpenAPI 
 ## Architecture Notes
 
 ### Three-tier structure
+
 `routes/ → pages/ → features/ → components/, hooks/, fields/, lib/`
 
 - **`src/routes/`** — TanStack Router file-based config only. Route files import their page component from `@/pages/` and nothing else from the app.
@@ -47,12 +48,15 @@ Read `ROADMAP.md` fully before building any screen. Key things that the OpenAPI 
 - **`src/components/`, `src/hooks/`, `src/fields/`, `src/lib/`** — shared, domain-free primitives.
 
 ### API wrapper layer
+
 Feature components and pages import `*Options`/`*Mutation`/`*QueryKey` helpers from `@/features/<domain>/api/`, never directly from `@/api/generated/`. Wrappers use domain-owned names (`listSchoolsOptions`, not `listEntriesSchoolsGetOptions`). Add wrappers just-in-time — don't pre-map unused endpoints. `src/auth/store.ts` and `src/lib/` are exempt and may import from `@/api/generated/` directly.
 
 ### Types policy
+
 Any interface representing a backend payload must be imported from `@/api/generated/types.gen.ts`. If a type is missing or a generated function returns `unknown`, that is a backend bug — fix the FastAPI response model and regenerate. Do not hand-roll the type.
 
 ### Other
+
 - Zustand (`src/auth/store.ts`) for client state only — not for server data
 - `<SchoolSelect>` must be scoped to the current project for all building-level forms — do not reuse a global school picker
 - `created_by_id == 1` marks system-created rows — render with a subtle "system" badge; hide manual edit/resolve controls on these

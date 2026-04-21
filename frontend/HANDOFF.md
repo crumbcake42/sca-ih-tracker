@@ -38,17 +38,17 @@ Use `@/` for all absolute imports. The `#/` prefix is wrong — do not use it ev
 
 The refactor moves `src/shared/` into the root and introduces `src/pages/` and feature-level `api/` wrappers. See ROADMAP.md §5 and the plan file for the full migration table. After the refactor:
 
-| Kind | Location |
-|---|---|
-| shadcn primitives + `cn()` | `src/lib/utils.ts`, `src/components/ui/` |
-| Pure JS utilities (no React) | `src/lib/[domain].ts` (e.g. `form-errors.ts`) |
-| React hooks (shared) | `src/hooks/` |
-| Field/combobox components (shared) | `src/fields/` |
-| Layout + data components (shared) | `src/components/` |
-| Domain building blocks | `src/features/<domain>/components/` |
-| Domain API wrappers (TanStack Query layer) | `src/features/<domain>/api/` |
-| URL-bound page compositions | `src/pages/<route>/` |
-| Route config only | `src/routes/` |
+| Kind                                       | Location                                      |
+| ------------------------------------------ | --------------------------------------------- |
+| shadcn primitives + `cn()`                 | `src/lib/utils.ts`, `src/components/ui/`      |
+| Pure JS utilities (no React)               | `src/lib/[domain].ts` (e.g. `form-errors.ts`) |
+| React hooks (shared)                       | `src/hooks/`                                  |
+| Field/combobox components (shared)         | `src/fields/`                                 |
+| Layout + data components (shared)          | `src/components/`                             |
+| Domain building blocks                     | `src/features/<domain>/components/`           |
+| Domain API wrappers (TanStack Query layer) | `src/features/<domain>/api/`                  |
+| URL-bound page compositions                | `src/pages/<route>/`                          |
+| Route config only                          | `src/routes/`                                 |
 
 Do **not** create `src/utils/` — pure utilities belong in `src/lib/`.
 

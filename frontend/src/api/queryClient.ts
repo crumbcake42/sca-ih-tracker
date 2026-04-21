@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient } from "@tanstack/react-query";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -8,4 +8,4 @@ export const queryClient = new QueryClient({
         (error as { status?: number })?.status !== 401 && failureCount < 2,
     },
   },
-})
+});

@@ -1,13 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { ArrowLeftIcon } from '@phosphor-icons/react'
-import { getSchoolSchoolsIdentifierGetOptions } from '@/api/generated/@tanstack/react-query.gen'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { getSchoolSchoolsIdentifierGetOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
-  schoolId: string
+  schoolId: string;
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -18,7 +18,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       </dt>
       <dd className="text-sm">{value}</dd>
     </div>
-  )
+  );
 }
 
 export function SchoolDetailPage({ schoolId }: Props) {
@@ -28,7 +28,7 @@ export function SchoolDetailPage({ schoolId }: Props) {
     error,
   } = useQuery(
     getSchoolSchoolsIdentifierGetOptions({ path: { identifier: schoolId } }),
-  )
+  );
 
   return (
     <div className="space-y-4">
@@ -69,5 +69,5 @@ export function SchoolDetailPage({ schoolId }: Props) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

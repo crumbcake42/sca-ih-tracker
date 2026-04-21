@@ -1,63 +1,63 @@
-import { useForm } from 'react-hook-form'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { useForm } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
   importBatchSchoolsBatchImportPostMutation,
   listEntriesSchoolsGetQueryKey,
-} from '@/api/generated/@tanstack/react-query.gen'
+} from "@/api/generated/@tanstack/react-query.gen";
 
 interface Props {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 interface FormValues {
-  file: FileList
+  file: FileList;
 }
 
 export function SchoolImportDialog({ open, onOpenChange }: Props) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<FormValues>()
+  } = useForm<FormValues>();
 
   const { mutate, isPending } = useMutation({
     ...importBatchSchoolsBatchImportPostMutation(),
     onSuccess: (data) => {
       void queryClient.invalidateQueries({
         queryKey: listEntriesSchoolsGetQueryKey(),
-      })
-      toast.success(`Imported ${data.created_items.length} school(s).`)
-      reset()
-      onOpenChange(false)
+      });
+      toast.success(`Imported ${data.created_items.length} school(s).`);
+      reset();
+      onOpenChange(false);
     },
     onError: () => {
-      toast.error('Import failed. Check that the CSV format is correct.')
+      toast.error("Import failed. Check that the CSV format is correct.");
     },
-  })
+  });
 
   const onSubmit = (values: FormValues) => {
-    const file = values.file[0]
-    if (!file) return
-    mutate({ body: { file } })
-  }
+    const file = values.file[0];
+    if (!file) return;
+    mutate({ body: { file } });
+  };
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) reset()
-    onOpenChange(next)
-  }
+    if (!next) reset();
+    onOpenChange(next);
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -73,7 +73,7 @@ export function SchoolImportDialog({ open, onOpenChange }: Props) {
               type="file"
               accept=".csv"
               className="block w-full text-sm"
-              {...register('file', { required: 'Please select a CSV file.' })}
+              {...register("file", { required: "Please select a CSV file." })}
             />
             <FieldError errors={[errors.file]} />
           </Field>
@@ -86,11 +86,11 @@ export function SchoolImportDialog({ open, onOpenChange }: Props) {
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Importing…' : 'Import'}
+              {isPending ? "Importing…" : "Import"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

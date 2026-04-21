@@ -96,12 +96,12 @@ These shape every decision below. Skim before each session.
 4. **Every entity combobox supports inline create.** A user staring at a combobox with no matching options should be able to create the missing entity in a modal without losing their form context.
 5. **Three-tier composition: routes → pages → features.** The source tree is organized into four layers with a strict one-direction import graph:
 
-   | Layer | Lives at | Responsibility |
-   |---|---|---|
-   | Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks. shadcn primitives, DataTable, shared hooks. |
-   | Features | `src/features/<domain>/` | Routing-agnostic domain components (take props, emit callbacks), domain api wrappers, domain types. Never import from `pages/` or `routes/`. |
-   | Pages | `src/pages/<route>/` | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, route loader data, page-level error/suspense. Import from features. Never import from `routes/`. |
-   | Routes | `src/routes/` | TanStack Router file-based config only (path, loader, `beforeLoad`, `validateSearch`). Import only from `pages/`. |
+   | Layer             | Lives at                                                   | Responsibility                                                                                                                                                |
+   | ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks. shadcn primitives, DataTable, shared hooks.                                                                             |
+   | Features          | `src/features/<domain>/`                                   | Routing-agnostic domain components (take props, emit callbacks), domain api wrappers, domain types. Never import from `pages/` or `routes/`.                  |
+   | Pages             | `src/pages/<route>/`                                       | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, route loader data, page-level error/suspense. Import from features. Never import from `routes/`. |
+   | Routes            | `src/routes/`                                              | TanStack Router file-based config only (path, loader, `beforeLoad`, `validateSearch`). Import only from `pages/`.                                             |
 
    **§5a — API wrapper layer.** Every feature that calls the backend owns `features/<domain>/api/`. Call sites (feature components, pages) import `*Options`, `*Mutation`, `*QueryKey` helpers from this file under domain-owned names — never directly from `@/api/generated/`. Wrappers are added just-in-time (when first used), not pre-mapped. Raw `sdk.gen` functions are used only inside wrapper files for composed/imperative operations. Rule: `listSchoolsOptions`, not `listEntriesSchoolsGetOptions`.
 
@@ -110,6 +110,7 @@ These shape every decision below. Skim before each session.
    **§5c — Routing policy.** `/login` is the only public route. All other routes live under `_authenticated/`. `_authenticated.tsx` performs a real async token-validity check (calls `/users/me`; on failure clears auth and redirects to `/login`). The authenticated index route (`/`) role-routes: `admin` | `superadmin` → `/admin`; everyone else → `/dashboard`.
 
    **§5d — Import boundaries.** Enforced with eslint `no-restricted-imports`: features cannot import from `pages/` or `routes/`; pages cannot import from `routes/` (use `getRouteApi('/path')` instead); routes cannot import from `features/` or `@/api/generated/`. Cross-cutting code (`src/auth/store.ts`, `src/lib/`) is exempt.
+
 6. **Generated API client is the source of truth for types.** Never hand-write a type that could be derived from the schema. Re-run codegen after every backend change.
 7. **Forms: schema-first.** Derive zod schemas from the generated types where possible. Manual zod only for cross-field rules the backend validates but schema can't express.
 8. **Route-level guards, not component-level.** Authentication + role gating lives in `beforeLoad`. A component that renders is a component that has already passed the gate.

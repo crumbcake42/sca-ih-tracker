@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { CheckIcon, CaretUpDownIcon } from '@phosphor-icons/react'
-import { listEmployeesEmployeesGetOptions } from '@/api/generated/@tanstack/react-query.gen'
-import { Button } from '@/components/ui/button'
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { CheckIcon, CaretUpDownIcon } from "@phosphor-icons/react";
+import { listEmployeesEmployeesGetOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -10,25 +10,25 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command'
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 type Props = {
-  value: number | null
-  onChange: (id: number | null) => void
-  disabled?: boolean
-}
+  value: number | null;
+  onChange: (id: number | null) => void;
+  disabled?: boolean;
+};
 
 export function EmployeeCombobox({ value, onChange, disabled }: Props) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
-  const { data: employees = [] } = useQuery(listEmployeesEmployeesGetOptions())
+  const { data: employees = [] } = useQuery(listEmployeesEmployeesGetOptions());
 
   const filtered = search
     ? employees.filter((e) =>
@@ -36,13 +36,13 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
           .toLowerCase()
           .includes(search.toLowerCase()),
       )
-    : employees
+    : employees;
 
-  const selected = employees.find((e) => e.id === value) ?? null
+  const selected = employees.find((e) => e.id === value) ?? null;
 
   function handleSelect(id: number) {
-    onChange(id === value ? null : id)
-    setOpen(false)
+    onChange(id === value ? null : id);
+    setOpen(false);
   }
 
   return (
@@ -57,7 +57,7 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
         >
           {selected
             ? `${selected.first_name} ${selected.last_name}`
-            : 'Select employee…'}
+            : "Select employee…"}
           <CaretUpDownIcon className="ml-2 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -80,8 +80,8 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
                 >
                   <CheckIcon
                     className={cn(
-                      'mr-2',
-                      employee.id === value ? 'opacity-100' : 'opacity-0',
+                      "mr-2",
+                      employee.id === value ? "opacity-100" : "opacity-0",
                     )}
                   />
                   {employee.first_name} {employee.last_name}
@@ -92,5 +92,5 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
         </Command>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

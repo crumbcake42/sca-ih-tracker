@@ -2,16 +2,16 @@ import type {
   ColumnDef,
   OnChangeFn,
   PaginationState,
-} from '@tanstack/react-table'
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
-} from '@tanstack/react-table'
-import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
+} from "@tanstack/react-table";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -19,22 +19,22 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 
 interface DataTableProps<TData> {
-  columns: ColumnDef<TData>[]
-  data: TData[]
-  pagination: PaginationState
-  onPaginationChange: OnChangeFn<PaginationState>
+  columns: ColumnDef<TData>[];
+  data: TData[];
+  pagination: PaginationState;
+  onPaginationChange: OnChangeFn<PaginationState>;
   /** Total number of pages (from API response). */
-  pageCount: number
-  isLoading?: boolean
-  error?: unknown
+  pageCount: number;
+  isLoading?: boolean;
+  error?: unknown;
   /** Called when a data row is clicked. */
-  onRowClick?: (row: TData) => void
-  emptyMessage?: string
+  onRowClick?: (row: TData) => void;
+  emptyMessage?: string;
   /** Number of skeleton rows to show while loading. */
-  skeletonRows?: number
+  skeletonRows?: number;
 }
 
 export function DataTable<TData>({
@@ -46,7 +46,7 @@ export function DataTable<TData>({
   isLoading = false,
   error,
   onRowClick,
-  emptyMessage = 'No results.',
+  emptyMessage = "No results.",
   skeletonRows = 5,
 }: DataTableProps<TData>) {
   const table = useReactTable({
@@ -57,11 +57,11 @@ export function DataTable<TData>({
     pageCount,
     manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
-  const colCount = columns.length
-  const rows = table.getRowModel().rows
-  const hasData = !isLoading && !error && rows.length > 0
+  const colCount = columns.length;
+  const rows = table.getRowModel().rows;
+  const hasData = !isLoading && !error && rows.length > 0;
 
   return (
     <div className="space-y-2">
@@ -89,7 +89,7 @@ export function DataTable<TData>({
                 colSpan={colCount}
                 className="py-8 text-center text-destructive"
               >
-                {error instanceof Error ? error.message : 'An error occurred.'}
+                {error instanceof Error ? error.message : "An error occurred."}
               </TableCell>
             </TableRow>
           ) : isLoading ? (
@@ -118,7 +118,7 @@ export function DataTable<TData>({
                 onClick={
                   onRowClick ? () => onRowClick(row.original) : undefined
                 }
-                className={onRowClick ? 'cursor-pointer' : undefined}
+                className={onRowClick ? "cursor-pointer" : undefined}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
@@ -157,5 +157,5 @@ export function DataTable<TData>({
         </div>
       )}
     </div>
-  )
+  );
 }
