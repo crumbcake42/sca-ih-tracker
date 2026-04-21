@@ -94,7 +94,22 @@ These shape every decision below. Skim before each session.
 2. **One task per screen in the manager portal.** No 40-field edit forms. Every action is its own focused page or modal.
 3. **All server state through TanStack Query.** Never store API responses in Zustand or component state. Cache invalidation is the routing mechanism — master it early.
 4. **Every entity combobox supports inline create.** A user staring at a combobox with no matching options should be able to create the missing entity in a modal without losing their form context.
-5. **Colocate by feature, not by file type.** `src/features/projects/{routes,components,hooks,types}.ts`, not `src/components/*`, `src/hooks/*`. This is critical for scalability — when feedback lands, you want to change one folder, not grep across five. **Rubric for shared/ vs features/:** a file belongs in `src/shared/` only if it passes all three: (1) _import test_ — no entity-specific type/hook imported; (2) _counterfactual_ — would exist even with only one admin entity; (3) _what-vs-how_ — describes _how_ we render, not _what_ the domain is. "Feature" means domain slice — generic scaffolding never goes under `features/` regardless of size.
+5. **Three-tier composition: routes → pages → features.** The source tree is organized into four layers with a strict one-direction import graph:
+
+   | Layer | Lives at | Responsibility |
+   |---|---|---|
+   | Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks. shadcn primitives, DataTable, shared hooks. |
+   | Features | `src/features/<domain>/` | Routing-agnostic domain components (take props, emit callbacks), domain api wrappers, domain types. Never import from `pages/` or `routes/`. |
+   | Pages | `src/pages/<route>/` | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, route loader data, page-level error/suspense. Import from features. Never import from `routes/`. |
+   | Routes | `src/routes/` | TanStack Router file-based config only (path, loader, `beforeLoad`, `validateSearch`). Import only from `pages/`. |
+
+   **§5a — API wrapper layer.** Every feature that calls the backend owns `features/<domain>/api/`. Call sites (feature components, pages) import `*Options`, `*Mutation`, `*QueryKey` helpers from this file under domain-owned names — never directly from `@/api/generated/`. Wrappers are added just-in-time (when first used), not pre-mapped. Raw `sdk.gen` functions are used only inside wrapper files for composed/imperative operations. Rule: `listSchoolsOptions`, not `listEntriesSchoolsGetOptions`.
+
+   **§5b — Types policy.** Any interface representing a backend payload must be imported from `@/api/generated/types.gen.ts`. If a type is missing or a generated function returns `unknown`, that is a backend bug — fix the FastAPI response model and regenerate. Do not hand-roll the type.
+
+   **§5c — Routing policy.** `/login` is the only public route. All other routes live under `_authenticated/`. `_authenticated.tsx` performs a real async token-validity check (calls `/users/me`; on failure clears auth and redirects to `/login`). The authenticated index route (`/`) role-routes: `admin` | `superadmin` → `/admin`; everyone else → `/dashboard`.
+
+   **§5d — Import boundaries.** Enforced with eslint `no-restricted-imports`: features cannot import from `pages/` or `routes/`; pages cannot import from `routes/` (use `getRouteApi('/path')` instead); routes cannot import from `features/` or `@/api/generated/`. Cross-cutting code (`src/auth/store.ts`, `src/lib/`) is exempt.
 6. **Generated API client is the source of truth for types.** Never hand-write a type that could be derived from the schema. Re-run codegen after every backend change.
 7. **Forms: schema-first.** Derive zod schemas from the generated types where possible. Manual zod only for cross-field rules the backend validates but schema can't express.
 8. **Route-level guards, not component-level.** Authentication + role gating lives in `beforeLoad`. A component that renders is a component that has already passed the gate.
@@ -107,7 +122,7 @@ These shape every decision below. Skim before each session.
 
 ### PATTERNS.md
 
-Create `src/PATTERNS.md` after the generics-extraction session (planned after Employees, ~Session 2.x) once `EntityConfig`, `EntityListPage`, and `EntityFormPage` have been validated against two concrete entities (Schools + Employees). Capture: DataTable column config shape, EntityConfig type, form field patterns, query invalidation patterns. Update it whenever a pattern solidifies or changes.
+`src/PATTERNS.md` is created as part of the structural refactor (before Session 1.5). It codifies the three-tier layering rules, API wrapper policy, types policy, and routing policy established in the restructure plan. Add to it whenever a pattern solidifies: DataTable column config shape, form field patterns, query invalidation patterns, `EntityConfig`/`EntityListPage`/`EntityFormPage` once extracted after Session 2.2.
 
 ### Storybook
 
@@ -129,60 +144,77 @@ Each session must end with an update to `frontend/HANDOFF.md` using this format:
 
 ---
 
-## Suggested repo layout
+## Repo layout
 
 ```
 src/
-├── main.tsx
-├── router.tsx                     # tanstack-router setup, root + notFound
-├── env.ts                         # Vite env vars, typed
-├── featureFlags.ts                # Phase 6.5 toggles
+├── components/              # shared UI primitives (no domain knowledge)
+│   ├── ui/                  # shadcn primitives — do not edit; regenerated by shadcn CLI
+│   ├── AppShell.tsx         # top-nav shell used by _authenticated layout
+│   └── DataTable.tsx        # generic TanStack Table wrapper
+├── hooks/                   # shared React hooks (useDebounce, useUrlPagination, useUrlSearch, useFormDialog)
+├── fields/                  # shared form fields used across ≥2 features (SchoolCombobox, EmployeeCombobox)
+├── lib/                     # pure stateless utilities; shadcn components reference @/lib/utils — do not rename
+│   ├── utils.ts             # cn()
+│   └── form-errors.ts       # applyServerErrors (FastAPI 422 → RHF setError)
 │
 ├── api/
-│   ├── generated/                 # @hey-api/openapi-ts output — do not hand-edit
-│   ├── client.ts                  # configured base client + auth interceptor
-│   └── queryClient.ts             # TanStack Query singleton + defaults
+│   ├── client.ts            # createClientConfig + setTokenGetter
+│   ├── queryClient.ts       # TanStack Query singleton
+│   └── generated/           # @hey-api/openapi-ts output — do not hand-edit
+│       ├── sdk.gen.ts
+│       ├── types.gen.ts
+│       ├── @tanstack/react-query.gen.ts
+│       └── …
 │
 ├── auth/
-│   ├── store.ts                   # Zustand: user, token, setters
-│   ├── guards.ts                  # requireAuth / requireAdmin / requirePermission
-│   └── hooks.ts                   # useCurrentUser, useLogin, useLogout
+│   └── store.ts             # Zustand: user, token, setAuth, clearAuth; wires client config + 401 interceptor
 │
-├── shared/
-│   ├── components/                # layout shells (AppShell), generic data components (DataTable)
-│   │   └── ui/                    # shadcn primitives
-│   ├── fields/                    # <SchoolCombobox>, <EmployeeCombobox>, ... (may query one entity — still shared because role is reusable field primitive)
-│   └── hooks/                     # useFormDialog, useUrlPagination, useUrlSearch, useDebounce, etc.
-│                                  # generic EntityListPage / EntityFormPage extracted here after Schools+Employees validate the shape
-│
-├── features/
+├── features/                # domain building blocks — routing-agnostic
+│   ├── auth/
+│   │   ├── components/      # LoginForm (prop-driven, onSubmit callback)
+│   │   └── api/             # useLogin, useLogout, useCurrentUser, useIsAuthenticated
 │   ├── schools/
-│   ├── employees/
-│   ├── wa-codes/
-│   ├── deliverables/
-│   ├── sample-config/
-│   ├── sample-batches/
-│   ├── contractors/
-│   ├── hygienists/
-│   ├── users/
+│   │   ├── components/      # SchoolsList, SchoolDetail, SchoolImportDialog (prop-driven)
+│   │   └── api/             # listSchoolsOptions, getSchoolOptions, batchImportSchoolsMutation, …
 │   ├── projects/
-│   ├── work-auths/
-│   ├── rfas/
-│   ├── notes/                     # <NotesPanel> polymorphic
-│   └── manager/
+│   │   ├── components/      # ProjectList, ProjectCard, … (prop-driven)
+│   │   └── api/             # listProjectsOptions, …
+│   ├── employees/
+│   ├── contractors/
+│   ├── notes/               # <NotesPanel entityType entityId> — polymorphic
+│   └── …
 │
-└── routes/                        # tanstack-router file-based tree (do not hand-edit routeTree.gen.ts)
-    ├── __root.tsx
-    ├── index.tsx                  # redirects to /projects
-    ├── login.tsx
-    ├── _authenticated.tsx         # auth guard + AppShell layout
-    └── _authenticated/
-        ├── projects/
-        │   └── index.tsx          # project list ✓
-        └── … (all future protected routes)
+├── pages/                   # URL-bound compositions — own getRouteApi, URL state, loader data
+│   ├── login/index.tsx
+│   ├── dashboard/index.tsx  # placeholder until Phase 5
+│   ├── projects/index.tsx
+│   └── admin/
+│       ├── index.tsx
+│       └── schools/
+│           ├── index.tsx
+│           └── detail.tsx
+│
+├── routes/                  # TanStack Router file-based tree — import ONLY from @/pages/
+│   ├── __root.tsx
+│   ├── login.tsx            # only public route
+│   ├── _authenticated.tsx   # async token-validity guard + AppShell layout
+│   └── _authenticated/
+│       ├── index.tsx        # role-router: admin/superadmin → /admin, else → /dashboard
+│       ├── dashboard.tsx
+│       ├── projects/index.tsx
+│       └── admin/
+│           ├── index.tsx
+│           └── schools/
+│               ├── index.tsx
+│               └── $schoolId.tsx
+│
+├── router.tsx               # TanStack Start entry (getRouter)
+├── routeTree.gen.ts         # generated by TanStack Router plugin — do not hand-edit
+└── styles.css
 ```
 
-> **Current state:** Migration complete. All components live under `src/shared/components/`. Import alias is `@/` throughout — `@/components/*` resolves to `src/shared/components/*` via tsconfig paths.
+> **Import alias:** `@/*` → `src/*`. No `#/` — that is the Node subpath alias, not the Vite/TS alias. Rewrite any shadcn-CLI-generated `#/` imports to `@/`.
 
 ---
 
@@ -199,10 +231,11 @@ src/
   - Login mutation manually sends form-encoded body (OAuth2 password flow)
   - 401 interceptor clears auth and redirects to `/login`
 
-- [x] **Session 0.3** — Routing and guards
-  - `src/routes/_authenticated.tsx` — pathless layout route; `beforeLoad` guards all child routes; renders `AppShell` with `<Outlet />`
-  - `src/routes/login.tsx` — public; redirects to `/` if already authenticated; uses `Field`/`FieldGroup`/`FieldError` + `standardSchemaResolver`
-  - `src/routes/index.tsx` — `beforeLoad` redirects to `/projects`
+- [x] **Session 0.3** — Routing and guards _(updated by restructure — see HANDOFF.md)_
+  - `src/routes/_authenticated.tsx` — pathless layout; `beforeLoad` performs async token-validity check via `/users/me`; on failure clears auth + redirects to `/login`; renders `AppShell` + `<Outlet />`
+  - `src/routes/login.tsx` — public; redirects if already authenticated; renders `<LoginPage/>` from `@/pages/login`
+  - `src/routes/_authenticated/index.tsx` — role-router: `admin` | `superadmin` → `/admin`; everyone else → `/dashboard`
+  - `src/routes/_authenticated/dashboard.tsx` — placeholder page until Phase 5
 
 - [x] **Session 0.4** — Layout shell _(simplified vs original plan)_
   - `src/shared/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out
