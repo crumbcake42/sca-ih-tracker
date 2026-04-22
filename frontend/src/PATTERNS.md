@@ -101,3 +101,17 @@ Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handle
 - **Location:** test files live as `*.test.tsx` (or `.test.ts`) siblings inside the same feature or component folder. `src/test/` is for infrastructure only (setup, helpers, smoke test).
 - **`renderWithProviders`:** import from `@/test/renderWithProviders`. Wraps children in a fresh `QueryClient` (retries off, gcTime 0). Use for any component that calls `useQuery` / `useMutation`. Add router wrapping to this helper when the first router-aware test is written.
 - **Mock strategy:** prefer real in-memory data (pass props); use `vi.fn()` for callbacks; defer MSW / network mocking until a test genuinely needs it.
+- **`createTestQueryClient`:** import from `@/test/queryClient`. Shared by both `renderWithProviders` and the Storybook preview decorator — retries off, gcTime 0.
+- **Vitest workspace:** `pnpm test` runs the `unit` project (jsdom). `pnpm test:stories` runs the `storybook` project (Playwright — requires `pnpm exec playwright install` on first use).
+
+---
+
+## Storybook
+
+- **Dev server:** `pnpm storybook` (port 6006). **Build:** `pnpm build-storybook`.
+- **Story location:** `*.stories.tsx` sibling to the component file (same convention as `*.test.tsx`). New shared components get a story in the same session they are built.
+- **Type imports:** use `@storybook/react-vite` for `Meta`, `StoryObj`, `Decorator`, `Preview` — it re-exports everything from `@storybook/react`.
+- **Global QueryClient decorator:** every story is automatically wrapped in a fresh `QueryClient` (via `.storybook/preview.tsx`). No network calls ever hit in stories.
+- **Pre-seeding cache:** for components that call `useQuery` internally, use a per-story decorator that calls `queryClient.setQueryData(domainQueryKey(args), fixture)` inside a `useEffect`. Import the `*QueryKey` helper from the feature's `api/` wrapper, not from `@/api/generated/` directly.
+- **Naming conflicts:** avoid exporting stories with names that collide with JS globals (`Error`, `Promise`, etc.). Use a display name override: `export const TableError: Story = { name: "Error", ... }`.
+- **TanStack Start filter:** `.storybook/main.ts` strips any plugin whose name contains `"tanstack"` in `viteFinal` — same reason vitest uses its own config (SSR transforms break the browser build).

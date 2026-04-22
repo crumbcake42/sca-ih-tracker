@@ -2,9 +2,33 @@
 
 ## Current State
 
-**Sessions 0.5 and 1.1–1.5 complete. Structural refactor complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built. Testing infrastructure is now wired (`vitest` + jsdom + RTL + jest-dom + user-event).
+**Sessions 0.5 and 1.1–1.6 complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built. Testing infrastructure wired (`vitest` + jsdom + RTL + jest-dom + user-event). Storybook 10 configured and stories written for all shared components.
 
-## What Was Done This Session (Session 0.5 — Test Infrastructure)
+## What Was Done This Session (Session 1.6 — Storybook)
+
+**Done:**
+
+- Installed Storybook 10 (`storybook`, `@storybook/react-vite`, `@storybook/addon-a11y`, `@storybook/addon-docs`, `@storybook/addon-vitest`, `@chromatic-com/storybook`, `@vitest/browser`, `@vitest/coverage-v8`, `playwright`)
+- `.storybook/main.ts` — framework `@storybook/react-vite`; addons; `viteFinal` strips all `"tanstack"` plugins to avoid SSR transform errors (same fix as vitest's dedicated config)
+- `.storybook/preview.tsx` — imports `../src/styles.css` (Tailwind tokens); global `withQueryClient` decorator wraps every story in a fresh `QueryClient` (retries off, gcTime 0)
+- `src/test/queryClient.ts` — extracted `createTestQueryClient()` shared by both `renderWithProviders` and the Storybook preview decorator
+- `src/features/employees/api/employees.ts` — created just-in-time api wrapper exporting `listEmployeesOptions` / `listEmployeesQueryKey`
+- Wrote five story files:
+  - `src/components/DataTable.stories.tsx` — Default, Loading, Empty, Error variants
+  - `src/components/AppShell.stories.tsx` — Default (admin user seeded in Zustand), Unauthenticated; memory-router decorator for `<Link>` components
+  - `src/fields/SchoolCombobox.stories.tsx` — Default, WithSelection; cache pre-seeded via `listSchoolsQueryKey`
+  - `src/fields/EmployeeCombobox.stories.tsx` — Default, WithSelection; cache pre-seeded via `listEmployeesQueryKey`
+  - `src/features/notes/components/NotesPanel.stories.tsx` — Populated (manual + system + resolved notes), Empty
+- Vitest workspace split into two named projects: `unit` (jsdom, `pnpm test`) and `storybook` (Playwright, `pnpm test:stories`); `pnpm test` targets only `unit` so it never needs Playwright
+- Deleted wizard-generated `src/stories/` boilerplate
+- `src/PATTERNS.md` — added Storybook section
+- `pnpm test` → 2/2 green; `tsc --noEmit` clean
+
+**Next:** Session 2.1 — Employees admin CRUD (second concrete entity; validates generics shape)
+
+**Blockers:** `pnpm test:stories` (Storybook/Playwright integration) requires `pnpm exec playwright install chromium` before first use. Not a blocker for regular development.
+
+## What Was Done Previously (Session 0.5 — Test Infrastructure)
 
 **Done:**
 
@@ -16,25 +40,6 @@
 - Created `src/test/smoke.test.tsx` — 2 tests: RTL + jest-dom render assertion, `@/` alias resolution via `cn()`
 - `pnpm test` → 2/2 green; `tsc --noEmit` and `pnpm check` clean
 - Added **Testing** section to `src/PATTERNS.md`
-
-**Next:** Session 1.6 — Storybook setup (install + one story per exported shared component; NotesPanel story included)
-
-**Blockers:** none. Back-filling tests for Sessions 1.1–1.5 is a planned follow-up (each session's own slice), not a blocker for Session 1.6.
-
-## What Was Done Previously (Session 1.5 — NotesPanel)
-
-**Done:**
-
-- Created `src/features/notes/api/notes.ts` — re-export wrapper: `listNotesOptions`, `listNotesQueryKey`, `createNoteMutation`, `createNoteReplyMutation`, `resolveNoteMutation`
-- Created `src/features/notes/components/NoteComposer.tsx` — top-level note form (body + is_blocking checkbox, zod + standardSchemaResolver, applyServerErrors on 422)
-- Created `src/features/notes/components/ResolveNoteDialog.tsx` — resolve dialog requiring mandatory resolution_note
-- Created `src/features/notes/components/NoteItem.tsx` — single note row with system/blocking/resolved badges, inline reply form, collapsible replies disclosure, Resolve dialog integration; system notes omit Resolve button; resolved notes hide action row
-- Created `src/features/notes/components/NotesPanel.tsx` — top-level panel; query + loading skeleton + empty state + NoteComposer above list
-- `pnpm check` and `tsc --noEmit` clean
-
-**Next:** Session 1.6 — Storybook setup (install + one story per exported shared component; NotesPanel story included)
-
-**Blockers:** Session 0.5 (vitest + RTL infra) is still pending — notes tests deferred until that infra lands
 
 ## Architecture Notes
 
@@ -77,14 +82,3 @@ Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handle
 `useReactTable` is called with `manualPagination: true` and `pageCount` from the API response (total ÷ page size). The route is responsible for declaring `validateSearch` with `page` / `pageSize` / filter params; `useUrlPagination` and `useUrlSearch` read them via `useSearch({ strict: false })` so they work generically across routes.
 
 Routes that use pagination must call `useUrlPagination` and pass `{ pagination, onPaginationChange }` to `<DataTable>`. Column definitions are declared as a module-level constant (`const columns: ColumnDef<T>[] = [...]`) outside the component to avoid re-creating the array on each render.
-
-## Next Step
-
-**Session 1.5 — Notes panel.**
-
-Build `<NotesPanel entityType entityId>` in `src/features/notes/components/NotesPanel.tsx`. Key constraints from ROADMAP.md:
-
-- System notes (`note_type != null`) get distinct visual treatment and no Resolve button
-- Replies are one level deep; collapse/expand
-- One component serves all four entity types (`project` | `time_entry` | `deliverable` | `sample_batch`)
-- Wrap `listNotesNotesEntityTypeEntityIdGetOptions` etc. under `src/features/notes/api/notes.ts` before using in the component
