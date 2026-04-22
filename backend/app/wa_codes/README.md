@@ -23,6 +23,6 @@ This same distinction controls deliverable row granularity: project-level codes 
 
 ## Before you modify
 
-- **Changing a code's `level`** after it has been assigned to any WA will produce inconsistent data — existing `work_auth_project_codes` or `work_auth_building_codes` rows will have the wrong level. Treat `level` as immutable once a code is in use.
+- **`level` is immutable.** `PATCH /wa-codes/{id}` returns 422 if `level` is in the payload and differs from the stored value — no reference check, no exceptions. This is intentional: any reference check creates a window where a code can be changed before it's in use, and the downstream data corruption risk is not worth it.
 - **Adding new codes** requires re-evaluating `deliverable_wa_code_triggers` seed data in `app/scripts/db.py` to determine whether the new code should auto-create deliverable rows when added to a project.
 - **Deleting a code** is blocked by `ondelete="RESTRICT"` on all FK references from `work_auth_project_codes`, `work_auth_building_codes`, `rfa_project_codes`, `rfa_building_codes`, `sample_type_wa_codes`, and `deliverable_wa_code_triggers`. A code in use cannot be deleted at the DB level.
