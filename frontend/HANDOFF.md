@@ -12,6 +12,41 @@
 
 **Sessions 0.5 and 1.1–1.7 complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built. Testing infrastructure wired (`vitest` + jsdom + RTL + jest-dom + user-event). Storybook 10 configured and stories written for all shared components. Line-ending policy and format-on-save toolchain fixed.
 
+## Session 2.1 — BLOCKED (backend first)
+
+Frontend Session 2.1 (Employees admin CRUD) is blocked pending backend work.
+User will complete backend changes in a separate session before resuming.
+
+Backend must add, in order:
+
+1. `POST /employees/`, `PATCH /employees/{id}`, `DELETE /employees/{id}` — individual
+   Employee create/update/delete. Expose `EmployeeCreate` / `EmployeeUpdate` Pydantic
+   schemas so the generated TS client picks up the types.
+2. Pagination + search on `GET /employees/`: add `skip` / `limit` / `search` query
+   params; return `PaginatedResponse[Employee]` (same wrapper as Schools). Search
+   should cover `first_name`, `last_name`, `email`, `adp_id`.
+3. Regenerate frontend client: `pnpm dlx @hey-api/openapi-ts` (backend running).
+
+**Confirm before resuming 2.1:**
+- [ ] `types.gen.ts` has `EmployeeCreate`, `EmployeeUpdate`, and
+      `PaginatedResponse_Employee_` (or equivalent).
+- [ ] SDK has `createEmployee*`, `updateEmployee*`, `deleteEmployee*`, and
+      `listEmployees*` accepts `{ query: { skip, limit, search } }`.
+- [ ] `GET /employees/` response shape is `{ items, total, limit, skip }`.
+
+**Also on resume (small cleanup, not blocking):**
+- `src/fields/EmployeeCombobox.tsx` imports from `@/api/generated/` directly;
+  route it through `@/features/employees/api/employees.ts` for consistency with
+  the wrapper-layer rule in `frontend/CLAUDE.md`.
+
+**Error surfaces to plan for (backend already returns these):**
+- Role create `POST /employees/{id}/roles` → **409** on date-range overlap for
+  the same `role_type`. Render inline, not a generic toast.
+- Role update `PATCH /employees/roles/{role_id}` → **422** when
+  `end_date <= start_date`. Map via `applyServerErrors`.
+
+---
+
 ## What Was Done This Session (Session 1.7 — Storybook cleanup + tooling)
 
 **Done:**
