@@ -46,7 +46,11 @@ export const Default: Story = {
       return <Story />;
     },
   ],
-  args: { children: <div className="p-4 text-muted-foreground">Page content goes here.</div> },
+  args: {
+    children: (
+      <div className="p-4 text-muted-foreground">Page content goes here.</div>
+    ),
+  },
 };
 
 export const Unauthenticated: Story = {
@@ -56,5 +60,9 @@ export const Unauthenticated: Story = {
       return <Story />;
     },
   ],
-  args: { children: <div className="p-4 text-muted-foreground">Page content goes here.</div> },
+  args: {
+    children: (
+      <div className="p-4 text-muted-foreground">Page content goes here.</div>
+    ),
+  },
 };

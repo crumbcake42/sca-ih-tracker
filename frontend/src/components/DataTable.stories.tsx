@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { useState } from "react";
-import type { PaginationState } from "@tanstack/react-table";
 import { DataTable } from "./DataTable";
 
 type Row = { id: number; name: string; code: string };
@@ -17,9 +16,23 @@ const rows: Row[] = [
   { id: 3, code: "Q003", name: "PS 3" },
 ];
 
-function Wrapper(props: Omit<Parameters<typeof DataTable<Row>>[0], "pagination" | "onPaginationChange">) {
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
-  return <DataTable {...props} pagination={pagination} onPaginationChange={setPagination} />;
+function Wrapper(
+  props: Omit<
+    Parameters<typeof DataTable<Row>>[0],
+    "pagination" | "onPaginationChange"
+  >,
+) {
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  return (
+    <DataTable
+      {...props}
+      pagination={pagination}
+      onPaginationChange={setPagination}
+    />
+  );
 }
 
 const meta: Meta<typeof Wrapper> = {
@@ -44,5 +57,10 @@ export const Empty: Story = {
 
 export const TableError: Story = {
   name: "Error",
-  args: { columns, data: [], pageCount: 0, error: new Error("Failed to load data.") },
+  args: {
+    columns,
+    data: [],
+    pageCount: 0,
+    error: new Error("Failed to load data."),
+  },
 };

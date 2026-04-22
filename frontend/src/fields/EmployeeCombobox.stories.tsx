@@ -1,7 +1,7 @@
 import type { Meta, StoryObj, Decorator } from "@storybook/react-vite";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+
 import type { Employee } from "@/api/generated/types.gen";
 import { listEmployeesQueryKey } from "@/features/employees/api/employees";
 import { EmployeeCombobox } from "./EmployeeCombobox";
