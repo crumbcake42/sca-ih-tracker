@@ -163,11 +163,11 @@ Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str
 - [x] `app/common/guards.py` — `assert_deletable(refs: dict[str, int]) -> None`; raises `HTTPException(409, {"blocked_by": [label for label, count in refs.items() if count > 0]})` if any count is nonzero; no-op otherwise. Thin wrapper so routers stay readable.
 - [x] Add PATTERNS.md entry **#14 — Guarded DELETE**: `_get_{entity}_references` helper + `assert_deletable` + TOCTOU note (connections endpoint result is stale by delete time; delete guard re-runs independently).
 
-**Session B — Employees:**
+**Session B — Employees:** ✓ COMPLETE
 
-- [ ] `_get_employee_references(db, employee_id)` — checks `time_entries.employee_id`, `sample_batch_inspectors.employee_id`
-- [ ] `GET /employees/{employee_id}/connections`
-- [ ] `DELETE /employees/{employee_id}` — guarded; `employee_roles` rows cascade automatically (existing `ondelete=CASCADE`)
+- [x] `_get_employee_references(db, employee_id)` — checks `time_entries.employee_id`, `sample_batch_inspectors.employee_id`
+- [x] `GET /employees/{employee_id}/connections`
+- [x] `DELETE /employees/{employee_id}` — guarded; `employee_roles` rows cascade automatically (existing `ondelete=CASCADE`)
 
 **Session C — Schools, Contractors, Hygienists:**
 

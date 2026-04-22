@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.common.factories import create_readonly_router
+from app.common.guards import assert_deletable
 from app.database import get_db
 from app.employees.models import Employee as EmployeeModel
 from app.employees.models import EmployeeRole as EmployeeRoleModel
@@ -16,6 +17,8 @@ from app.employees.schemas import (
     EmployeeUpdate,
 )
 from app.employees.service import generate_unique_display_name
+from app.lab_results.models import SampleBatchInspector
+from app.time_entries.models import TimeEntry
 from app.users.dependencies import get_current_user
 from app.users.models import User
 
@@ -151,6 +154,39 @@ async def update_employee(
     await db.commit()
     await db.refresh(employee)
     return employee
+
+
+# --- Employee reference / delete ---
+
+
+async def _get_employee_references(db: AsyncSession, employee_id: int) -> dict[str, int]:
+    time_entry_count = await db.scalar(
+        select(func.count()).select_from(TimeEntry).where(TimeEntry.employee_id == employee_id)
+    )
+    inspector_count = await db.scalar(
+        select(func.count())
+        .select_from(SampleBatchInspector)
+        .where(SampleBatchInspector.employee_id == employee_id)
+    )
+    return {"time_entries": time_entry_count or 0, "sample_batch_inspectors": inspector_count or 0}
+
+
+@router.get("/{employee_id}/connections")
+async def get_employee_connections(employee_id: int, db: AsyncSession = Depends(get_db)):
+    employee = await db.get(EmployeeModel, employee_id)
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return await _get_employee_references(db, employee_id)
+
+
+@router.delete("/{employee_id}", status_code=204)
+async def delete_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
+    employee = await db.get(EmployeeModel, employee_id)
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    assert_deletable(await _get_employee_references(db, employee_id))
+    await db.delete(employee)
+    await db.commit()
 
 
 # --- Employee role endpoints ---
