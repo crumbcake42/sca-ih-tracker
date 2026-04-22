@@ -7,11 +7,11 @@ import {
   GearIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { useCurrentUser, useLogout } from "@/auth/hooks";
+import { useAuthStore } from "@/auth/store";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const user = useCurrentUser();
-  const logout = useLogout();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.clearAuth);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -28,7 +28,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Projects
                 </Link>
               </Button>
-              {user?.role.name === "admin" && (
+              {(user?.role.name === "admin" ||
+                user?.role.name === "superadmin") && (
                 <Button variant="ghost" size="sm" asChild>
                   <Link
                     to="/admin/schools"

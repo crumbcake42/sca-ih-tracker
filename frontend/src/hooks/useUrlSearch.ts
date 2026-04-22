@@ -10,7 +10,7 @@ export function useUrlSearch(param = "search") {
   const navigate = useNavigate();
   const search = useSearch({ strict: false });
 
-  const value = String(search[param] ?? "");
+  const value = String((search as Record<string, unknown>)[param] ?? "");
 
   const setValue = (v: string) => {
     void navigate({

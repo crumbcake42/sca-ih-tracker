@@ -228,7 +228,7 @@ src/
 
 - [x] **Session 0.2** — Auth skeleton
   - `src/auth/store.ts` — Zustand store with `user`, `token`, `setAuth`, `clearAuth`; token persisted to `localStorage`
-  - `src/auth/hooks.ts` — `useLogin`, `useLogout`, `useCurrentUser`, `useIsAuthenticated`
+  - `src/features/auth/api/hooks.ts` — `useLogin`, `useLogout`, `useCurrentUser`, `useIsAuthenticated` _(moved from `src/auth/hooks.ts` during structural refactor)_
   - Login mutation manually sends form-encoded body (OAuth2 password flow)
   - 401 interceptor clears auth and redirects to `/login`
 
@@ -239,7 +239,7 @@ src/
   - `src/routes/_authenticated/dashboard.tsx` — placeholder page until Phase 5
 
 - [x] **Session 0.4** — Layout shell _(simplified vs original plan)_
-  - `src/shared/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out
+  - `src/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out _(moved from `src/shared/` during structural refactor)_
   - Single shell for now (no AdminShell / ManagerShell split yet — deferred until admin/manager routing split is built)
 
 - [ ] **Session 0.5** — Testing infrastructure
@@ -260,25 +260,25 @@ src/
 
 - [x] **Session 1.2** — Form primitives + field comboboxes
   - `src/lib/form-errors.ts` — `applyServerErrors<T>` maps FastAPI 422 `detail[]` onto RHF `setError`
-  - `src/shared/hooks/useDebounce.ts` — `useDebounce<T>(value, delayMs)`
-  - `src/shared/fields/SchoolCombobox.tsx` — server-side search, debounced 250ms
-  - `src/shared/fields/EmployeeCombobox.tsx` — full list fetched once, client-side filter
+  - `src/hooks/useDebounce.ts` — `useDebounce<T>(value, delayMs)`
+  - `src/fields/SchoolCombobox.tsx` — server-side search, debounced 250ms
+  - `src/fields/EmployeeCombobox.tsx` — full list fetched once, client-side filter
   - `useFormDialog()` — deferred; build when first needed by a concrete form
 
 - [x] **Session 1.3** — DataTable primitive
-  - `src/shared/components/DataTable.tsx` — generic `<DataTable<TData>>` on TanStack Table v8; `manualPagination: true`; loading skeleton, empty, and error slots; pagination controls hide during non-data states
-  - `src/shared/hooks/useUrlPagination.ts` — `useUrlPagination(defaultPageSize?)` syncs `PaginationState` ↔ `page`/`pageSize` URL params; `useSearch({ strict: false })` for route-agnostic reads
-  - `src/shared/hooks/useUrlSearch.ts` — `useUrlSearch(param?)` returns `[value, setValue]`; setValue resets `page` to prevent stale offsets
+  - `src/components/DataTable.tsx` — generic `<DataTable<TData>>` on TanStack Table v8; `manualPagination: true`; loading skeleton, empty, and error slots; pagination controls hide during non-data states
+  - `src/hooks/useUrlPagination.ts` — `useUrlPagination(defaultPageSize?)` syncs `PaginationState` ↔ `page`/`pageSize` URL params; `useSearch({ strict: false })` for route-agnostic reads
+  - `src/hooks/useUrlSearch.ts` — `useUrlSearch(param?)` returns `[value, setValue]`; setValue resets `page` to prevent stale offsets
   - Projects list migrated to use `<DataTable>` + `useUrlSearch` + `useUrlPagination`; `pageCount={1}` until backend wraps list responses with a total
   - `DataTable` lives in `src/shared/components/` (roadmap folder diagram updated to match)
 
 - [x] **Session 1.4** — Schools admin _(generics deferred; build concrete first)_
   - **Why deferred:** no consumer existed for generics; principle #10 says wait for the third duplicate. Schools + Employees will reveal the real shape.
-  - `src/features/schools/SchoolsListPage.tsx` — list with search, real skip/limit pagination, "Import CSV" button; columns: code, name, borough, address; `onRowClick` navigates to detail
-  - `src/features/schools/SchoolImportDialog.tsx` — file input, calls `POST /schools/batch/import`, invalidates list query, shows created count in toast
-  - `src/features/schools/SchoolDetailPage.tsx` — read-only display of all school fields
-  - `src/shared/hooks/useFormDialog.ts` — `useFormDialog(onClose?)` returns `{ open, setOpen, onOpenChange }` ✓
-  - Routes: `_authenticated/admin.tsx` (layout + `is_admin` guard), `admin/schools/index.tsx`, `admin/schools/$schoolId.tsx`
+  - `src/features/schools/components/{SchoolsList,SchoolDetail,SchoolImportDialog}.tsx` — prop-driven components _(split out during structural refactor; originally lived at `src/features/schools/*.tsx`)_
+  - `src/features/schools/api/schools.ts` — TanStack Query wrappers under domain names
+  - `src/pages/admin/schools/{index,detail}.tsx` — URL-state wiring
+  - `src/hooks/useFormDialog.ts` — `useFormDialog(onClose?)` returns `{ open, setOpen, onOpenChange }` ✓
+  - Routes: `_authenticated/admin.tsx` (layout + admin/superadmin guard), `admin/schools/index.tsx`, `admin/schools/$schoolId.tsx`
   - **Note on Schools API:** backend has no individual create/update/delete — only list, get-by-identifier, and CSV batch import. Admin pages are read-only + import only.
   - Test: list paginates correctly (real `total` from API); import dialog resets on close; detail page renders all fields
 

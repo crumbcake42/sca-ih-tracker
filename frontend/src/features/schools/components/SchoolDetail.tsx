@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { getSchoolSchoolsIdentifierGetOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { getSchoolOptions } from "@/features/schools/api/schools";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,22 +13,18 @@ interface Props {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-4 py-2 border-b last:border-0">
-      <dt className="w-28 shrink-0 text-sm    text-muted-foreground">
-        {label}
-      </dt>
+      <dt className="w-28 shrink-0 text-sm text-muted-foreground">{label}</dt>
       <dd className="text-sm">{value}</dd>
     </div>
   );
 }
 
-export function SchoolDetailPage({ schoolId }: Props) {
+export function SchoolDetail({ schoolId }: Props) {
   const {
     data: school,
     isLoading,
     error,
-  } = useQuery(
-    getSchoolSchoolsIdentifierGetOptions({ path: { identifier: schoolId } }),
-  );
+  } = useQuery(getSchoolOptions({ path: { identifier: schoolId } }));
 
   return (
     <div className="space-y-4">

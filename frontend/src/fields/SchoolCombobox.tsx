@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckIcon, CaretUpDownIcon } from "@phosphor-icons/react";
-import { listEntriesSchoolsGetOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { listSchoolsOptions } from "@/features/schools/api/schools";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +31,7 @@ export function SchoolCombobox({ value, onChange, disabled }: Props) {
   const debouncedSearch = useDebounce(search, 250);
 
   const { data } = useQuery(
-    listEntriesSchoolsGetOptions({
+    listSchoolsOptions({
       query: { search: debouncedSearch || null },
     }),
   );

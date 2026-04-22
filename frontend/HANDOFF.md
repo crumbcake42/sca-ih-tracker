@@ -2,31 +2,29 @@
 
 ## Current State
 
-**Phase 0 complete. Sessions 1.1 through 1.4 complete.** Schools admin (list, import dialog, detail), admin route guard, and `useFormDialog` are live. TypeScript is clean.
+**Phase 0 complete. Sessions 1.1 through 1.4 complete. Structural refactor complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added.
 
-> **PRIORITY: Execute the structural refactor before starting Session 1.5.** The plan is at `.claude/plans/i-want-to-update-wise-unicorn.md`. Session 1.5 (Notes panel) starts only after the refactor is done and TypeScript + lint are clean.
+## What Was Done This Session (structural refactor)
 
-## What Was Done This Session (architecture planning)
+**Done:**
 
-No code was written. This session finalized the frontend architecture and updated all documentation to reflect it.
+- Deleted dead code: `src/auth/{provider,context,types}.tsx`, `src/shared/components/{Header,Footer,ThemeToggle}.tsx`, `src/routes/{index,about}.tsx`, stray `console.log` in `_authenticated.tsx`
+- Flattened `src/shared/` → `src/{components,hooks,fields}/`; `src/lib/` unchanged
+- Removed `@/components/*` and `@/hooks/*` tsconfig aliases (only `@/*` remains); removed `#/*` from `package.json`
+- Created feature api/ wrappers: `features/schools/api/schools.ts`, `features/projects/api/projects.ts`, `features/auth/api/hooks.ts`; cross-cutting `src/auth/api.ts` for auth guard
+- Introduced `src/pages/` layer: login, dashboard (placeholder), projects list, admin overview, admin/schools list + detail
+- Split existing school + project route-body files into prop-driven feature components + URL-wired page files
+- Rewrote `_authenticated.tsx` guard: now async, calls `/users/me` via `queryClient.ensureQueryData`, clears auth and redirects on failure
+- Added `_authenticated/index.tsx` role-router (`admin`/`superadmin` → `/admin`, else → `/dashboard`)
+- Added `_authenticated/dashboard.tsx` and `_authenticated/admin/index.tsx` placeholder routes
+- Updated admin guard to include `superadmin` alongside `admin`
+- Added eslint `no-restricted-imports` rules enforcing layer boundaries
+- Created `src/PATTERNS.md`
+- `pnpm check` and `tsc --noEmit` clean
 
-### Decisions made
+**Next:** Session 1.5 — Notes panel (`<NotesPanel entityType entityId>`)
 
-- **Three-tier layout** — `routes/ → pages/ → features/ → components/hooks/fields/lib/`. Features are routing-agnostic (prop-driven). Pages own URL↔state wiring via `getRouteApi`. Route files are config-only and import only from `@/pages/`. Enforced via eslint `no-restricted-imports`.
-- **`src/shared/` flattened** — contents move to `src/{components,hooks,fields}/`. `src/lib/` stays (shadcn references it by name).
-- **`src/pages/` introduced** — one subdirectory per route; even single-feature routes get a page file so features stay routing-agnostic.
-- **API wrapper layer** — feature `api/` files re-export `*Options`/`*Mutation`/`*QueryKey` helpers under domain-owned names (TanStack Query layer only, just-in-time). No raw `sdk.gen` re-exports.
-- **Types policy** — all backend interfaces from `@/api/generated/types.gen.ts`; missing type = backend bug, not a frontend workaround.
-- **Auth guard** — must be async and validate token against `/users/me`, not just check for presence.
-- **Root `/` role-routes** — `admin|superadmin` → `/admin`; everyone else → `/dashboard` (placeholder page until Phase 5).
-- **Dead code identified** — `src/auth/{provider,context,types}.tsx`, `src/shared/components/{Header,Footer,ThemeToggle}.tsx`, `src/routes/{index,about}.tsx`.
-
-### Documents updated
-
-- `ROADMAP.md` — architecture principle §5 rewritten (three-tier layering + §5a–§5d sub-policies); repo layout diagram replaced; Phase 0.3 updated; PATTERNS.md note updated.
-- `HANDOFF.md` — this file; restructure priority added; folder table updated; Next Step rewritten as 11-step refactor checklist.
-- `CLAUDE.md` — fixed `#/` → `@/` bug; Architecture Notes rewritten with named subsections for three-tier structure, wrapper policy, and types policy.
-- Plan file — `.claude/plans/i-want-to-update-wise-unicorn.md` — full implementation plan with migration table, verification steps, and critical files list.
+**Blockers:** none
 
 ## Architecture Notes
 
@@ -34,9 +32,7 @@ No code was written. This session finalized the frontend architecture and update
 
 Use `@/` for all absolute imports. The `#/` prefix is wrong — do not use it even if shadcn CLI generates it. Always rewrite to `@/`.
 
-### Folder organization (post-refactor target)
-
-The refactor moves `src/shared/` into the root and introduces `src/pages/` and feature-level `api/` wrappers. See ROADMAP.md §5 and the plan file for the full migration table. After the refactor:
+### Folder organization
 
 | Kind                                       | Location                                      |
 | ------------------------------------------ | --------------------------------------------- |
@@ -52,7 +48,7 @@ The refactor moves `src/shared/` into the root and introduces `src/pages/` and f
 
 Do **not** create `src/utils/` — pure utilities belong in `src/lib/`.
 
-Import boundary rule: `routes/ → pages/ → features/ → components/, hooks/, fields/, lib/`. Features never import from `pages/` or `routes/`. Pages use `getRouteApi('/path')` and never import `Route` from a route file.
+Import boundary rule: `routes/ → pages/ → features/ → components/, hooks/, fields/, lib/`. Features never import from `pages/` or `routes/`. Pages use `getRouteApi('/path')` and never import `Route` from a route file. Enforced via eslint `no-restricted-imports`. See `src/PATTERNS.md` for full detail.
 
 ### validateSearch typing
 
@@ -74,22 +70,10 @@ Routes that use pagination must call `useUrlPagination` and pass `{ pagination, 
 
 ## Next Step
 
-**Execute the structural refactor (plan at `.claude/plans/i-want-to-update-wise-unicorn.md`), then Session 1.5 — Notes panel.**
+**Session 1.5 — Notes panel.**
 
-### Refactor scope
-
-1. Delete dead code: `src/auth/{provider,context,types}.tsx`, `src/shared/components/{Header,Footer,ThemeToggle}.tsx`, `src/routes/{index,about}.tsx`, stray `console.log` in `_authenticated.tsx`.
-2. Move `src/shared/{components,hooks,fields}` → `src/{components,hooks,fields}`. Update all import paths.
-3. Remove redundant tsconfig aliases (`@/components/*`, `@/hooks/*`); remove `"imports": { "#/*": ... }` from `package.json`.
-4. Create `src/pages/` with extracted page components (login, dashboard placeholder, projects list, admin/schools list+detail, admin overview).
-5. Create `src/features/auth/`, `src/features/projects/api/`, `src/features/schools/api/` with just-in-time wrappers. Move `src/auth/hooks.ts` → `src/features/auth/api/hooks.ts`.
-6. Refactor existing school/project components to be routing-agnostic (prop-driven, no `Route.useSearch` calls).
-7. Fix `_authenticated.tsx` guard: make `beforeLoad` async, call `/users/me` via `getMeUsersMeGetOptions`, on failure `clearAuth()` + `throw redirect({ to: '/login' })`.
-8. Add `_authenticated/index.tsx` role-router and `_authenticated/dashboard.tsx` placeholder.
-9. Create `src/PATTERNS.md` codifying the three-tier layering, wrapper policy, types policy, routing policy.
-10. Add eslint `no-restricted-imports` rules enforcing layer boundaries.
-11. Run `pnpm check` + `tsc --noEmit` + smoke-test the auth flows manually.
-
-### Blockers
-
-**Auth guard does not verify token validity.** `src/routes/_authenticated.tsx` only checks `useAuthStore.getState().token !== null`. Fixed in step 7 above.
+Build `<NotesPanel entityType entityId>` in `src/features/notes/components/NotesPanel.tsx`. Key constraints from ROADMAP.md:
+- System notes (`note_type != null`) get distinct visual treatment and no Resolve button
+- Replies are one level deep; collapse/expand
+- One component serves all four entity types (`project` | `time_entry` | `deliverable` | `sample_batch`)
+- Wrap `listNotesNotesEntityTypeEntityIdGetOptions` etc. under `src/features/notes/api/notes.ts` before using in the component

@@ -1,21 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { queryClient } from "../../../../api/queryClient";
-import { getSchoolSchoolsIdentifierGetOptions } from "../../../../api/generated/@tanstack/react-query.gen";
-import { SchoolDetailPage } from "../../../../features/schools/SchoolDetailPage";
+import { prefetchSchool } from "@/pages/admin/schools/loader";
+import { SchoolDetailPage } from "@/pages/admin/schools/detail";
 
 export const Route = createFileRoute("/_authenticated/admin/schools/$schoolId")(
   {
-    loader: ({ params }) =>
-      queryClient.ensureQueryData(
-        getSchoolSchoolsIdentifierGetOptions({
-          path: { identifier: params.schoolId },
-        }),
-      ),
-    component: SchoolDetailRoute,
+    loader: ({ params }) => prefetchSchool(params.schoolId),
+    component: SchoolDetailPage,
   },
 );
-
-function SchoolDetailRoute() {
-  const { schoolId } = Route.useParams();
-  return <SchoolDetailPage schoolId={schoolId} />;
-}

@@ -11,9 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
-  importBatchSchoolsBatchImportPostMutation,
-  listEntriesSchoolsGetQueryKey,
-} from "@/api/generated/@tanstack/react-query.gen";
+  batchImportSchoolsMutation,
+  listSchoolsQueryKey,
+} from "@/features/schools/api/schools";
 
 interface Props {
   open: boolean;
@@ -34,11 +34,9 @@ export function SchoolImportDialog({ open, onOpenChange }: Props) {
   } = useForm<FormValues>();
 
   const { mutate, isPending } = useMutation({
-    ...importBatchSchoolsBatchImportPostMutation(),
+    ...batchImportSchoolsMutation(),
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({
-        queryKey: listEntriesSchoolsGetQueryKey(),
-      });
+      void queryClient.invalidateQueries({ queryKey: listSchoolsQueryKey() });
       toast.success(`Imported ${data.created_items.length} school(s).`);
       reset();
       onOpenChange(false);

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SchoolsListPage } from "@/features/schools/SchoolsListPage";
+import { SchoolsListPage } from "@/pages/admin/schools";
 
 export const Route = createFileRoute("/_authenticated/admin/schools/")({
   validateSearch: (

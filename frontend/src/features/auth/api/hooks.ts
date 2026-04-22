@@ -3,9 +3,10 @@ import {
   getMeUsersMeGet,
   loginForAccessTokenAuthTokenPost,
 } from "@/api/generated/sdk.gen";
-// import { loginForAccessTokenAuthTokenPostMutation } from "@/api/generated/@tanstack/react-query.gen"
-import { useAuthStore } from "./store";
+import { useAuthStore } from "@/auth/store";
 
+// useLogin is a composed operation (token POST → /me GET → store update),
+// so it uses sdk.gen directly rather than re-exporting generated options.
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);
 
