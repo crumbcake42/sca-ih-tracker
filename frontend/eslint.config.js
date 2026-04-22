@@ -89,6 +89,6 @@ export default [
     },
   },
   {
-    ignores: ["eslint.config.js", "prettier.config.js", "src/api/generated/**"],
+    ignores: ["eslint.config.js", "prettier.config.js", "src/api/generated/**", "src/routeTree.gen.ts"],
   },
 ];

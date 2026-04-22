@@ -1,5 +1,11 @@
 # Session Handoff — Frontend
 
+## Backend changes pending frontend pickup
+
+**Regenerate the OpenAPI client** — the contractors module gained `GET /contractors/`, `GET /contractors/{id}`, `POST /contractors/`, and `PATCH /contractors/` endpoints (Phase 1.5 session 1). These did not exist before. Run the codegen command from `frontend/CLAUDE.md` after the backend is running.
+
+---
+
 ## Current State
 
 **Phase 0 complete. Sessions 1.1 through 1.4 complete. Structural refactor complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added.
