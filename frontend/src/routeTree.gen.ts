@@ -8,206 +8,206 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as LoginRouteImport } from "./routes/login";
-import { Route as AuthenticatedRouteImport } from "./routes/_authenticated";
-import { Route as AuthenticatedIndexRouteImport } from "./routes/_authenticated/index";
-import { Route as AuthenticatedDashboardRouteImport } from "./routes/_authenticated/dashboard";
-import { Route as AuthenticatedAdminRouteImport } from "./routes/_authenticated/admin";
-import { Route as AuthenticatedProjectsIndexRouteImport } from "./routes/_authenticated/projects/index";
-import { Route as AuthenticatedAdminIndexRouteImport } from "./routes/_authenticated/admin/index";
-import { Route as AuthenticatedAdminSchoolsIndexRouteImport } from "./routes/_authenticated/admin/schools/index";
-import { Route as AuthenticatedAdminSchoolsSchoolIdRouteImport } from "./routes/_authenticated/admin/schools/$schoolId";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminSchoolsIndexRouteImport } from './routes/_authenticated/admin/schools/index'
+import { Route as AuthenticatedAdminSchoolsSchoolIdRouteImport } from './routes/_authenticated/admin/schools/$schoolId'
 
 const LoginRoute = LoginRouteImport.update({
-  id: "/login",
-  path: "/login",
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: "/_authenticated",
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AuthenticatedRoute,
-} as any);
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: "/dashboard",
-  path: "/dashboard",
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
-} as any);
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: "/admin",
-  path: "/admin",
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
-} as any);
+} as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
-    id: "/projects/",
-    path: "/projects/",
+    id: '/projects/',
+    path: '/projects/',
     getParentRoute: () => AuthenticatedRoute,
-  } as any);
+  } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
-} as any);
+} as any)
 const AuthenticatedAdminSchoolsIndexRoute =
   AuthenticatedAdminSchoolsIndexRouteImport.update({
-    id: "/schools/",
-    path: "/schools/",
+    id: '/schools/',
+    path: '/schools/',
     getParentRoute: () => AuthenticatedAdminRoute,
-  } as any);
+  } as any)
 const AuthenticatedAdminSchoolsSchoolIdRoute =
   AuthenticatedAdminSchoolsSchoolIdRouteImport.update({
-    id: "/schools/$schoolId",
-    path: "/schools/$schoolId",
+    id: '/schools/$schoolId',
+    path: '/schools/$schoolId',
     getParentRoute: () => AuthenticatedAdminRoute,
-  } as any);
+  } as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof AuthenticatedIndexRoute;
-  "/login": typeof LoginRoute;
-  "/admin": typeof AuthenticatedAdminRouteWithChildren;
-  "/dashboard": typeof AuthenticatedDashboardRoute;
-  "/admin/": typeof AuthenticatedAdminIndexRoute;
-  "/projects/": typeof AuthenticatedProjectsIndexRoute;
-  "/admin/schools/$schoolId": typeof AuthenticatedAdminSchoolsSchoolIdRoute;
-  "/admin/schools/": typeof AuthenticatedAdminSchoolsIndexRoute;
+  '/': typeof AuthenticatedIndexRoute
+  '/login': typeof LoginRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
+  '/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
 }
 export interface FileRoutesByTo {
-  "/login": typeof LoginRoute;
-  "/dashboard": typeof AuthenticatedDashboardRoute;
-  "/": typeof AuthenticatedIndexRoute;
-  "/admin": typeof AuthenticatedAdminIndexRoute;
-  "/projects": typeof AuthenticatedProjectsIndexRoute;
-  "/admin/schools/$schoolId": typeof AuthenticatedAdminSchoolsSchoolIdRoute;
-  "/admin/schools": typeof AuthenticatedAdminSchoolsIndexRoute;
+  '/login': typeof LoginRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
+  '/admin/schools': typeof AuthenticatedAdminSchoolsIndexRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/_authenticated": typeof AuthenticatedRouteWithChildren;
-  "/login": typeof LoginRoute;
-  "/_authenticated/admin": typeof AuthenticatedAdminRouteWithChildren;
-  "/_authenticated/dashboard": typeof AuthenticatedDashboardRoute;
-  "/_authenticated/": typeof AuthenticatedIndexRoute;
-  "/_authenticated/admin/": typeof AuthenticatedAdminIndexRoute;
-  "/_authenticated/projects/": typeof AuthenticatedProjectsIndexRoute;
-  "/_authenticated/admin/schools/$schoolId": typeof AuthenticatedAdminSchoolsSchoolIdRoute;
-  "/_authenticated/admin/schools/": typeof AuthenticatedAdminSchoolsIndexRoute;
+  __root__: typeof rootRouteImport
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
+  '/_authenticated/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/login"
-    | "/admin"
-    | "/dashboard"
-    | "/admin/"
-    | "/projects/"
-    | "/admin/schools/$schoolId"
-    | "/admin/schools/";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/login'
+    | '/admin'
+    | '/dashboard'
+    | '/admin/'
+    | '/projects/'
+    | '/admin/schools/$schoolId'
+    | '/admin/schools/'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/login"
-    | "/dashboard"
-    | "/"
-    | "/admin"
-    | "/projects"
-    | "/admin/schools/$schoolId"
-    | "/admin/schools";
+    | '/login'
+    | '/dashboard'
+    | '/'
+    | '/admin'
+    | '/projects'
+    | '/admin/schools/$schoolId'
+    | '/admin/schools'
   id:
-    | "__root__"
-    | "/_authenticated"
-    | "/login"
-    | "/_authenticated/admin"
-    | "/_authenticated/dashboard"
-    | "/_authenticated/"
-    | "/_authenticated/admin/"
-    | "/_authenticated/projects/"
-    | "/_authenticated/admin/schools/$schoolId"
-    | "/_authenticated/admin/schools/";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/_authenticated'
+    | '/login'
+    | '/_authenticated/admin'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/'
+    | '/_authenticated/admin/'
+    | '/_authenticated/projects/'
+    | '/_authenticated/admin/schools/$schoolId'
+    | '/_authenticated/admin/schools/'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren;
-  LoginRoute: typeof LoginRoute;
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/login": {
-      id: "/login";
-      path: "/login";
-      fullPath: "/login";
-      preLoaderRoute: typeof LoginRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/_authenticated": {
-      id: "/_authenticated";
-      path: "";
-      fullPath: "/";
-      preLoaderRoute: typeof AuthenticatedRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/_authenticated/": {
-      id: "/_authenticated/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport;
-      parentRoute: typeof AuthenticatedRoute;
-    };
-    "/_authenticated/dashboard": {
-      id: "/_authenticated/dashboard";
-      path: "/dashboard";
-      fullPath: "/dashboard";
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport;
-      parentRoute: typeof AuthenticatedRoute;
-    };
-    "/_authenticated/admin": {
-      id: "/_authenticated/admin";
-      path: "/admin";
-      fullPath: "/admin";
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport;
-      parentRoute: typeof AuthenticatedRoute;
-    };
-    "/_authenticated/projects/": {
-      id: "/_authenticated/projects/";
-      path: "/projects";
-      fullPath: "/projects/";
-      preLoaderRoute: typeof AuthenticatedProjectsIndexRouteImport;
-      parentRoute: typeof AuthenticatedRoute;
-    };
-    "/_authenticated/admin/": {
-      id: "/_authenticated/admin/";
-      path: "/";
-      fullPath: "/admin/";
-      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport;
-      parentRoute: typeof AuthenticatedAdminRoute;
-    };
-    "/_authenticated/admin/schools/": {
-      id: "/_authenticated/admin/schools/";
-      path: "/schools";
-      fullPath: "/admin/schools/";
-      preLoaderRoute: typeof AuthenticatedAdminSchoolsIndexRouteImport;
-      parentRoute: typeof AuthenticatedAdminRoute;
-    };
-    "/_authenticated/admin/schools/$schoolId": {
-      id: "/_authenticated/admin/schools/$schoolId";
-      path: "/schools/$schoolId";
-      fullPath: "/admin/schools/$schoolId";
-      preLoaderRoute: typeof AuthenticatedAdminSchoolsSchoolIdRouteImport;
-      parentRoute: typeof AuthenticatedAdminRoute;
-    };
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/projects/': {
+      id: '/_authenticated/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof AuthenticatedProjectsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/schools/': {
+      id: '/_authenticated/admin/schools/'
+      path: '/schools'
+      fullPath: '/admin/schools/'
+      preLoaderRoute: typeof AuthenticatedAdminSchoolsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/schools/$schoolId': {
+      id: '/_authenticated/admin/schools/$schoolId'
+      path: '/schools/$schoolId'
+      fullPath: '/admin/schools/$schoolId'
+      preLoaderRoute: typeof AuthenticatedAdminSchoolsSchoolIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
-  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute;
-  AuthenticatedAdminSchoolsSchoolIdRoute: typeof AuthenticatedAdminSchoolsSchoolIdRoute;
-  AuthenticatedAdminSchoolsIndexRoute: typeof AuthenticatedAdminSchoolsIndexRoute;
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminSchoolsSchoolIdRoute: typeof AuthenticatedAdminSchoolsSchoolIdRoute
+  AuthenticatedAdminSchoolsIndexRoute: typeof AuthenticatedAdminSchoolsIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
@@ -215,16 +215,16 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminSchoolsSchoolIdRoute:
     AuthenticatedAdminSchoolsSchoolIdRoute,
   AuthenticatedAdminSchoolsIndexRoute: AuthenticatedAdminSchoolsIndexRoute,
-};
+}
 
 const AuthenticatedAdminRouteWithChildren =
-  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren);
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren;
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute;
-  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute;
-  AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute;
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -232,25 +232,25 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
-};
+}
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
-);
+)
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx";
-import type { createStart } from "@tanstack/react-start";
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true;
-    router: Awaited<ReturnType<typeof getRouter>>;
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
   }
 }
