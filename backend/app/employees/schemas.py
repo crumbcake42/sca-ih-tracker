@@ -22,6 +22,7 @@ OptionalPhone = Annotated[OptionalField[str], BeforeValidator(format_phone_numbe
 class EmployeeBase(BaseModel):
     first_name: str = Field(..., max_length=100)
     last_name: str = Field(..., max_length=100)
+    display_name: OptionalString = Field(None, max_length=255)
     title: OptionalTitle = None
     email: OptionalEmail = None
     phone: OptionalPhone = Field(None, pattern=PHONE_REGEX, max_length=14)
@@ -30,6 +31,16 @@ class EmployeeBase(BaseModel):
 
 class EmployeeCreate(EmployeeBase):
     pass
+
+
+class EmployeeUpdate(BaseModel):
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
+    display_name: OptionalString = Field(None, max_length=255)
+    title: OptionalTitle = None
+    email: OptionalEmail = None
+    phone: OptionalPhone = Field(None, pattern=PHONE_REGEX, max_length=14)
+    adp_id: OptionalString = Field(None, max_length=9, pattern=r"^[a-zA-Z0-9]{9}$")
 
 
 class Employee(EmployeeBase):

@@ -16,7 +16,8 @@ class Employee(Base, AuditMixin):
     first_name: Mapped[str] = mapped_column(String(100))
     last_name: Mapped[str] = mapped_column(String(100))
     title: Mapped[TitleEnum | None] = mapped_column(SQLEnum(TitleEnum))
-    email: Mapped[str | None] = mapped_column(String(255), index=True)
+    display_name: Mapped[str] = mapped_column(String(255), unique=True)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True)
     phone: Mapped[str | None] = mapped_column(String(14))
     adp_id: Mapped[str | None] = mapped_column(String(9), unique=True)
 
