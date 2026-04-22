@@ -10,12 +10,12 @@ Codifies the conventions established during the structural refactor. Read before
 routes/  →  pages/  →  features/*  →  components/, hooks/, fields/, lib/
 ```
 
-| Layer             | Location                                               | Responsibility                                                                              |
-| ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks. shadcn primitives, DataTable, shared hooks.          |
-| Features          | `src/features/<domain>/`                               | Routing-agnostic domain components (take props, emit callbacks) + domain API wrappers.     |
-| Pages             | `src/pages/<route>/`                                   | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, loader data consumption.      |
-| Routes            | `src/routes/`                                          | TanStack Router file-based config only (path, loader, `beforeLoad`, `validateSearch`).     |
+| Layer             | Location                                                   | Responsibility                                                                         |
+| ----------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks. shadcn primitives, DataTable, shared hooks.      |
+| Features          | `src/features/<domain>/`                                   | Routing-agnostic domain components (take props, emit callbacks) + domain API wrappers. |
+| Pages             | `src/pages/<route>/`                                       | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, loader data consumption.  |
+| Routes            | `src/routes/`                                              | TanStack Router file-based config only (path, loader, `beforeLoad`, `validateSearch`). |
 
 **Direction is strictly one-way.** Features never import from `pages/` or `routes/`. Pages use `getRouteApi('/path')` and never import `Route` from a route file. Routes import only from `@/pages/` and `@/auth/`.
 
@@ -30,16 +30,16 @@ Every feature that talks to the backend owns `src/features/<domain>/api/<domain>
 ```ts
 // features/schools/api/schools.ts
 export {
-  listEntriesSchoolsGetOptions    as listSchoolsOptions,
-  listEntriesSchoolsGetQueryKey   as listSchoolsQueryKey,
+  listEntriesSchoolsGetOptions as listSchoolsOptions,
+  listEntriesSchoolsGetQueryKey as listSchoolsQueryKey,
   importBatchSchoolsBatchImportPostMutation as batchImportSchoolsMutation,
 } from "@/api/generated/@tanstack/react-query.gen";
 ```
 
 **Rules:**
 
-- Feature *components* and *pages* never import from `@/api/generated/sdk.gen` or `@/api/generated/@tanstack/**` directly.
-- Feature *api/* wrapper files are the exception — they are the bridge to the generated layer.
+- Feature _components_ and _pages_ never import from `@/api/generated/sdk.gen` or `@/api/generated/@tanstack/**` directly.
+- Feature _api/_ wrapper files are the exception — they are the bridge to the generated layer.
 - Wrappers use domain-operation names, not HTTP-path names: `listSchoolsOptions`, not `listEntriesSchoolsGetOptions`.
 - Wrappers are added just-in-time (when first used), not pre-mapped.
 - Composed/imperative operations (multi-step mutations, get-or-create) may import from `sdk.gen` inside the wrapper file.

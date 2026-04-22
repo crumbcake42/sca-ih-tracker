@@ -282,7 +282,7 @@ src/
   - **Note on Schools API:** backend has no individual create/update/delete — only list, get-by-identifier, and CSV batch import. Admin pages are read-only + import only.
   - Test: list paginates correctly (real `total` from API); import dialog resets on close; detail page renders all fields
 
-- [ ] **Session 1.5** — Notes panel (polymorphic)
+- [x] **Session 1.5** — Notes panel (polymorphic)
   - `<NotesPanel entityType entityId>` — threaded notes, create, reply, resolve
   - System notes (`note_type != null`): distinct visual treatment, no resolve button
   - Replies collapse/expand
