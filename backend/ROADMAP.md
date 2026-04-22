@@ -145,7 +145,7 @@ app/
 
 ---
 
-### Phase 1.6 — Guarded DELETE and Connections Endpoints _(next)_
+### Phase 1.6 — Guarded DELETE and Connections Endpoints ✓ COMPLETE
 
 > Fills the missing D in CRUD for all thin reference entities. Done now (between Phase 6 and 6.5 in calendar order) because delete without referential guards is unsafe and the connections endpoint is a prerequisite for the frontend delete-confirmation UX.
 
@@ -178,12 +178,12 @@ Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str
 - [x] `_get_hygienist_references` — checks `project_hygienist_links`
 - [x] `GET /hygienists/{hygienist_id}/connections` + `DELETE /hygienists/{hygienist_id}` (upgraded existing unguarded DELETE)
 
-**Session D — WA Codes and Deliverables:**
+**Session D — WA Codes and Deliverables:** ✓ COMPLETE
 
-- [ ] `_get_wa_code_references` — checks `work_auth_project_codes`, `work_auth_building_codes`, `rfa_project_codes`, `rfa_building_codes`, `deliverable_wa_code_triggers`, `sample_type_wa_codes`
-- [ ] `GET /wa-codes/{wa_code_id}/connections` + `DELETE /wa-codes/{wa_code_id}`
-- [ ] `_get_deliverable_references` — checks `project_deliverables`, `project_building_deliverables`, `deliverable_wa_code_triggers`
-- [ ] `GET /deliverables/{deliverable_id}/connections` + `DELETE /deliverables/{deliverable_id}`
+- [x] `_get_wa_code_references` — checks `work_auth_project_codes`, `work_auth_building_codes`, `rfa_project_codes`, `rfa_building_codes`, `deliverable_wa_code_triggers`, `sample_type_wa_codes`
+- [x] `GET /wa-codes/{wa_code_id}/connections` + `DELETE /wa-codes/{wa_code_id}`
+- [x] `_get_deliverable_references` — checks `project_deliverables`, `project_building_deliverables`, `deliverable_wa_code_triggers`
+- [x] `GET /deliverables/{deliverable_id}/connections` + `DELETE /deliverables/{deliverable_id}`
 
 ---
 
