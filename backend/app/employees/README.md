@@ -8,6 +8,10 @@ This module does **not** own user authentication or permissions (that's `users/`
 
 ## Non-obvious behavior
 
+**`display_name` is unique and NOT NULL, but auto-derived on insert.** If omitted from `POST /employees/`, the service generates `"{first_name} {last_name}"` and appends `" 2"`, `" 3"`, ... on collision via a single `LIKE`-range query (`generate_unique_display_name` in `service.py`). If explicitly supplied, a collision returns 422 — no auto-dedup. Managers can PATCH it to a nickname at any time. Seed helpers that insert `Employee` rows directly (e.g., in tests) must set `display_name` explicitly — the DB NOT NULL constraint rejects rows without it.
+
+**`email` is unique (nullable).** Multiple NULLs are allowed (SQLite treats each NULL as distinct). Only non-null emails are checked for duplicates. The uniqueness guard is application-layer; `POST` and `PATCH` both run `_ensure_email_unique` before committing.
+
 **`EmployeeRole` is time-bound.** Each role record carries `start_date` and `end_date`. The time entry service validates that the referenced `employee_role_id` was active on `start_datetime.date()` at the moment of insert. If the role was not active on that date, the insert is rejected. This validation is application-layer only — the DB has no constraint enforcing it.
 
 **Date-overlap validation is application-layer only.** Two `EmployeeRole` rows for the same employee can have overlapping date ranges if inserted without going through the validation service. Never insert `EmployeeRole` rows directly via raw SQL or seed scripts without checking for overlap first.

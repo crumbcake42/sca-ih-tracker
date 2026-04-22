@@ -119,7 +119,7 @@ obj = MyModel(**data, created_by_id=SYSTEM_USER_ID)
 
 `SYSTEM_USER_ID = 1` is a reserved seeded user row (`username="system"`, no valid password hash). It makes automated writes distinguishable from human edits in audit queries.
 
-**Testing audit fields:** Audit columns are not exposed in any Read schema, so you cannot check them from response JSON. Query the DB directly after the API call:
+**Testing audit fields:** Audit columns are not always exposed in Read schemas. When they are not, query the DB directly after the API call:
 
 ```python
 obj = await db_session.get(MyModel, response.json()["id"])

@@ -141,7 +141,7 @@ app/
 - [x] `contractors` — `GET /contractors/`, `GET /contractors/{id}`, `POST /contractors/`, `PATCH /contractors/{id}` (full thin CRUD; nothing beyond batch import exists today)
 - [x] `schools` — `POST /schools/`, `PATCH /schools/{id}` (422 on duplicate `code`; `created_by_id`/`updated_by_id` via `get_current_user`; GET-by-id already covered by the existing identifier route)
 - [x] `wa_codes` — `POST /wa-codes/`, `PATCH /wa-codes/{id}`; 422 on duplicate `code` or `description`; PATCH rejects any `level` change unconditionally (no reference check — level is immutable at the API layer, period)
-- [ ] `employees` (base entity) — `POST /employees/`, `PATCH /employees/{id}`; batch CSV import remains for bulk seeding but individual create/edit is available alongside it; employee-role CRUD already exists and is unaffected
+- [x] `employees` (base entity) — `POST /employees/`, `PATCH /employees/{id}`; `display_name` (unique, NOT NULL) added — auto-derived from `"{first_name} {last_name}"` with numeric suffix on collision; `email` promoted to `unique=True`; batch CSV import updated via `custom_validator` to generate `display_name` per row; employee-role CRUD unaffected
 
 ---
 

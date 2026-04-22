@@ -8,17 +8,55 @@ from app.employees.models import Employee as EmployeeModel
 from app.employees.models import EmployeeRole as EmployeeRoleModel
 from app.employees.schemas import (
     Employee,
+    EmployeeCreate,
     EmployeeRole,
     EmployeeRoleCreate,
     EmployeeRoleUpdate,
+    EmployeeUpdate,
 )
+from app.employees.service import generate_unique_display_name
 from app.users.dependencies import get_current_user
 from app.users.models import User
 
 router = APIRouter()
 
 
-# --- Employee read endpoints ---
+# --- Uniqueness helpers ---
+
+
+async def _ensure_adp_id_unique(
+    db: AsyncSession, adp_id: str, exclude_id: int | None = None
+) -> None:
+    stmt = select(EmployeeModel).where(EmployeeModel.adp_id == adp_id)
+    if exclude_id is not None:
+        stmt = stmt.where(EmployeeModel.id != exclude_id)
+    if (await db.execute(stmt)).scalar_one_or_none():
+        raise HTTPException(status_code=422, detail=f"adp_id '{adp_id}' already exists.")
+
+
+async def _ensure_email_unique(
+    db: AsyncSession, email: str, exclude_id: int | None = None
+) -> None:
+    stmt = select(EmployeeModel).where(EmployeeModel.email == email)
+    if exclude_id is not None:
+        stmt = stmt.where(EmployeeModel.id != exclude_id)
+    if (await db.execute(stmt)).scalar_one_or_none():
+        raise HTTPException(status_code=422, detail=f"email '{email}' already exists.")
+
+
+async def _ensure_display_name_unique(
+    db: AsyncSession, display_name: str, exclude_id: int | None = None
+) -> None:
+    stmt = select(EmployeeModel).where(EmployeeModel.display_name == display_name)
+    if exclude_id is not None:
+        stmt = stmt.where(EmployeeModel.id != exclude_id)
+    if (await db.execute(stmt)).scalar_one_or_none():
+        raise HTTPException(
+            status_code=422, detail=f"display_name '{display_name}' already exists."
+        )
+
+
+# --- Employee CRUD endpoints ---
 
 
 @router.get("/", response_model=list[Employee])
@@ -31,6 +69,37 @@ async def list_employees(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 
+@router.post("/", response_model=Employee, status_code=201)
+async def create_employee(
+    data: EmployeeCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if data.adp_id is not None:
+        await _ensure_adp_id_unique(db, data.adp_id)
+    if data.email is not None:
+        await _ensure_email_unique(db, data.email)
+
+    if data.display_name is not None:
+        # Explicit display_name: 422 on collision rather than auto-dedup
+        await _ensure_display_name_unique(db, data.display_name)
+        display_name = data.display_name
+    else:
+        display_name = await generate_unique_display_name(
+            db, data.first_name, data.last_name
+        )
+
+    employee = EmployeeModel(
+        **data.model_dump(exclude={"display_name"}),
+        display_name=display_name,
+        created_by_id=current_user.id,
+    )
+    db.add(employee)
+    await db.commit()
+    await db.refresh(employee)
+    return employee
+
+
 @router.get("/{employee_id}", response_model=Employee)
 async def get_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -39,6 +108,40 @@ async def get_employee(employee_id: int, db: AsyncSession = Depends(get_db)):
     employee = result.scalar_one_or_none()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
+    return employee
+
+
+@router.patch("/{employee_id}", response_model=Employee)
+async def update_employee(
+    employee_id: int,
+    data: EmployeeUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(EmployeeModel).where(EmployeeModel.id == employee_id)
+    )
+    employee = result.scalar_one_or_none()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    updates = data.model_dump(exclude_unset=True)
+
+    if "adp_id" in updates and updates["adp_id"] != employee.adp_id:
+        await _ensure_adp_id_unique(db, updates["adp_id"], exclude_id=employee.id)
+    if "email" in updates and updates["email"] != employee.email:
+        await _ensure_email_unique(db, updates["email"], exclude_id=employee.id)
+    if "display_name" in updates and updates["display_name"] != employee.display_name:
+        await _ensure_display_name_unique(
+            db, updates["display_name"], exclude_id=employee.id
+        )
+
+    for field, value in updates.items():
+        setattr(employee, field, value)
+    employee.updated_by_id = current_user.id
+
+    await db.commit()
+    await db.refresh(employee)
     return employee
 
 

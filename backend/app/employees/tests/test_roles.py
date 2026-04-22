@@ -26,7 +26,9 @@ from app.employees.models import Employee, EmployeeRole
 
 
 async def _seed_employee(db: AsyncSession, **overrides) -> Employee:
-    defaults = dict(first_name="Jane", last_name="Doe")
+    first = overrides.get("first_name", "Jane")
+    last = overrides.get("last_name", "Doe")
+    defaults = dict(first_name=first, last_name=last, display_name=f"{first} {last}")
     emp = Employee(**{**defaults, **overrides})
     db.add(emp)
     await db.flush()

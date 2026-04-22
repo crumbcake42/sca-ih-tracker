@@ -45,6 +45,8 @@ class EmployeeUpdate(BaseModel):
 
 class Employee(EmployeeBase):
     id: int
+    created_by_id: int | None = None
+    updated_by_id: int | None = None
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
 
 
