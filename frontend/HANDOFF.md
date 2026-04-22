@@ -2,9 +2,26 @@
 
 ## Current State
 
-**Phase 0 complete. Sessions 1.1 through 1.5 complete. Structural refactor complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built.
+**Sessions 0.5 and 1.1–1.5 complete. Structural refactor complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built. Testing infrastructure is now wired (`vitest` + jsdom + RTL + jest-dom + user-event).
 
-## What Was Done This Session (Session 1.5 — NotesPanel)
+## What Was Done This Session (Session 0.5 — Test Infrastructure)
+
+**Done:**
+
+- Installed `@testing-library/user-event` and `@testing-library/jest-dom`
+- Created `vitest.config.ts` — dedicated config (jsdom, globals, `src/test/setup.ts`) that does NOT load the TanStack Start plugin (SSR transforms break vitest)
+- Updated `tsconfig.json` — added `"vitest/globals"` and `"@testing-library/jest-dom"` to `types` for zero-import globals and matchers
+- Created `src/test/setup.ts` — imports jest-dom/vitest extension, registers `afterEach(cleanup)`
+- Created `src/test/renderWithProviders.tsx` — `QueryClient` wrapper for component tests (retries off, gcTime 0); router wrapping deferred until first router-aware test
+- Created `src/test/smoke.test.tsx` — 2 tests: RTL + jest-dom render assertion, `@/` alias resolution via `cn()`
+- `pnpm test` → 2/2 green; `tsc --noEmit` and `pnpm check` clean
+- Added **Testing** section to `src/PATTERNS.md`
+
+**Next:** Session 1.6 — Storybook setup (install + one story per exported shared component; NotesPanel story included)
+
+**Blockers:** none. Back-filling tests for Sessions 1.1–1.5 is a planned follow-up (each session's own slice), not a blocker for Session 1.6.
+
+## What Was Done Previously (Session 1.5 — NotesPanel)
 
 **Done:**
 

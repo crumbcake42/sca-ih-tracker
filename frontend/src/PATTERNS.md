@@ -90,3 +90,14 @@ Column definitions are declared as module-level constants outside the component 
 ## Combobox pattern
 
 Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handled explicitly (server-side for SchoolCombobox, client-side for EmployeeCombobox). Trigger button width matches the popover via `w-[var(--radix-popover-trigger-width)]`. Selecting the already-selected value deselects (toggles to `null`).
+
+---
+
+## Testing
+
+- **Runner:** vitest v3 with jsdom environment. `pnpm test` runs once; `pnpm exec vitest` for watch mode.
+- **Globals:** `describe`, `it`, `expect`, `vi`, `beforeEach`, `afterEach` are available without imports (configured in `vitest.config.ts`).
+- **jest-dom:** matchers like `toBeInTheDocument()`, `toHaveTextContent()`, `toBeDisabled()` are available without imports (loaded in `src/test/setup.ts`).
+- **Location:** test files live as `*.test.tsx` (or `.test.ts`) siblings inside the same feature or component folder. `src/test/` is for infrastructure only (setup, helpers, smoke test).
+- **`renderWithProviders`:** import from `@/test/renderWithProviders`. Wraps children in a fresh `QueryClient` (retries off, gcTime 0). Use for any component that calls `useQuery` / `useMutation`. Add router wrapping to this helper when the first router-aware test is written.
+- **Mock strategy:** prefer real in-memory data (pass props); use `vi.fn()` for callbacks; defer MSW / network mocking until a test genuinely needs it.
