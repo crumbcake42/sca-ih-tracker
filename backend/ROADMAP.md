@@ -145,6 +145,48 @@ app/
 
 ---
 
+### Phase 1.6 — Guarded DELETE and Connections Endpoints _(next)_
+
+> Fills the missing D in CRUD for all thin reference entities. Done now (between Phase 6 and 6.5 in calendar order) because delete without referential guards is unsafe and the connections endpoint is a prerequisite for the frontend delete-confirmation UX.
+
+**Pattern (see PATTERNS.md #14):**
+
+Each entity gets two new endpoints:
+
+- `GET /{entity_id}/connections` — returns a dict of `{label: count}` for every table that references this entity. Powers the delete-confirmation dialog in the UI.
+- `DELETE /{entity_id}` — runs the same reference checks internally; if any count > 0, returns **409** with `{"blocked_by": [...labels...]}` listing *all* blocking reasons at once (not fail-fast). If clear, deletes and returns 204.
+
+Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str, int]` helper defined next to the router. The helper is not a framework utility — it is per-entity because the referencing tables are different for each entity.
+
+**Session A — Infrastructure:**
+
+- [ ] `app/common/guards.py` — `assert_deletable(refs: dict[str, int]) -> None`; raises `HTTPException(409, {"blocked_by": [label for label, count in refs.items() if count > 0]})` if any count is nonzero; no-op otherwise. Thin wrapper so routers stay readable.
+- [ ] Add PATTERNS.md entry **#14 — Guarded DELETE**: `_get_{entity}_references` helper + `assert_deletable` + TOCTOU note (connections endpoint result is stale by delete time; delete guard re-runs independently).
+
+**Session B — Employees:**
+
+- [ ] `_get_employee_references(db, employee_id)` — checks `time_entries.employee_id`, `sample_batch_inspectors.employee_id`
+- [ ] `GET /employees/{employee_id}/connections`
+- [ ] `DELETE /employees/{employee_id}` — guarded; `employee_roles` rows cascade automatically (existing `ondelete=CASCADE`)
+
+**Session C — Schools, Contractors, Hygienists:**
+
+- [ ] `_get_school_references` — checks `project_school_links` (even though it cascades, a school linked to any project should not be silently wiped)
+- [ ] `GET /schools/{school_id}/connections` + `DELETE /schools/{school_id}`
+- [ ] `_get_contractor_references` — checks `project_contractor_links`
+- [ ] `GET /contractors/{contractor_id}/connections` + `DELETE /contractors/{contractor_id}`
+- [ ] `_get_hygienist_references` — checks `project_hygienist_links`
+- [ ] `GET /hygienists/{hygienist_id}/connections` + `DELETE /hygienists/{hygienist_id}`
+
+**Session D — WA Codes and Deliverables:**
+
+- [ ] `_get_wa_code_references` — checks `work_auth_project_codes`, `work_auth_building_codes`, `rfa_project_codes`, `rfa_building_codes`, `deliverable_wa_code_triggers`, `sample_type_wa_codes`
+- [ ] `GET /wa-codes/{wa_code_id}/connections` + `DELETE /wa-codes/{wa_code_id}`
+- [ ] `_get_deliverable_references` — checks `project_deliverables`, `project_building_deliverables`, `deliverable_wa_code_triggers`
+- [ ] `GET /deliverables/{deliverable_id}/connections` + `DELETE /deliverables/{deliverable_id}`
+
+---
+
 ### Phase 2 — Projects Core + Relationships ✓ COMPLETE
 
 - [x] `projects` table — model, migrations, full CRUD (`GET/POST/PATCH/DELETE /projects/`) with name search + pagination; `project_number` field with regex validation

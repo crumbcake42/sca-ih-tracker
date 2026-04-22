@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-22 (Phase 1.5 session 4 complete)
+# Session Handoff — 2026-04-22 (Phase 1.6 planned; no code written)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,48 +6,51 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 1.5 complete.** All thin-CRUD backfill entries are checked off. The next phase on the roadmap is **Phase 6.5 — Required Documents and Expected/Placeholder Entities**.
+**Phase 1.5 complete. Phase 6 complete.** Before proceeding to Phase 6.5, a new **Phase 1.6 — Guarded DELETE and Connections Endpoints** was designed and added to the roadmap. No code was written this session — it was a design session only. Phase 6.5 is on hold until Phase 1.6 is complete.
 
 ---
 
 ## What Was Done This Session
 
-### employees thin CRUD + uniqueness hardening (Phase 1.5 session 4)
-
-Six files changed / created:
-
-- `app/employees/models.py` — added `display_name: Mapped[str]` (`unique=True`, NOT NULL); flipped `email` from `index=True` to `unique=True`
-- `app/employees/schemas.py` — added `display_name: OptionalString` to `EmployeeBase`; added `EmployeeUpdate` (all fields optional); added `created_by_id`/`updated_by_id` to the `Employee` read schema
-- `app/employees/service.py` — **new file**; `generate_unique_display_name(db, first_name, last_name, preferred=None, exclude_id=None)` — single `LIKE`-range query, counter-suffix dedup
-- `app/employees/router/base.py` — added `POST /employees/` and `PATCH /employees/{id}` with `_ensure_adp_id_unique`, `_ensure_email_unique`, `_ensure_display_name_unique` helpers; explicit `display_name` on POST gets a 422 on collision; omitted `display_name` auto-derives with dedup
-- `app/employees/router/batch.py` — added `custom_validator=_set_display_name` so CSV imports auto-generate `display_name` per row
-- `app/employees/tests/test_router.py` — new file, 22 integration tests
-- `app/employees/tests/test_roles.py` — patched `_seed_employee` to set `display_name` (NOT NULL column broke all existing role tests)
-
-Migration applied: added `display_name` nullable, backfilled via SQL concatenation, altered to NOT NULL + unique; added unique index on `email`.
+Designed the guarded DELETE pattern for all thin reference entities and added Phase 1.6 to the roadmap (four sessions: infrastructure, employees, schools/contractors/hygienists, wa_codes/deliverables).
 
 ---
 
 ## Design Decisions Made This Session
 
-### `display_name` instead of compound (first_name, last_name) uniqueness
+### Guarded DELETE pattern: `_get_references` helper + `assert_deletable`
 
-Compound name uniqueness was rejected — real name collisions happen. `display_name` (unique, NOT NULL) is the disambiguator. Auto-derived as `"{first_name} {last_name}"` on POST if absent; collision → suffix `" 2"`, `" 3"`, ... via a single-query range scan. Managers can PATCH it to a nickname.
+Each deletable entity gets:
 
-### Explicit `display_name` on POST gets 422 on collision; omitted gets auto-dedup
+1. A per-entity `_get_{entity}_references(db, id) -> dict[str, int]` function next to its router — checks every table that holds a FK to this entity via `COUNT` queries, returns `{label: count}`.
+2. `GET /{entity_id}/connections` — calls the helper, returns the dict. For the frontend delete-confirmation dialog.
+3. `DELETE /{entity_id}` — calls the helper independently, then calls `assert_deletable(refs)` from `app/common/guards.py`. Returns 409 `{"blocked_by": [...labels...]}` listing **all** blocking reasons at once (not fail-fast). Returns 204 on success.
 
-Intentional distinction: if a manager supplies a display name and it collides, they made a conscious choice and should get an error. Auto-derived names silently increment.
+### `assert_deletable` lives in `app/common/guards.py`, not inline
 
-### Phone format validation is format-only (not real-world validity)
+It's a thin wrapper: raises `HTTPException(409, {"blocked_by": [...]})` if any count > 0. Kept separate so every DELETE endpoint produces the same 409 shape without duplication.
 
-`"5551234567"` → `"(555) 123-4567"` via the `BeforeValidator` in `format_phone_number`. 10-digit strings are always auto-formatted to the canonical format. Tests that expect 422 on 10-digit raw strings are wrong; use a wrong-length string (e.g., 9 digits) to test actual rejection.
+### Connections endpoint and DELETE guard are always independent
+
+The connections endpoint result is stale by the time DELETE fires (TOCTOU). The DELETE endpoint re-runs the reference checks regardless of what the connections endpoint returned. They share code via the helper, not via HTTP calls.
+
+### `COUNT` queries over `scalar_one_or_none`
+
+Reference checks use `select(func.count()).select_from(...)` — one round-trip regardless of how many rows exist. Fetching a row to check existence is unnecessarily wide.
+
+### DELETE is blocked even when CASCADE is set on the FK
+
+For example, `project_school_links` has `ondelete=CASCADE` on `schools.id`, but the connections endpoint and delete guard still check it. Silently wiping all project-school associations when a school is deleted would be destructive; the guard forces an explicit unlink first.
 
 ---
 
 ## Next Step
 
-**Phase 6.5 — Required Documents and Expected/Placeholder Entities.**
+**Phase 1.6 — Session A: Infrastructure.**
 
-Per the roadmap, this is a large multi-session phase. The plan is in `ROADMAP.md` under Phase 6.5. Start with the data model session: `app/required_docs/` module scaffold, models, enums, and schemas — no endpoints yet. Stop for user-generated migration before writing any service or router code.
+- Create `app/common/guards.py` with `assert_deletable(refs: dict[str, int]) -> None`
+- Add PATTERNS.md entry **#14 — Guarded DELETE** covering: per-entity `_get_references` helper, `assert_deletable`, TOCTOU note, COUNT vs scalar_one_or_none rationale
 
-Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). This must be revisited in a dedicated session before any placeholder promotion logic is implemented.
+After Session A, proceed in order: Session B (employees), Session C (schools/contractors/hygienists), Session D (wa_codes/deliverables). Full session breakdown is in ROADMAP.md under Phase 1.6.
+
+Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented when Phase 6.5 resumes.
