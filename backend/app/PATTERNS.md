@@ -277,3 +277,47 @@ Tests use a transaction-based rollback fixture. Each test opens a savepoint, run
 `expire_on_commit=False` is set on the test session factory. This prevents SQLAlchemy from expiring all attributes after a flush (which would require re-querying objects already loaded in the test body).
 
 **Migrations are user-managed.** Do not run `alembic` commands. Generate and apply all migrations manually.
+
+---
+
+## 14. Guarded DELETE
+
+Every deletable reference entity gets two endpoints and a shared helper:
+
+**The helper** — `_get_{entity}_references(db, entity_id) -> dict[str, int]` — lives next to the router. It fires one `COUNT` query per referencing table and returns `{label: count}`. Use `select(func.count()).select_from(...)` rather than fetching rows — one round-trip regardless of match count.
+
+**`GET /{entity_id}/connections`** — calls the helper and returns the dict as-is. Powers the delete-confirmation dialog in the UI.
+
+**`DELETE /{entity_id}`** — calls the helper independently, then passes the result to `assert_deletable(refs)` from `app/common/guards.py`. If any count is nonzero, raises `HTTPException(409, {"blocked_by": [label, ...]})` listing **all** blocking reasons at once (not fail-fast). Returns 204 on success.
+
+```python
+from sqlalchemy import func, select
+from app.common.guards import assert_deletable
+
+async def _get_school_references(db: AsyncSession, school_id: int) -> dict[str, int]:
+    link_count = await db.scalar(
+        select(func.count()).select_from(ProjectSchoolLink)
+        .where(ProjectSchoolLink.school_id == school_id)
+    )
+    return {"projects": link_count}
+
+@router.get("/{school_id}/connections")
+async def get_school_connections(school_id: int, db: AsyncSession = Depends(get_db)):
+    school = await db.get(School, school_id)
+    if not school:
+        raise HTTPException(status_code=404, detail="School not found")
+    return await _get_school_references(db, school_id)
+
+@router.delete("/{school_id}", status_code=204)
+async def delete_school(school_id: int, db: AsyncSession = Depends(get_db)):
+    school = await db.get(School, school_id)
+    if not school:
+        raise HTTPException(status_code=404, detail="School not found")
+    assert_deletable(await _get_school_references(db, school_id))
+    await db.delete(school)
+    await db.commit()
+```
+
+**TOCTOU note:** The connections endpoint result is stale by the time DELETE fires. The DELETE handler always re-runs the reference checks regardless of what the connections endpoint returned. They share code via the helper, not via HTTP calls.
+
+**Guard even when CASCADE is set:** If a FK has `ondelete=CASCADE`, the guard still checks it. Silently wiping related rows on delete is destructive; the guard forces an explicit unlink first.

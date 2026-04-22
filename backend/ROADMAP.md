@@ -158,10 +158,10 @@ Each entity gets two new endpoints:
 
 Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str, int]` helper defined next to the router. The helper is not a framework utility — it is per-entity because the referencing tables are different for each entity.
 
-**Session A — Infrastructure:**
+**Session A — Infrastructure:** ✓ COMPLETE
 
-- [ ] `app/common/guards.py` — `assert_deletable(refs: dict[str, int]) -> None`; raises `HTTPException(409, {"blocked_by": [label for label, count in refs.items() if count > 0]})` if any count is nonzero; no-op otherwise. Thin wrapper so routers stay readable.
-- [ ] Add PATTERNS.md entry **#14 — Guarded DELETE**: `_get_{entity}_references` helper + `assert_deletable` + TOCTOU note (connections endpoint result is stale by delete time; delete guard re-runs independently).
+- [x] `app/common/guards.py` — `assert_deletable(refs: dict[str, int]) -> None`; raises `HTTPException(409, {"blocked_by": [label for label, count in refs.items() if count > 0]})` if any count is nonzero; no-op otherwise. Thin wrapper so routers stay readable.
+- [x] Add PATTERNS.md entry **#14 — Guarded DELETE**: `_get_{entity}_references` helper + `assert_deletable` + TOCTOU note (connections endpoint result is stale by delete time; delete guard re-runs independently).
 
 **Session B — Employees:**
 
