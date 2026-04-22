@@ -138,7 +138,7 @@ app/
 
 **Design decision — no generic CRUD factory:** Considered and rejected. Only 2 entities (hygienists, contractors) cleanly fit a `create_basic_crud_router` factory; the rest need per-entity hooks (uniqueness checks, identifier lookups, level immutability) that would widen the factory surface without real leverage. Hand-written routers keep OpenAPI schema names clean for frontend codegen and keep stack traces local to the entity module. Revisit only if a fourth identical thin-CRUD entity appears.
 
-- [ ] `contractors` — `GET /contractors/`, `GET /contractors/{id}`, `POST /contractors/`, `PATCH /contractors/{id}` (full thin CRUD; nothing beyond batch import exists today)
+- [x] `contractors` — `GET /contractors/`, `GET /contractors/{id}`, `POST /contractors/`, `PATCH /contractors/{id}` (full thin CRUD; nothing beyond batch import exists today)
 - [ ] `schools` — `POST /schools/`, `PATCH /schools/{id}` (422 on duplicate `code`; `created_by_id`/`updated_by_id` via `get_current_user`; GET-by-id already covered by the existing identifier route)
 - [ ] `wa_codes` — `POST /wa-codes/`, `PATCH /wa-codes/{id}`; PATCH rejects `level` change with 409 if the code is already referenced by any `work_auth_project_codes`, `work_auth_building_codes`, `deliverable_wa_code_triggers`, or `sample_type_wa_codes` row
 - [ ] `employees` (base entity) — `POST /employees/`, `PATCH /employees/{id}`; batch CSV import remains for bulk seeding but individual create/edit is available alongside it; employee-role CRUD already exists and is unaffected

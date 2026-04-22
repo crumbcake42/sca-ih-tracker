@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-22 (Phase 1.5 planning complete)
+# Session Handoff — 2026-04-22 (Phase 1.5 session 1 complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,83 +6,50 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**401 tests passing.** Phase 6 is fully complete. Phase 1.5 (thin CRUD backfill) is next; Phase 6.5 follows.
+**Phase 1.5 session 1 done.** Contractors now has full thin CRUD. Tests written. Run `pytest app/contractors/ -v` to verify.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 1.5 planning — thin CRUD backfill decision
+### Contractors thin CRUD (Phase 1.5 session 1)
 
-No code written. Audited every entity module to assess whether a generic `create_basic_crud_router` factory was worth building. Decided against it — see `ROADMAP.md` Phase 1.5 for the full rationale. Added Phase 1.5 to the roadmap and updated the next-step pointer in this file.
+Four files changed/created:
 
-**Key decision:** CSV batch import and individual POST endpoints coexist on all entities. Batch import is a convenience for bulk seeding, not a restriction — every entity should have individual create/edit endpoints too.
+- `app/contractors/schemas.py` — added `ContractorUpdate` (all fields optional; `state` keeps `min_length=2, max_length=2`)
+- `app/contractors/router/base.py` — new hand-written router: `GET /contractors/`, `GET /contractors/{id}`, `POST /contractors/`, `PATCH /contractors/{id}`; follows `hygienists/router/base.py` pattern exactly
+- `app/contractors/router/__init__.py` — wired in `base_router` alongside existing `batch_router`
+- `app/contractors/tests/test_router.py` — 13 integration tests across list, get, create, update
 
----
-
-## Previous Session — Phase 6 Session D — Project closure and record locking
-
-**`Project.is_locked: bool`** added to `app/projects/models/base.py`:
-- `server_default="0"`, `default=False`
-- **Migration required** — user must generate and apply before running the app against a real DB
-
-**`lock_project_records(project_id, db, user_id)`** added to `app/projects/services.py`:
-- Calls `get_blocking_notes_for_project()` → raises `HTTPException(409, detail={"blocking_issues": [...]})` if any unresolved
-- Bulk-updates `time_entries` (assumed/entered → locked) via `update()` with `execution_options(synchronize_session=False)`
-- Bulk-updates `active` `sample_batches` linked to those time entries → locked (same pattern)
-- Sets `project.is_locked = True` and `project.updated_by_id = user_id`
-
-**`derive_project_status`** updated: short-circuits to `ProjectStatus.LOCKED` (with all counts zeroed) when `project.is_locked` is True.
-
-**`POST /projects/{id}/close`** added to `app/projects/router/base.py`:
-- 404 if project not found
-- 409 if already closed
-- Calls `lock_project_records` (which 409s on blocking issues), then commits
-- Returns `ProjectStatusRead` (status=LOCKED) on success
-
-**Locked guards** added:
-- `PATCH /time-entries/{id}` → 422 if `entry.status == LOCKED`
-- `DELETE /time-entries/{id}` → 422 if `entry.status == LOCKED`
-- `PATCH /lab-results/batches/{id}` → 422 if `batch.status == LOCKED`
-- `DELETE /lab-results/batches/{id}` → 422 if `batch.status == LOCKED`
-- (Discard endpoint already had a LOCKED check from Phase 4)
-
-**11 new tests** in `app/projects/tests/test_project_closure.py`.
+No migration needed — no new columns added.
 
 ---
 
 ## Design Decisions Made This Session
 
-### `is_locked` on `Project` rather than inferring from time entry statuses
+### No DELETE for contractors
 
-A project with no time entries would have no locked entries after closure — inference is ambiguous. An explicit flag is unambiguous and makes `derive_project_status` a simple early return.
+Roadmap listed only GET+POST+PATCH. Contractors are referenced by `project_contractor_links`; deletion without a cascade/409 plan would be unsafe. Deferred until there's a real need.
 
-### `lock_project_records` raises `HTTPException` directly
+### No duplicate-name check on POST/PATCH
 
-Consistent with every other service function in this codebase (`validate_role_for_entry`, `check_time_entry_overlap`, etc.). The router doesn't need to re-wrap the error.
+`Contractor.name` is not DB-unique. Batch importer rejects duplicates as a CSV safety net, but individual endpoints follow the hygienists pattern (no uniqueness guard). Revisit if the UI asks for it.
 
-### Discarded batches are not re-locked
+### Simple unpaginated GET /
 
-`lock_project_records` only transitions `ACTIVE → LOCKED`. Discarded batches stay discarded — they're already excluded from billing and are effectively read-only post-discard. Locking them too would change their status without adding any new constraint.
-
----
-
-## Open Item (deferred, recorded in memory)
-
-**Assumed entries at closure:** `lock_project_records` currently locks assumed entries silently. `unconfirmed_time_entry_count > 0` is already surfaced in `ProjectStatusRead`. Whether to make this a hard closure gate (block with 409) is deferred — the `READY_TO_CLOSE` status already requires zero assumed entries, so the UI can guide users before they hit close.
+Matches hygienists (same volume class). Pagination/search deferred until there's a practical reason.
 
 ---
 
 ## Next Step
 
-**Phase 1.5 — Thin CRUD Backfill.** Reference-table endpoints skipped during Phase 1. Each entity is its own session.
+**Phase 1.5 session 2 — `schools` POST/PATCH.**
 
-Suggested order:
-1. `contractors` — greenfield (no CRUD router at all); largest gap
-2. `schools` — add POST/PATCH alongside existing list + identifier GET
-3. `wa_codes` — same shape as schools, plus level-immutability guard on PATCH
-4. `employees` — `POST /employees/`, `PATCH /employees/{id}`; batch import stays as supplemental bulk path
+- `POST /schools/` — 422 on duplicate `code`
+- `PATCH /schools/{id}` — 422 on duplicate `code` if changed
+- `created_by_id`/`updated_by_id` via `get_current_user`
+- `GET /schools/{identifier}` already exists (handles both int ID and string code)
 
-Pattern to follow: `app/hygienists/router/base.py`. No factory — decision recorded in `ROADMAP.md` Phase 1.5.
+Pattern: `app/hygienists/router/base.py`. Check existing `app/schools/router/` before writing — there may already be a partial router to extend.
 
-After Phase 1.5, resume with **Phase 6.5 — Required Documents and Expected/Placeholder Entities** (full design in `ROADMAP.md`; the placeholder→actual matching layer is still design-not-finalized and needs a dedicated session before any implementation).
+After schools: `wa_codes` (POST/PATCH + level-immutability guard), then `employees` (POST/PATCH).
