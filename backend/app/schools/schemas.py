@@ -18,6 +18,15 @@ class SchoolCreate(SchoolBase):
     pass
 
 
+class SchoolUpdate(BaseModel):
+    code: str | None = Field(None, min_length=4, max_length=4)
+    name: str | None = None
+    address: str | None = None
+    city: Boro | None = None
+    state: str | None = Field(None, min_length=2, max_length=2)
+    zip_code: str | None = None
+
+
 class School(SchoolBase):
     id: int
     created_at: datetime

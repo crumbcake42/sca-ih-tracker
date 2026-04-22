@@ -278,3 +278,137 @@ class TestBatchImport:
             files={"file": ("schools.txt", io.BytesIO(b"data"), "text/plain")},
         )
         assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# POST /schools/
+# ---------------------------------------------------------------------------
+
+_VALID_PAYLOAD = dict(
+    code="Q042",
+    name="P.S. 42",
+    address="71-01 Parsons Blvd",
+    city="QUEENS",
+    state="NY",
+    zip_code="11432",
+)
+
+
+class TestCreateSchool:
+    async def test_happy_path_returns_201(self, auth_client: AsyncClient):
+        response = await auth_client.post("/schools/", json=_VALID_PAYLOAD)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["code"] == "Q042"
+        assert "id" in data
+
+    async def test_created_by_id_stamped(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        response = await auth_client.post("/schools/", json=_VALID_PAYLOAD)
+        assert response.status_code == 201
+        school_id = response.json()["id"]
+        result = await db_session.get(School, school_id)
+        assert result and result.created_by_id is not None
+
+    async def test_duplicate_code_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _seed(db_session, _make_school(code="Q042"))
+        response = await auth_client.post("/schools/", json=_VALID_PAYLOAD)
+        assert response.status_code == 422
+
+    async def test_code_too_short_returns_422(self, auth_client: AsyncClient):
+        response = await auth_client.post(
+            "/schools/", json={**_VALID_PAYLOAD, "code": "Q04"}
+        )
+        assert response.status_code == 422
+
+    async def test_code_too_long_returns_422(self, auth_client: AsyncClient):
+        response = await auth_client.post(
+            "/schools/", json={**_VALID_PAYLOAD, "code": "Q0420"}
+        )
+        assert response.status_code == 422
+
+    async def test_invalid_state_too_short_returns_422(self, auth_client: AsyncClient):
+        response = await auth_client.post(
+            "/schools/", json={**_VALID_PAYLOAD, "state": "N"}
+        )
+        assert response.status_code == 422
+
+    async def test_unauthenticated_returns_401(self, client: AsyncClient):
+        response = await client.post("/schools/", json=_VALID_PAYLOAD)
+        assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# PATCH /schools/{id}
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateSchool:
+    async def test_partial_update(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school] = await _seed(db_session, _make_school())
+        response = await auth_client.patch(
+            f"/schools/{school.id}", json={"name": "Renamed School"}
+        )
+        assert response.status_code == 200
+        assert response.json()["name"] == "Renamed School"
+        assert response.json()["code"] == "M134"  # untouched
+
+    async def test_updated_by_id_stamped(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school] = await _seed(db_session, _make_school())
+        await auth_client.patch(
+            f"/schools/{school.id}", json={"name": "Renamed School"}
+        )
+        await db_session.refresh(school)
+        assert school.updated_by_id is not None
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.patch("/schools/9999", json={"name": "X"})
+        assert response.status_code == 404
+
+    async def test_patch_code_to_new_value(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school] = await _seed(db_session, _make_school(code="M134"))
+        response = await auth_client.patch(
+            f"/schools/{school.id}", json={"code": "M999"}
+        )
+        assert response.status_code == 200
+        assert response.json()["code"] == "M999"
+
+    async def test_patch_code_to_existing_value_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school_a, school_b] = await _seed(
+            db_session,
+            _make_school(code="M134"),
+            _make_school(code="K001", name="Another School"),
+        )
+        response = await auth_client.patch(
+            f"/schools/{school_a.id}", json={"code": "K001"}
+        )
+        assert response.status_code == 422
+
+    async def test_patch_code_to_own_value_does_not_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school] = await _seed(db_session, _make_school(code="M134"))
+        response = await auth_client.patch(
+            f"/schools/{school.id}", json={"code": "M134"}
+        )
+        assert response.status_code == 200
+
+    async def test_invalid_state_too_short_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school] = await _seed(db_session, _make_school())
+        response = await auth_client.patch(
+            f"/schools/{school.id}", json={"state": "N"}
+        )
+        assert response.status_code == 422

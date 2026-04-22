@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-22 (Phase 1.5 session 1 complete)
+# Session Handoff — 2026-04-22 (Phase 1.5 session 2 complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,20 +6,19 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 1.5 session 1 done.** Contractors now has full thin CRUD. Tests written. Run `pytest app/contractors/ -v` to verify.
+**Phase 1.5 session 2 done.** Schools now has `POST /schools/` and `PATCH /schools/{id}` with duplicate-`code` 422. Tests written. Run `pytest app/schools/ -v` to verify.
 
 ---
 
 ## What Was Done This Session
 
-### Contractors thin CRUD (Phase 1.5 session 1)
+### Schools thin CRUD (Phase 1.5 session 2)
 
-Four files changed/created:
+Three files changed:
 
-- `app/contractors/schemas.py` — added `ContractorUpdate` (all fields optional; `state` keeps `min_length=2, max_length=2`)
-- `app/contractors/router/base.py` — new hand-written router: `GET /contractors/`, `GET /contractors/{id}`, `POST /contractors/`, `PATCH /contractors/{id}`; follows `hygienists/router/base.py` pattern exactly
-- `app/contractors/router/__init__.py` — wired in `base_router` alongside existing `batch_router`
-- `app/contractors/tests/test_router.py` — 13 integration tests across list, get, create, update
+- `app/schools/schemas.py` — added `SchoolUpdate` (all fields optional; `code` keeps `min_length=4, max_length=4`, `state` keeps `min_length=2, max_length=2`)
+- `app/schools/router/base.py` — appended `POST /schools/` and `PATCH /schools/{id}` handlers plus `_ensure_code_unique` helper; existing factory list and `GET /{identifier}` untouched
+- `app/schools/tests/test_router.py` — 15 integration tests across create and update, appended to existing file
 
 No migration needed — no new columns added.
 
@@ -27,29 +26,32 @@ No migration needed — no new columns added.
 
 ## Design Decisions Made This Session
 
-### No DELETE for contractors
+### Explicit duplicate-code 422 (not IntegrityError)
 
-Roadmap listed only GET+POST+PATCH. Contractors are referenced by `project_contractor_links`; deletion without a cascade/409 plan would be unsafe. Deferred until there's a real need.
+`schools.code` is DB-unique. Rather than letting SQLAlchemy surface an `IntegrityError` as a 500, `_ensure_code_unique` pre-checks before commit and raises 422. This is intentional and diverges from contractors (which has no uniqueness constraint).
 
-### No duplicate-name check on POST/PATCH
+### PATCH self-update allowed
 
-`Contractor.name` is not DB-unique. Batch importer rejects duplicates as a CSV safety net, but individual endpoints follow the hygienists pattern (no uniqueness guard). Revisit if the UI asks for it.
+`_ensure_code_unique` is called only when the new `code` differs from the current one. Patching a school's code to its own current value returns 200.
 
-### Simple unpaginated GET /
+### No code case-normalization on write
 
-Matches hygienists (same volume class). Pagination/search deferred until there's a practical reason.
+The existing `GET /{identifier}` uppercases the lookup key, but `POST` and `PATCH` store `code` verbatim as submitted. If a client sends `"m134"` while `"M134"` exists, the duplicate check will miss and the DB unique constraint will fire as a 500. Normalization should be added — either as a Pydantic validator on `SchoolBase.code` or as a pre-write step in both handlers. Deferred until the frontend enforces uppercase input.
+
+### No DELETE
+
+Schools are referenced by `project_school_links`. Deletion without a cascade/409 plan would be unsafe. Deferred until there's a real need.
 
 ---
 
 ## Next Step
 
-**Phase 1.5 session 2 — `schools` POST/PATCH.**
+**Phase 1.5 session 3 — `wa_codes` POST/PATCH.**
 
-- `POST /schools/` — 422 on duplicate `code`
-- `PATCH /schools/{id}` — 422 on duplicate `code` if changed
-- `created_by_id`/`updated_by_id` via `get_current_user`
-- `GET /schools/{identifier}` already exists (handles both int ID and string code)
+- `POST /wa_codes/` and `PATCH /wa_codes/{id}`
+- Level-immutability guard: once a `wa_code` row has a `level` set, it cannot be changed via PATCH (422 if `level` is in the payload and differs from the stored value)
+- Pattern: `app/hygienists/router/base.py` + same duplicate-check approach used here if `wa_codes` has a unique column
 
-Pattern: `app/hygienists/router/base.py`. Check existing `app/schools/router/` before writing — there may already be a partial router to extend.
+Check `app/wa_codes/router/` before writing — there may already be a partial router to extend.
 
-After schools: `wa_codes` (POST/PATCH + level-immutability guard), then `employees` (POST/PATCH).
+After `wa_codes`: `employees` (POST/PATCH).
