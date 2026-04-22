@@ -283,6 +283,58 @@ export type Contractor = {
 };
 
 /**
+ * ContractorCreate
+ */
+export type ContractorCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Address
+     */
+    address: string;
+    /**
+     * City
+     */
+    city: string;
+    /**
+     * State
+     */
+    state: string;
+    /**
+     * Zip Code
+     */
+    zip_code: string;
+};
+
+/**
+ * ContractorUpdate
+ */
+export type ContractorUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Address
+     */
+    address?: string | null;
+    /**
+     * City
+     */
+    city?: string | null;
+    /**
+     * State
+     */
+    state?: string | null;
+    /**
+     * Zip Code
+     */
+    zip_code?: string | null;
+};
+
+/**
  * Deliverable
  */
 export type Deliverable = {
@@ -337,6 +389,10 @@ export type Employee = {
      * Last Name
      */
     last_name: string;
+    /**
+     * Display Name
+     */
+    display_name?: string | null;
     title?: TitleEnum | null;
     /**
      * Email
@@ -354,6 +410,45 @@ export type Employee = {
      * Id
      */
     id: number;
+    /**
+     * Created By Id
+     */
+    created_by_id?: number | null;
+    /**
+     * Updated By Id
+     */
+    updated_by_id?: number | null;
+};
+
+/**
+ * EmployeeCreate
+ */
+export type EmployeeCreate = {
+    /**
+     * First Name
+     */
+    first_name: string;
+    /**
+     * Last Name
+     */
+    last_name: string;
+    /**
+     * Display Name
+     */
+    display_name?: string | null;
+    title?: TitleEnum | null;
+    /**
+     * Email
+     */
+    email?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
+     * Adp Id
+     */
+    adp_id?: string | null;
 };
 
 /**
@@ -419,6 +514,37 @@ export type EmployeeRoleUpdate = {
      * Hourly Rate
      */
     hourly_rate?: number | string | null;
+};
+
+/**
+ * EmployeeUpdate
+ */
+export type EmployeeUpdate = {
+    /**
+     * First Name
+     */
+    first_name?: string | null;
+    /**
+     * Last Name
+     */
+    last_name?: string | null;
+    /**
+     * Display Name
+     */
+    display_name?: string | null;
+    title?: TitleEnum | null;
+    /**
+     * Email
+     */
+    email?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
+     * Adp Id
+     */
+    adp_id?: string | null;
 };
 
 /**
@@ -1578,6 +1704,60 @@ export type School = {
 };
 
 /**
+ * SchoolCreate
+ */
+export type SchoolCreate = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Address
+     */
+    address: string;
+    city: Boro;
+    /**
+     * State
+     */
+    state: string;
+    /**
+     * Zip Code
+     */
+    zip_code: string;
+};
+
+/**
+ * SchoolUpdate
+ */
+export type SchoolUpdate = {
+    /**
+     * Code
+     */
+    code?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Address
+     */
+    address?: string | null;
+    city?: Boro | null;
+    /**
+     * State
+     */
+    state?: string | null;
+    /**
+     * Zip Code
+     */
+    zip_code?: string | null;
+};
+
+/**
  * TimeEntryCreate
  */
 export type TimeEntryCreate = {
@@ -1812,6 +1992,25 @@ export type WaCode = {
 };
 
 /**
+ * WACodeCreate
+ */
+export type WaCodeCreate = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Description
+     */
+    description: string;
+    level: WaCodeLevel;
+    /**
+     * Default Fee
+     */
+    default_fee?: number | string | null;
+};
+
+/**
  * WACodeLevel
  */
 export type WaCodeLevel = 'project' | 'building';
@@ -1820,6 +2019,25 @@ export type WaCodeLevel = 'project' | 'building';
  * WACodeStatus
  */
 export type WaCodeStatus = 'rfa_needed' | 'rfa_pending' | 'active' | 'added_by_rfa' | 'removed';
+
+/**
+ * WACodeUpdate
+ */
+export type WaCodeUpdate = {
+    /**
+     * Code
+     */
+    code?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    level?: WaCodeLevel | null;
+    /**
+     * Default Fee
+     */
+    default_fee?: number | string | null;
+};
 
 /**
  * WorkAuth
@@ -2016,6 +2234,109 @@ export type WorkAuthUpdate = {
      */
     is_saved?: boolean | null;
 };
+
+export type ListContractorsContractorsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/contractors/';
+};
+
+export type ListContractorsContractorsGetResponses = {
+    /**
+     * Response List Contractors Contractors  Get
+     *
+     * Successful Response
+     */
+    200: Array<Contractor>;
+};
+
+export type ListContractorsContractorsGetResponse = ListContractorsContractorsGetResponses[keyof ListContractorsContractorsGetResponses];
+
+export type CreateContractorContractorsPostData = {
+    body: ContractorCreate;
+    path?: never;
+    query?: never;
+    url: '/contractors/';
+};
+
+export type CreateContractorContractorsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateContractorContractorsPostError = CreateContractorContractorsPostErrors[keyof CreateContractorContractorsPostErrors];
+
+export type CreateContractorContractorsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: Contractor;
+};
+
+export type CreateContractorContractorsPostResponse = CreateContractorContractorsPostResponses[keyof CreateContractorContractorsPostResponses];
+
+export type GetContractorContractorsContractorIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Contractor Id
+         */
+        contractor_id: number;
+    };
+    query?: never;
+    url: '/contractors/{contractor_id}';
+};
+
+export type GetContractorContractorsContractorIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetContractorContractorsContractorIdGetError = GetContractorContractorsContractorIdGetErrors[keyof GetContractorContractorsContractorIdGetErrors];
+
+export type GetContractorContractorsContractorIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Contractor;
+};
+
+export type GetContractorContractorsContractorIdGetResponse = GetContractorContractorsContractorIdGetResponses[keyof GetContractorContractorsContractorIdGetResponses];
+
+export type UpdateContractorContractorsContractorIdPatchData = {
+    body: ContractorUpdate;
+    path: {
+        /**
+         * Contractor Id
+         */
+        contractor_id: number;
+    };
+    query?: never;
+    url: '/contractors/{contractor_id}';
+};
+
+export type UpdateContractorContractorsContractorIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateContractorContractorsContractorIdPatchError = UpdateContractorContractorsContractorIdPatchErrors[keyof UpdateContractorContractorsContractorIdPatchErrors];
+
+export type UpdateContractorContractorsContractorIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Contractor;
+};
+
+export type UpdateContractorContractorsContractorIdPatchResponse = UpdateContractorContractorsContractorIdPatchResponses[keyof UpdateContractorContractorsContractorIdPatchResponses];
 
 export type ImportBatchContractorsBatchImportPostData = {
     body: BodyImportBatchContractorsBatchImportPost;
@@ -3012,6 +3333,31 @@ export type ListEmployeesEmployeesGetResponses = {
 
 export type ListEmployeesEmployeesGetResponse = ListEmployeesEmployeesGetResponses[keyof ListEmployeesEmployeesGetResponses];
 
+export type CreateEmployeeEmployeesPostData = {
+    body: EmployeeCreate;
+    path?: never;
+    query?: never;
+    url: '/employees/';
+};
+
+export type CreateEmployeeEmployeesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateEmployeeEmployeesPostError = CreateEmployeeEmployeesPostErrors[keyof CreateEmployeeEmployeesPostErrors];
+
+export type CreateEmployeeEmployeesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: Employee;
+};
+
+export type CreateEmployeeEmployeesPostResponse = CreateEmployeeEmployeesPostResponses[keyof CreateEmployeeEmployeesPostResponses];
+
 export type GetEmployeeEmployeesEmployeeIdGetData = {
     body?: never;
     path: {
@@ -3041,6 +3387,36 @@ export type GetEmployeeEmployeesEmployeeIdGetResponses = {
 };
 
 export type GetEmployeeEmployeesEmployeeIdGetResponse = GetEmployeeEmployeesEmployeeIdGetResponses[keyof GetEmployeeEmployeesEmployeeIdGetResponses];
+
+export type UpdateEmployeeEmployeesEmployeeIdPatchData = {
+    body: EmployeeUpdate;
+    path: {
+        /**
+         * Employee Id
+         */
+        employee_id: number;
+    };
+    query?: never;
+    url: '/employees/{employee_id}';
+};
+
+export type UpdateEmployeeEmployeesEmployeeIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateEmployeeEmployeesEmployeeIdPatchError = UpdateEmployeeEmployeesEmployeeIdPatchErrors[keyof UpdateEmployeeEmployeesEmployeeIdPatchErrors];
+
+export type UpdateEmployeeEmployeesEmployeeIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Employee;
+};
+
+export type UpdateEmployeeEmployeesEmployeeIdPatchResponse = UpdateEmployeeEmployeesEmployeeIdPatchResponses[keyof UpdateEmployeeEmployeesEmployeeIdPatchResponses];
 
 export type ListEmployeeRolesEmployeesEmployeeIdRolesGetData = {
     body?: never;
@@ -4094,6 +4470,31 @@ export type ListEntriesSchoolsGetResponses = {
 
 export type ListEntriesSchoolsGetResponse = ListEntriesSchoolsGetResponses[keyof ListEntriesSchoolsGetResponses];
 
+export type CreateSchoolSchoolsPostData = {
+    body: SchoolCreate;
+    path?: never;
+    query?: never;
+    url: '/schools/';
+};
+
+export type CreateSchoolSchoolsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateSchoolSchoolsPostError = CreateSchoolSchoolsPostErrors[keyof CreateSchoolSchoolsPostErrors];
+
+export type CreateSchoolSchoolsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: School;
+};
+
+export type CreateSchoolSchoolsPostResponse = CreateSchoolSchoolsPostResponses[keyof CreateSchoolSchoolsPostResponses];
+
 export type GetSchoolSchoolsIdentifierGetData = {
     body?: never;
     path: {
@@ -4123,6 +4524,36 @@ export type GetSchoolSchoolsIdentifierGetResponses = {
 };
 
 export type GetSchoolSchoolsIdentifierGetResponse = GetSchoolSchoolsIdentifierGetResponses[keyof GetSchoolSchoolsIdentifierGetResponses];
+
+export type UpdateSchoolSchoolsSchoolIdPatchData = {
+    body: SchoolUpdate;
+    path: {
+        /**
+         * School Id
+         */
+        school_id: number;
+    };
+    query?: never;
+    url: '/schools/{school_id}';
+};
+
+export type UpdateSchoolSchoolsSchoolIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateSchoolSchoolsSchoolIdPatchError = UpdateSchoolSchoolsSchoolIdPatchErrors[keyof UpdateSchoolSchoolsSchoolIdPatchErrors];
+
+export type UpdateSchoolSchoolsSchoolIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: School;
+};
+
+export type UpdateSchoolSchoolsSchoolIdPatchResponse = UpdateSchoolSchoolsSchoolIdPatchResponses[keyof UpdateSchoolSchoolsSchoolIdPatchResponses];
 
 export type ImportBatchSchoolsBatchImportPostData = {
     body: BodyImportBatchSchoolsBatchImportPost;
@@ -4347,6 +4778,31 @@ export type ListEntriesWaCodesGetResponses = {
 
 export type ListEntriesWaCodesGetResponse = ListEntriesWaCodesGetResponses[keyof ListEntriesWaCodesGetResponses];
 
+export type CreateWaCodeWaCodesPostData = {
+    body: WaCodeCreate;
+    path?: never;
+    query?: never;
+    url: '/wa-codes/';
+};
+
+export type CreateWaCodeWaCodesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateWaCodeWaCodesPostError = CreateWaCodeWaCodesPostErrors[keyof CreateWaCodeWaCodesPostErrors];
+
+export type CreateWaCodeWaCodesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: WaCode;
+};
+
+export type CreateWaCodeWaCodesPostResponse = CreateWaCodeWaCodesPostResponses[keyof CreateWaCodeWaCodesPostResponses];
+
 export type GetWaCodeWaCodesIdentifierGetData = {
     body?: never;
     path: {
@@ -4376,6 +4832,36 @@ export type GetWaCodeWaCodesIdentifierGetResponses = {
 };
 
 export type GetWaCodeWaCodesIdentifierGetResponse = GetWaCodeWaCodesIdentifierGetResponses[keyof GetWaCodeWaCodesIdentifierGetResponses];
+
+export type UpdateWaCodeWaCodesWaCodeIdPatchData = {
+    body: WaCodeUpdate;
+    path: {
+        /**
+         * Wa Code Id
+         */
+        wa_code_id: number;
+    };
+    query?: never;
+    url: '/wa-codes/{wa_code_id}';
+};
+
+export type UpdateWaCodeWaCodesWaCodeIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateWaCodeWaCodesWaCodeIdPatchError = UpdateWaCodeWaCodesWaCodeIdPatchErrors[keyof UpdateWaCodeWaCodesWaCodeIdPatchErrors];
+
+export type UpdateWaCodeWaCodesWaCodeIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: WaCode;
+};
+
+export type UpdateWaCodeWaCodesWaCodeIdPatchResponse = UpdateWaCodeWaCodesWaCodeIdPatchResponses[keyof UpdateWaCodeWaCodesWaCodeIdPatchResponses];
 
 export type ImportBatchWaCodesBatchImportPostData = {
     body: BodyImportBatchWaCodesBatchImportPost;
