@@ -30,6 +30,8 @@ Frontend generates typed client hooks from the backend's `/openapi.json`. See `f
 
 `POST /auth/token` uses **OAuth2 password flow** — request body is **form-encoded** (`application/x-www-form-urlencoded`), not JSON. Generated client code often gets this wrong; verify before using the generated login mutation.
 
-### Cross-cutting rule
+### Cross-cutting rules
 
 When a backend endpoint changes shape (new field, removed field, changed status code), add a note to `frontend/HANDOFF.md` so the next frontend session picks it up.
+
+**Session scope:** Keep each session scoped to one side. During a backend session, do not read `frontend/HANDOFF.md`, `frontend/ROADMAP.md`, or any other frontend doc to plan work — and vice versa. The only exception is at the end of a session: if changes on one side affect the other, write a note to the other side's `HANDOFF.md` so the next session picks it up.
