@@ -24,3 +24,16 @@ This file captures decisions made and work completed in the most recent session.
 **Phase 1.6 is complete.** See `ROADMAP.md` for what comes next.
 
 Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented when Phase 6.5 resumes.
+
+Other blocking issues:
+
+### work auths endpoints
+
+- GET /work-auths endpoint requires project_id param, but this means there's no endpoint to get a paginated list of all work auths. Rethink this pattern so we can look up all these cases
+  -- get work auth by work_auth_id
+  -- get work auth for project if exists
+  -- get all work auths as paginated results
+
+### Notes tests
+
+- 4 of the notes tests are failing. need to be fixed.
