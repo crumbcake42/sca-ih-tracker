@@ -3,6 +3,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.common.factories import create_readonly_router
 from app.database import get_db
 from app.employees.models import Employee as EmployeeModel
 from app.employees.models import EmployeeRole as EmployeeRoleModel
@@ -57,7 +58,14 @@ async def _ensure_display_name_unique(
 
 
 # --- Employee CRUD endpoints ---
-
+router.include_router(
+    create_readonly_router(
+        model=EmployeeModel,
+        read_schema=Employee,
+        default_sort=EmployeeModel.last_name.asc(),
+        search_attr=EmployeeModel.last_name,
+    )
+)
 
 @router.get("/", response_model=list[Employee])
 async def list_employees(db: AsyncSession = Depends(get_db)):
