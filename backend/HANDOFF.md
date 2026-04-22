@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-16 (Phase 6 Session D complete)
+# Session Handoff — 2026-04-22 (Phase 1.5 planning complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,13 +6,21 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**401 tests passing.** Phase 6 is fully complete. Phase 6.5 is next.
+**401 tests passing.** Phase 6 is fully complete. Phase 1.5 (thin CRUD backfill) is next; Phase 6.5 follows.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 6 Session D — Project closure and record locking
+### Phase 1.5 planning — thin CRUD backfill decision
+
+No code written. Audited every entity module to assess whether a generic `create_basic_crud_router` factory was worth building. Decided against it — see `ROADMAP.md` Phase 1.5 for the full rationale. Added Phase 1.5 to the roadmap and updated the next-step pointer in this file.
+
+**Key decision:** CSV batch import and individual POST endpoints coexist on all entities. Batch import is a convenience for bulk seeding, not a restriction — every entity should have individual create/edit endpoints too.
+
+---
+
+## Previous Session — Phase 6 Session D — Project closure and record locking
 
 **`Project.is_locked: bool`** added to `app/projects/models/base.py`:
 - `server_default="0"`, `default=False`
@@ -67,11 +75,14 @@ Consistent with every other service function in this codebase (`validate_role_fo
 
 ## Next Step
 
-**Phase 6.5 — Required Documents and Expected/Placeholder Entities.**
+**Phase 1.5 — Thin CRUD Backfill.** Reference-table endpoints skipped during Phase 1. Each entity is its own session.
 
-Full design in `data/roadmap.md` under Phase 6.5. Three data silos:
-1. `project_document_requirements` — daily logs, reoccupancy/minor letters
-2. `contractor_payment_records` — CPR with RFA+RFP sub-flow
-3. `dep_filing_forms` + `project_dep_filings`
+Suggested order:
+1. `contractors` — greenfield (no CRUD router at all); largest gap
+2. `schools` — add POST/PATCH alongside existing list + identifier GET
+3. `wa_codes` — same shape as schools, plus level-immutability guard on PATCH
+4. `employees` — `POST /employees/`, `PATCH /employees/{id}`; batch import stays as supplemental bulk path
 
-⚠️ The placeholder→actual matching layer (promoting a placeholder when a matching real entity is created) is **design not finalized** — must be resolved in a dedicated session before any implementation begins.
+Pattern to follow: `app/hygienists/router/base.py`. No factory — decision recorded in `ROADMAP.md` Phase 1.5.
+
+After Phase 1.5, resume with **Phase 6.5 — Required Documents and Expected/Placeholder Entities** (full design in `ROADMAP.md`; the placeholder→actual matching layer is still design-not-finalized and needs a dedicated session before any implementation).
