@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.common.guards import assert_deletable
 from app.contractors.models import Contractor as ContractorModel
 from app.contractors.schemas import Contractor, ContractorCreate, ContractorUpdate
+from app.database import get_db
+from app.projects.models.links import ProjectContractorLink
 from app.users.dependencies import get_current_user
 from app.users.models import User
 
@@ -41,6 +43,33 @@ async def create_contractor(
     await db.commit()
     await db.refresh(new_contractor)
     return new_contractor
+
+
+async def _get_contractor_references(db: AsyncSession, contractor_id: int) -> dict[str, int]:
+    link_count = await db.scalar(
+        select(func.count())
+        .select_from(ProjectContractorLink)
+        .where(ProjectContractorLink.contractor_id == contractor_id)
+    )
+    return {"project_contractors_links": link_count or 0}
+
+
+@router.get("/{contractor_id}/connections")
+async def get_contractor_connections(contractor_id: int, db: AsyncSession = Depends(get_db)):
+    contractor = await db.get(ContractorModel, contractor_id)
+    if not contractor:
+        raise HTTPException(status_code=404, detail="Contractor not found")
+    return await _get_contractor_references(db, contractor_id)
+
+
+@router.delete("/{contractor_id}", status_code=204)
+async def delete_contractor(contractor_id: int, db: AsyncSession = Depends(get_db)):
+    contractor = await db.get(ContractorModel, contractor_id)
+    if not contractor:
+        raise HTTPException(status_code=404, detail="Contractor not found")
+    assert_deletable(await _get_contractor_references(db, contractor_id))
+    await db.delete(contractor)
+    await db.commit()
 
 
 @router.patch("/{contractor_id}", response_model=Contractor)

@@ -169,14 +169,14 @@ Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str
 - [x] `GET /employees/{employee_id}/connections`
 - [x] `DELETE /employees/{employee_id}` — guarded; `employee_roles` rows cascade automatically (existing `ondelete=CASCADE`)
 
-**Session C — Schools, Contractors, Hygienists:**
+**Session C — Schools, Contractors, Hygienists:** ✓ COMPLETE
 
-- [ ] `_get_school_references` — checks `project_school_links` (even though it cascades, a school linked to any project should not be silently wiped)
-- [ ] `GET /schools/{school_id}/connections` + `DELETE /schools/{school_id}`
-- [ ] `_get_contractor_references` — checks `project_contractor_links`
-- [ ] `GET /contractors/{contractor_id}/connections` + `DELETE /contractors/{contractor_id}`
-- [ ] `_get_hygienist_references` — checks `project_hygienist_links`
-- [ ] `GET /hygienists/{hygienist_id}/connections` + `DELETE /hygienists/{hygienist_id}`
+- [x] `_get_school_references` — checks `project_school_links` (even though it cascades, a school linked to any project should not be silently wiped)
+- [x] `GET /schools/{school_id}/connections` + `DELETE /schools/{school_id}`
+- [x] `_get_contractor_references` — checks `project_contractors_links`
+- [x] `GET /contractors/{contractor_id}/connections` + `DELETE /contractors/{contractor_id}`
+- [x] `_get_hygienist_references` — checks `project_hygienist_links`
+- [x] `GET /hygienists/{hygienist_id}/connections` + `DELETE /hygienists/{hygienist_id}` (upgraded existing unguarded DELETE)
 
 **Session D — WA Codes and Deliverables:**
 
