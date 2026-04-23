@@ -297,12 +297,51 @@ src/
 
 ## Phase 2 — Admin CRUD (simple entities)
 
-- [ ] **Session 2.1** — Employees _(second concrete entity; validates generics shape)_
-  - Build like Schools was built in Session 1.4: concrete feature slice, no generics yet
-  - Individual create/edit/delete (Employees has full CRUD unlike Schools)
-  - Nested `employee_roles` (time-bound) — employee detail gets a **Roles** tab
-  - Date-overlap validation is backend-side; surface 422s cleanly
-  - Test: create form validates required fields; Roles tab renders; date-overlap 422 surfaces on the correct field
+**Session 2.1 — Employees** _(second concrete entity; validates generics shape)_
+
+Build like Schools was built in Session 1.4: concrete feature slice, no generics yet. Split across three focused sub-sessions so each stays small and context-scoped. CSV batch import endpoint exists server-side but is **out of scope for 2.1** — add later if field demand appears. Do **not** extract generics during 2.1 — that is Session 2.2.
+
+Shared references for all three sub-sessions:
+
+- Template files: `src/features/schools/api/schools.ts`, `src/features/schools/components/*.tsx`, `src/pages/admin/schools/{index,detail,loader}.tsx`, `src/routes/_authenticated/admin/schools/{index,$schoolId}.tsx`
+- Form primitives: `src/components/ui/field.tsx` (`Field`/`FieldLabel`/`FieldError`/`FieldGroup`); no shadcn `form` component
+- Resolver: `standardSchemaResolver` from `@hookform/resolvers/standard-schema` (not `zodResolver`)
+- Error mapping: `applyServerErrors<T>` from `src/lib/form-errors.ts`
+- Dialog state: `useFormDialog()` from `src/hooks/useFormDialog.ts`
+- URL state: `useUrlSearch` + `useUrlPagination`
+- Test harness: `renderWithProviders` + `createTestQueryClient` — feature-layer tests are greenfield (no existing feature tests); 2.1 establishes the pattern
+- Types: import Employee shapes from `@/api/generated/types.gen.ts` — never hand-roll
+- Admin guard: `src/routes/_authenticated/admin.tsx` — inherited, no changes
+- API-wrapper naming: drop the generated suffix noise (`updateEmployeeMutation`, not `updateEmployeeEmployeesEmployeeIdPatchMutation`)
+
+- [ ] **Session 2.1a** — Employees list + combobox fix _(unblock the paginated breaking change)_
+  - Extend `src/features/employees/api/employees.ts` with domain-named wrappers for get/create/update/delete/role mutations and `listEmployeeRoles*` — add all of them in this session so 2.1b and 2.1c don't need to touch the barrel
+  - **Fix `src/fields/EmployeeCombobox.tsx`**: re-import via the feature barrel (not `@/api/generated/`); read `data?.items ?? []` (response is now `PaginatedResponseEmployee`, not `Employee[]` — current code crashes); push `search` server-side with `useDebounce` like `SchoolCombobox` does; keep `shouldFilter={false}`
+  - Update `src/fields/EmployeeCombobox.stories.tsx` cache seed to the paginated envelope `{items, total, skip, limit}`
+  - `src/features/employees/components/EmployeesList.tsx` — prop-driven; module-scope `columns: ColumnDef<Employee>[]` (Name, Title, Email, ADP ID); query via `listEmployeesOptions({ query: { search, skip, limit } })`; `pageCount = Math.ceil(total/limit)`
+  - `src/pages/admin/employees/index.tsx` — wire `useUrlSearch("search")` + `useUrlPagination`; `onRowClick` → `/admin/employees/$employeeId`; header button is "Add employee" (opens form dialog built in 2.1b — stub the button with a TODO until then, or keep disabled)
+  - Route: `src/routes/_authenticated/admin/employees/index.tsx` with `validateSearch`
+  - Test: `EmployeesList.test.tsx` — rows render from mocked paginated response; empty state; search debounces and passes `search` query param
+  - **Blocker:** this session is the one that picks up the regenerated client; verify `EmployeeCombobox` fix before committing
+
+- [ ] **Session 2.1b** — Create/edit form + detail page
+  - `src/features/employees/components/EmployeeFormDialog.tsx` — one dialog for both modes; `employee?: Employee` prop, absence = create. Zod schema mirroring `EmployeeCreate` (required: `first_name`, `last_name`; optional: `display_name`, `title`, `email`, `phone`, `adp_id`). Title dropdown from `TitleEnum`. `onError` → `applyServerErrors`; fall back to toast if it returns `false`. `onSuccess` → invalidate `listEmployeesQueryKey()` (and `getEmployeeQueryKey` on edit) + toast + close + reset
+  - `src/features/employees/components/EmployeeDetail.tsx` — `useQuery(getEmployeeOptions(...))`; shadcn `Tabs` with **Details** tab only in this session (Roles tab added in 2.1c — stub the tab trigger with a "coming in 2.1c" placeholder panel, or gate it behind a `<TabsTrigger disabled>`). Details tab: `<DetailRow>` list + Edit + Delete buttons
+  - Delete: `AlertDialog` confirm → `deleteEmployeeMutation` → invalidate + navigate to `/admin/employees`. **409 on delete renders inline in the AlertDialog, not a toast** (mirror the Schools 409-on-unlink convention from 3.3). Optional: pre-check via `getEmployeeConnectionsOptions` to show linked-record counts in the confirm dialog before the user clicks Delete
+  - `src/pages/admin/employees/detail.tsx` + `loader.ts` (`queryClient.ensureQueryData(getEmployeeOptions({path:{employee_id: id}}))`)
+  - Route: `src/routes/_authenticated/admin/employees/$employeeId.tsx` with `loader`
+  - Wire the "Add employee" button from 2.1a's page to open `EmployeeFormDialog` in create mode
+  - Tests: `EmployeeFormDialog.test.tsx` (required-field validation; 422 maps to the offending field via `applyServerErrors`; success invalidates list cache); `EmployeeDetail.test.tsx` (tabs render; delete confirm calls mutation; 409 renders inline in dialog)
+
+- [ ] **Session 2.1c** — Roles tab _(nested CRUD with complex error UX)_
+  - `src/features/employees/components/EmployeeRolesTab.tsx` — table of roles (role_type, start_date, end_date, hourly_rate, actions); "Add role" button; row-menu Edit/Delete
+  - `src/features/employees/components/EmployeeRoleFormDialog.tsx` — RHF + zod. In edit mode, `role_type` and `start_date` are **immutable** per `EmployeeRoleUpdate` — disable those fields
+  - **Error surfaces (backend already returns these):**
+    - **409 on create** (date-range overlap for same `role_type`) — render inline banner at top of form via `setError('root.serverError', ...)`, not a toast
+    - **422 on update** (`end_date <= start_date`) — `applyServerErrors` will land it on `end_date`
+  - Replace the stub Roles tab trigger from 2.1b with the real panel
+  - Invalidate `listEmployeeRolesQueryKey({path:{employee_id}})` on every role mutation
+  - Test: `EmployeeRoleFormDialog.test.tsx` — 409 renders inline banner (asserts no toast); 422 attaches to `end_date` field; `role_type` + `start_date` disabled in edit mode
 
 - [ ] **Session 2.2** — Extract generics + retrofit _(DRY when two concrete entities exist)_
   - Extract `EntityListPage`, `EntityFormPage`, `EntityFormDialog` from Schools + Employees patterns

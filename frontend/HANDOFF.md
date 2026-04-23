@@ -12,42 +12,42 @@
 
 **Sessions 0.5 and 1.1–1.7 complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built. Testing infrastructure wired (`vitest` + jsdom + RTL + jest-dom + user-event). Storybook 10 configured and stories written for all shared components. Line-ending policy and format-on-save toolchain fixed.
 
-## Session 2.1 — BLOCKED (backend first)
+## Session 2.1 — UNBLOCKED, planned, split into 2.1a / 2.1b / 2.1c
 
-Frontend Session 2.1 (Employees admin CRUD) is blocked pending backend work.
-User will complete backend changes in a separate session before resuming.
+All three original backend blockers verified resolved in the regenerated client:
 
-Backend must add, in order:
+- [x] `types.gen.ts` has `EmployeeCreate` (L426), `EmployeeUpdate` (L522), `PaginatedResponseEmployee` (L835 — note: flat name, no underscores)
+- [x] SDK has `createEmployeeEmployeesPost`, `updateEmployeeEmployeesEmployeeIdPatch`, `deleteEmployeeEmployeesEmployeeIdDelete`, plus the full role-mutation set
+- [x] `ListEntriesEmployeesGetData.query` is `{ skip?, limit?, search? }`; response is `PaginatedResponseEmployee`
 
-1. `POST /employees/`, `PATCH /employees/{id}`, `DELETE /employees/{id}` — individual
-   Employee create/update/delete. Expose `EmployeeCreate` / `EmployeeUpdate` Pydantic
-   schemas so the generated TS client picks up the types.
-2. Pagination + search on `GET /employees/`: add `skip` / `limit` / `search` query
-   params; return `PaginatedResponse[Employee]` (same wrapper as Schools). Search
-   should cover `first_name`, `last_name`, `email`, `adp_id`.
-3. Regenerate frontend client: `pnpm dlx @hey-api/openapi-ts` (backend running).
+See `ROADMAP.md` Session 2.1 for the split into three sub-sessions: **2.1a** (list + broken-combobox fix + full api/ barrel), **2.1b** (create/edit dialog + detail page with Details tab), **2.1c** (Roles tab with 409/422 error UX).
 
-**Confirm before resuming 2.1:**
-- [ ] `types.gen.ts` has `EmployeeCreate`, `EmployeeUpdate`, and
-      `PaginatedResponse_Employee_` (or equivalent).
-- [ ] SDK has `createEmployee*`, `updateEmployee*`, `deleteEmployee*`, and
-      `listEmployees*` accepts `{ query: { skip, limit, search } }`.
-- [ ] `GET /employees/` response shape is `{ items, total, limit, skip }`.
+**⚠️ 2.1a must land first** — `src/fields/EmployeeCombobox.tsx` currently reads `listEmployees` as `Employee[]`, but the regenerated response is `{items, total, skip, limit}`. The combobox will crash the moment the new client is pulled in. 2.1a fixes it in the same session that adds the list page.
 
-**Also on resume (small cleanup, not blocking):**
-- `src/fields/EmployeeCombobox.tsx` imports from `@/api/generated/` directly;
-  route it through `@/features/employees/api/employees.ts` for consistency with
-  the wrapper-layer rule in `frontend/CLAUDE.md`.
+**Collateral pickups from other backend work:**
 
-**Error surfaces to plan for (backend already returns these):**
-- Role create `POST /employees/{id}/roles` → **409** on date-range overlap for
-  the same `role_type`. Render inline, not a generic toast.
-- Role update `PATCH /employees/roles/{role_id}` → **422** when
-  `end_date <= start_date`. Map via `applyServerErrors`.
+- **`GET /work-auths/` is now paginated** — previously returned a single `WorkAuth` or 404; now returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
+- **New contractors endpoints** (`GET/POST/PATCH /contractors/`) — regenerated client exposes them. Not needed until Session 2.3.
 
 ---
 
-## What Was Done This Session (Session 1.7 — Storybook cleanup + tooling)
+## What Was Done This Session (Session 2.1 prep — planning + docs)
+
+**Done:**
+
+- Verified all three Session 2.1 backend blockers resolved in the regenerated client: `EmployeeCreate` (L426), `EmployeeUpdate` (L522), `PaginatedResponseEmployee` (L835), full CRUD + role mutation set in `sdk.gen.ts`, `GET /employees/` query params `{ skip?, limit?, search? }`
+- Identified that `src/fields/EmployeeCombobox.tsx` will crash on the new paginated response — flagged as must-fix in 2.1a
+- Split Session 2.1 into three focused sub-sessions in `ROADMAP.md` (2.1a: list + combobox fix + api barrel; 2.1b: create/edit form + detail/delete; 2.1c: Roles tab with 409/422 UX)
+- Added shared-references preamble to the Session 2.1 block in `ROADMAP.md` (template files, form primitives, resolver, error mapping, hooks, test harness, types policy, naming rules) — enough to start any sub-session cold from a fresh machine
+- Noted collateral pickups: `work_auths` paginated migration (audit in Session 3.4) and new contractors endpoints (Session 2.3)
+
+**Next:** Session 2.1a — Employees list + broken-combobox fix + full api/ barrel
+
+**Blockers:** none; client is regenerated, blockers cleared
+
+---
+
+## What Was Done Previously (Session 1.7 — Storybook cleanup + tooling)
 
 **Done:**
 
