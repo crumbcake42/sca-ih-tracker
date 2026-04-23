@@ -4,6 +4,8 @@
 
 **Regenerate the OpenAPI client** — the contractors module gained `GET /contractors/`, `GET /contractors/{id}`, `POST /contractors/`, and `PATCH /contractors/` endpoints (Phase 1.5 session 1). These did not exist before. Run the codegen command from `frontend/CLAUDE.md` after the backend is running.
 
+**Breaking change: `GET /work-auths/` now returns a paginated list.** Previously, `GET /work-auths/?project_id=X` returned a single `WorkAuth` object and raised 404 when no work auth existed for that project. It now returns a `PaginatedResponse<WorkAuth>` envelope (`{ items, total, skip, limit }`). When the project has no work auth, `total` is 0 and `items` is `[]` — there is no 404. Any frontend code that reads `response.project_id` directly must be updated to `response.items[0]?.project_id` (and guard for the empty case). Regenerate the OpenAPI client after the backend is running.
+
 ---
 
 ## Current State

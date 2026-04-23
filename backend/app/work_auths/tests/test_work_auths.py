@@ -3,7 +3,7 @@ Integration tests for work auth endpoints.
 
 POST   /work-auths          — create
 GET    /work-auths/{id}     — get by id
-GET    /work-auths?project_id={id} — get for project
+GET    /work-auths?project_id={id} — list filtered by project (paginated)
 PATCH  /work-auths/{id}     — update
 DELETE /work-auths/{id}     — delete
 """
@@ -140,7 +140,7 @@ class TestGetWorkAuth:
 
 
 class TestGetWorkAuthByProject:
-    async def test_returns_work_auth_for_project(
+    async def test_returns_paginated_list_for_project(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await _seed_school(db_session)
@@ -149,15 +149,20 @@ class TestGetWorkAuthByProject:
 
         response = await auth_client.get(f"/work-auths?project_id={project.id}")
         assert response.status_code == 200
-        assert response.json()["project_id"] == project.id
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["project_id"] == project.id
 
-    async def test_no_work_auth_returns_404(
+    async def test_no_work_auth_returns_empty_list(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await _seed_school(db_session)
         project = await _seed_project(db_session, school)
         response = await auth_client.get(f"/work-auths?project_id={project.id}")
-        assert response.status_code == 404
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["items"] == []
 
 
 # ---------------------------------------------------------------------------

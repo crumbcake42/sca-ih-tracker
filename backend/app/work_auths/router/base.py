@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.factories import create_readonly_router
 from app.database import get_db
 from app.projects.models import Project
 from app.projects.services import ensure_deliverables_exist, recalculate_deliverable_sca_status
@@ -12,6 +13,13 @@ from app.work_auths import models, schemas
 from ._helpers import _get_work_auth_or_404
 
 router = APIRouter()
+router.include_router(
+    create_readonly_router(
+        model=models.WorkAuth,
+        read_schema=schemas.WorkAuth,
+        default_sort=models.WorkAuth.id.asc(),
+    )
+)
 
 # ---------------------------------------------------------------------------
 # Work Auth CRUD
@@ -57,22 +65,6 @@ async def get_work_auth(
     db: AsyncSession = Depends(get_db),
 ):
     return await _get_work_auth_or_404(work_auth_id, db)
-
-
-@router.get("/", response_model=schemas.WorkAuth)
-async def get_work_auth_for_project(
-    project_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(models.WorkAuth).where(models.WorkAuth.project_id == project_id)
-    )
-    wa = result.scalar_one_or_none()
-    if not wa:
-        raise HTTPException(
-            status_code=404, detail="No work auth found for this project"
-        )
-    return wa
 
 
 @router.patch(

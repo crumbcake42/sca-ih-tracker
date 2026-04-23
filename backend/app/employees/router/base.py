@@ -70,15 +70,6 @@ router.include_router(
     )
 )
 
-@router.get("/", response_model=list[Employee])
-async def list_employees(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(EmployeeModel).order_by(
-            EmployeeModel.last_name, EmployeeModel.first_name
-        )
-    )
-    return result.scalars().all()
-
 
 @router.post("/", response_model=Employee, status_code=201)
 async def create_employee(

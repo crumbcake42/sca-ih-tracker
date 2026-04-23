@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-23 (Phase 1.7 complete)
+# Session Handoff — 2026-04-23 (work-auths migration + employee router fix)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,43 +6,37 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 1.7 complete and fully tested.** Every factory-backed `GET /[entity]` endpoint now supports generic column-filter query params.
+**Work-auths `GET /` migrated to factory. Employee router dead code removed.**
 
 ---
 
 ## What Was Done This Session
 
-Implemented Phase 1.7 — generic column filtering in `create_readonly_router`.
+### 1. Work-auths migration onto `create_readonly_router`
 
-**Files created/modified:**
+`GET /work-auths/?project_id=X` was hand-rolled and returned a single `WorkAuth` object (404 when missing). It is now factory-backed and returns `PaginatedResponse[WorkAuth]`.
 
-- `app/common/introspection.py` *(new)* — `filterable_columns(model)` helper. Iterates `mapper.iterate_properties`, skips non-`ColumnProperty` attrs, excludes `AuditMixin` fields (derived dynamically from `AuditMixin.__annotations__`, not a hardcoded list), excludes columns whose type has no `python_type`. Returns `{attr_name: Column}`.
-- `app/common/crud.py` — added `filters: Sequence[ColumnElement[bool]] | None = None` to `get_paginated_list`; applied before `count_stmt` so `total` reflects filters.
-- `app/common/factories.py` — added `Request` injection to `list_entries`; builds `_filterable` map at factory-construction time; walks `request.query_params.multi_items()` per request; skips reserved params (`skip`, `limit`, `search`); collects unknowns and coercion errors; raises 422 (unknowns listed sorted, coercion reports first failure); builds `col.in_(values)` clauses; passes to `get_paginated_list`.
-- `app/schools/tests/test_router.py` — appended `TestListSchoolsColumnFilters` (9 tests: exact match, multi-value OR, AND across columns, unknown 422, multiple unknowns 422, bad type 422, search+filter compose, audit column blocked, filtered total).
-- `app/wa_codes/tests/test_router.py` — appended `TestListWACodesColumnFilters` (2 tests: filter by level success case, unknown column 422).
-- `app/PATTERNS.md` — added entry **#15 — Factory query-param column filters**.
-- `app/common/README.md` — documented `introspection.py` and updated factory section.
+**Files modified:**
 
-All 78 tests in the affected files pass (no regressions).
+- `app/work_auths/router/base.py` — added `create_readonly_router` import; added `router.include_router(create_readonly_router(model=models.WorkAuth, read_schema=schemas.WorkAuth, default_sort=models.WorkAuth.id.asc()))` immediately after `router = APIRouter()`; removed the hand-rolled `get_work_auth_for_project` function.
+- `app/work_auths/tests/test_work_auths.py` — updated `TestGetWorkAuthByProject`: `test_returns_work_auth_for_project` → now asserts `data["total"] == 1` and `data["items"][0]["project_id"]`; `test_no_work_auth_returns_404` → now asserts 200 with empty items (factory never 404s on empty filter results).
+- `frontend/HANDOFF.md` — noted the breaking contract change for the FE session to pick up (single object → paginated envelope; no 404 on empty).
+
+### 2. Employee router dead code removed
+
+`app/employees/router/base.py` had both `router.include_router(create_readonly_router(...))` and a hand-rolled `@router.get("/", response_model=list[Employee])` (`list_employees`). The factory route was registered first and shadowed the hand-rolled one; `list_employees` was dead code. Removed it.
 
 ---
 
 ## Non-obvious Decisions
 
-- **`_filterable` built at factory construction, not per-request.** The column map is static — computing it once avoids inspecting the mapper on every GET.
-- **`col.in_(values)` always** — even single-value filters use `.in_([v])` rather than `== v`. Keeps the clause-building loop uniform.
-- **Unknown columns reported, coercion errors reported separately** — unknowns list all bad names sorted; coercion reports first failure only. Tests confirm both.
-- **Audit fields excluded via `AuditMixin.__annotations__`** — self-updating if AuditMixin gains new fields.
+- **`project_id` filter is automatic** — no special handling needed. `project_id` is a scalar `int` column on `WorkAuth`, so `filterable_columns()` includes it and the factory handles `?project_id=X` as a column filter.
+- **No 404 on empty filter** — the new `GET /work-auths/?project_id=X` returns an empty paginated list when no work auth exists, not 404. The FE must handle this. Noted in `frontend/HANDOFF.md`.
 
 ---
 
 ## Next Step
 
-Phase 1.7 is complete. The known follow-up from the roadmap is:
-
-**Work-auths migration (separate session):** `GET /work-auths/?project_id=` is currently hand-rolled and returns a single object. After Phase 1.7 lands, migrate it onto the factory (breaking FE contract change: single object → paginated list). Needs a `frontend/HANDOFF.md` note before implementing. That is its own session.
-
-After that, the next major phase is **Phase 2 work** or **Phase 6.5**, depending on priority.
+The next major phase is **Phase 2 work** or **Phase 6.5**, depending on priority.
 
 Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented.
