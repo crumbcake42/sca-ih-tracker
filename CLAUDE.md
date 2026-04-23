@@ -32,6 +32,8 @@ Frontend generates typed client hooks from the backend's `/openapi.json`. See `f
 
 ### Cross-cutting rules
 
+Prefer inferred or narrowed types over Any (Python) / any / unknown (TypeScript); if generics or known interfaces can express the shape, use them.
+
 When a backend endpoint changes shape (new field, removed field, changed status code), add a note to `frontend/HANDOFF.md` so the next frontend session picks it up.
 
 **Session scope:** Keep each session scoped to one side. During a backend session, do not read `frontend/HANDOFF.md`, `frontend/ROADMAP.md`, or any other frontend doc to plan work — and vice versa. The only exception is at the end of a session: if changes on one side affect the other, write a note to the other side's `HANDOFF.md` so the next session picks it up.
