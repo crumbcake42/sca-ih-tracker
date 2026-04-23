@@ -830,6 +830,28 @@ export type PaginatedResponseDeliverable = {
 };
 
 /**
+ * PaginatedResponse[Employee]
+ */
+export type PaginatedResponseEmployee = {
+    /**
+     * Items
+     */
+    items: Array<Employee>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Skip
+     */
+    skip: number;
+    /**
+     * Limit
+     */
+    limit: number;
+};
+
+/**
  * PaginatedResponse[School]
  */
 export type PaginatedResponseSchool = {
@@ -859,6 +881,28 @@ export type PaginatedResponseWaCode = {
      * Items
      */
     items: Array<WaCode>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Skip
+     */
+    skip: number;
+    /**
+     * Limit
+     */
+    limit: number;
+};
+
+/**
+ * PaginatedResponse[WorkAuth]
+ */
+export type PaginatedResponseWorkAuth = {
+    /**
+     * Items
+     */
+    items: Array<WorkAuth>;
     /**
      * Total
      */
@@ -2278,6 +2322,36 @@ export type CreateContractorContractorsPostResponses = {
 
 export type CreateContractorContractorsPostResponse = CreateContractorContractorsPostResponses[keyof CreateContractorContractorsPostResponses];
 
+export type DeleteContractorContractorsContractorIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Contractor Id
+         */
+        contractor_id: number;
+    };
+    query?: never;
+    url: '/contractors/{contractor_id}';
+};
+
+export type DeleteContractorContractorsContractorIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteContractorContractorsContractorIdDeleteError = DeleteContractorContractorsContractorIdDeleteErrors[keyof DeleteContractorContractorsContractorIdDeleteErrors];
+
+export type DeleteContractorContractorsContractorIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteContractorContractorsContractorIdDeleteResponse = DeleteContractorContractorsContractorIdDeleteResponses[keyof DeleteContractorContractorsContractorIdDeleteResponses];
+
 export type GetContractorContractorsContractorIdGetData = {
     body?: never;
     path: {
@@ -2337,6 +2411,34 @@ export type UpdateContractorContractorsContractorIdPatchResponses = {
 };
 
 export type UpdateContractorContractorsContractorIdPatchResponse = UpdateContractorContractorsContractorIdPatchResponses[keyof UpdateContractorContractorsContractorIdPatchResponses];
+
+export type GetContractorConnectionsContractorsContractorIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Contractor Id
+         */
+        contractor_id: number;
+    };
+    query?: never;
+    url: '/contractors/{contractor_id}/connections';
+};
+
+export type GetContractorConnectionsContractorsContractorIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetContractorConnectionsContractorsContractorIdConnectionsGetError = GetContractorConnectionsContractorsContractorIdConnectionsGetErrors[keyof GetContractorConnectionsContractorsContractorIdConnectionsGetErrors];
+
+export type GetContractorConnectionsContractorsContractorIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ImportBatchContractorsBatchImportPostData = {
     body: BodyImportBatchContractorsBatchImportPost;
@@ -3189,6 +3291,64 @@ export type ListEntriesDeliverablesGetResponses = {
 
 export type ListEntriesDeliverablesGetResponse = ListEntriesDeliverablesGetResponses[keyof ListEntriesDeliverablesGetResponses];
 
+export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Deliverable Id
+         */
+        deliverable_id: number;
+    };
+    query?: never;
+    url: '/deliverables/{deliverable_id}/connections';
+};
+
+export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetError = GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetErrors[keyof GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetErrors];
+
+export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeleteDeliverableDeliverablesDeliverableIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Deliverable Id
+         */
+        deliverable_id: number;
+    };
+    query?: never;
+    url: '/deliverables/{deliverable_id}';
+};
+
+export type DeleteDeliverableDeliverablesDeliverableIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteDeliverableDeliverablesDeliverableIdDeleteError = DeleteDeliverableDeliverablesDeliverableIdDeleteErrors[keyof DeleteDeliverableDeliverablesDeliverableIdDeleteErrors];
+
+export type DeleteDeliverableDeliverablesDeliverableIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteDeliverableDeliverablesDeliverableIdDeleteResponse = DeleteDeliverableDeliverablesDeliverableIdDeleteResponses[keyof DeleteDeliverableDeliverablesDeliverableIdDeleteResponses];
+
 export type ImportBatchDeliverablesBatchImportPostData = {
     body: BodyImportBatchDeliverablesBatchImportPost;
     path?: never;
@@ -3315,23 +3475,43 @@ export type RemoveTriggerDeliverablesDeliverableIdTriggersWaCodeIdDeleteResponse
 
 export type RemoveTriggerDeliverablesDeliverableIdTriggersWaCodeIdDeleteResponse = RemoveTriggerDeliverablesDeliverableIdTriggersWaCodeIdDeleteResponses[keyof RemoveTriggerDeliverablesDeliverableIdTriggersWaCodeIdDeleteResponses];
 
-export type ListEmployeesEmployeesGetData = {
+export type ListEntriesEmployeesGetData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Search
+         */
+        search?: string | null;
+    };
     url: '/employees/';
 };
 
-export type ListEmployeesEmployeesGetResponses = {
+export type ListEntriesEmployeesGetErrors = {
     /**
-     * Response List Employees Employees  Get
-     *
-     * Successful Response
+     * Validation Error
      */
-    200: Array<Employee>;
+    422: HttpValidationError;
 };
 
-export type ListEmployeesEmployeesGetResponse = ListEmployeesEmployeesGetResponses[keyof ListEmployeesEmployeesGetResponses];
+export type ListEntriesEmployeesGetError = ListEntriesEmployeesGetErrors[keyof ListEntriesEmployeesGetErrors];
+
+export type ListEntriesEmployeesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PaginatedResponseEmployee;
+};
+
+export type ListEntriesEmployeesGetResponse = ListEntriesEmployeesGetResponses[keyof ListEntriesEmployeesGetResponses];
 
 export type CreateEmployeeEmployeesPostData = {
     body: EmployeeCreate;
@@ -3357,6 +3537,36 @@ export type CreateEmployeeEmployeesPostResponses = {
 };
 
 export type CreateEmployeeEmployeesPostResponse = CreateEmployeeEmployeesPostResponses[keyof CreateEmployeeEmployeesPostResponses];
+
+export type DeleteEmployeeEmployeesEmployeeIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Employee Id
+         */
+        employee_id: number;
+    };
+    query?: never;
+    url: '/employees/{employee_id}';
+};
+
+export type DeleteEmployeeEmployeesEmployeeIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteEmployeeEmployeesEmployeeIdDeleteError = DeleteEmployeeEmployeesEmployeeIdDeleteErrors[keyof DeleteEmployeeEmployeesEmployeeIdDeleteErrors];
+
+export type DeleteEmployeeEmployeesEmployeeIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteEmployeeEmployeesEmployeeIdDeleteResponse = DeleteEmployeeEmployeesEmployeeIdDeleteResponses[keyof DeleteEmployeeEmployeesEmployeeIdDeleteResponses];
 
 export type GetEmployeeEmployeesEmployeeIdGetData = {
     body?: never;
@@ -3417,6 +3627,34 @@ export type UpdateEmployeeEmployeesEmployeeIdPatchResponses = {
 };
 
 export type UpdateEmployeeEmployeesEmployeeIdPatchResponse = UpdateEmployeeEmployeesEmployeeIdPatchResponses[keyof UpdateEmployeeEmployeesEmployeeIdPatchResponses];
+
+export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Employee Id
+         */
+        employee_id: number;
+    };
+    query?: never;
+    url: '/employees/{employee_id}/connections';
+};
+
+export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetError = GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetErrors[keyof GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetErrors];
+
+export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ListEmployeeRolesEmployeesEmployeeIdRolesGetData = {
     body?: never;
@@ -3702,6 +3940,34 @@ export type UpdateHygienistHygienistsHygienistIdPatchResponses = {
 };
 
 export type UpdateHygienistHygienistsHygienistIdPatchResponse = UpdateHygienistHygienistsHygienistIdPatchResponses[keyof UpdateHygienistHygienistsHygienistIdPatchResponses];
+
+export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Hygienist Id
+         */
+        hygienist_id: number;
+    };
+    query?: never;
+    url: '/hygienists/{hygienist_id}/connections';
+};
+
+export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetError = GetHygienistConnectionsHygienistsHygienistIdConnectionsGetErrors[keyof GetHygienistConnectionsHygienistsHygienistIdConnectionsGetErrors];
+
+export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type GetProjectsProjectsGetData = {
     body?: never;
@@ -4525,6 +4791,64 @@ export type GetSchoolSchoolsIdentifierGetResponses = {
 
 export type GetSchoolSchoolsIdentifierGetResponse = GetSchoolSchoolsIdentifierGetResponses[keyof GetSchoolSchoolsIdentifierGetResponses];
 
+export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * School Id
+         */
+        school_id: number;
+    };
+    query?: never;
+    url: '/schools/{school_id}/connections';
+};
+
+export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetError = GetSchoolConnectionsSchoolsSchoolIdConnectionsGetErrors[keyof GetSchoolConnectionsSchoolsSchoolIdConnectionsGetErrors];
+
+export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeleteSchoolSchoolsSchoolIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * School Id
+         */
+        school_id: number;
+    };
+    query?: never;
+    url: '/schools/{school_id}';
+};
+
+export type DeleteSchoolSchoolsSchoolIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteSchoolSchoolsSchoolIdDeleteError = DeleteSchoolSchoolsSchoolIdDeleteErrors[keyof DeleteSchoolSchoolsSchoolIdDeleteErrors];
+
+export type DeleteSchoolSchoolsSchoolIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteSchoolSchoolsSchoolIdDeleteResponse = DeleteSchoolSchoolsSchoolIdDeleteResponses[keyof DeleteSchoolSchoolsSchoolIdDeleteResponses];
+
 export type UpdateSchoolSchoolsSchoolIdPatchData = {
     body: SchoolUpdate;
     path: {
@@ -4833,6 +5157,36 @@ export type GetWaCodeWaCodesIdentifierGetResponses = {
 
 export type GetWaCodeWaCodesIdentifierGetResponse = GetWaCodeWaCodesIdentifierGetResponses[keyof GetWaCodeWaCodesIdentifierGetResponses];
 
+export type DeleteWaCodeWaCodesWaCodeIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Wa Code Id
+         */
+        wa_code_id: number;
+    };
+    query?: never;
+    url: '/wa-codes/{wa_code_id}';
+};
+
+export type DeleteWaCodeWaCodesWaCodeIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteWaCodeWaCodesWaCodeIdDeleteError = DeleteWaCodeWaCodesWaCodeIdDeleteErrors[keyof DeleteWaCodeWaCodesWaCodeIdDeleteErrors];
+
+export type DeleteWaCodeWaCodesWaCodeIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteWaCodeWaCodesWaCodeIdDeleteResponse = DeleteWaCodeWaCodesWaCodeIdDeleteResponses[keyof DeleteWaCodeWaCodesWaCodeIdDeleteResponses];
+
 export type UpdateWaCodeWaCodesWaCodeIdPatchData = {
     body: WaCodeUpdate;
     path: {
@@ -4862,6 +5216,34 @@ export type UpdateWaCodeWaCodesWaCodeIdPatchResponses = {
 };
 
 export type UpdateWaCodeWaCodesWaCodeIdPatchResponse = UpdateWaCodeWaCodesWaCodeIdPatchResponses[keyof UpdateWaCodeWaCodesWaCodeIdPatchResponses];
+
+export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Wa Code Id
+         */
+        wa_code_id: number;
+    };
+    query?: never;
+    url: '/wa-codes/{wa_code_id}/connections';
+};
+
+export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetError = GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetErrors[keyof GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetErrors];
+
+export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ImportBatchWaCodesBatchImportPostData = {
     body: BodyImportBatchWaCodesBatchImportPost;
@@ -4893,35 +5275,43 @@ export type ImportBatchWaCodesBatchImportPostResponses = {
 
 export type ImportBatchWaCodesBatchImportPostResponse = ImportBatchWaCodesBatchImportPostResponses[keyof ImportBatchWaCodesBatchImportPostResponses];
 
-export type GetWorkAuthForProjectWorkAuthsGetData = {
+export type ListEntriesWorkAuthsGetData = {
     body?: never;
     path?: never;
-    query: {
+    query?: {
         /**
-         * Project Id
+         * Skip
          */
-        project_id: number;
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Search
+         */
+        search?: string | null;
     };
     url: '/work-auths/';
 };
 
-export type GetWorkAuthForProjectWorkAuthsGetErrors = {
+export type ListEntriesWorkAuthsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetWorkAuthForProjectWorkAuthsGetError = GetWorkAuthForProjectWorkAuthsGetErrors[keyof GetWorkAuthForProjectWorkAuthsGetErrors];
+export type ListEntriesWorkAuthsGetError = ListEntriesWorkAuthsGetErrors[keyof ListEntriesWorkAuthsGetErrors];
 
-export type GetWorkAuthForProjectWorkAuthsGetResponses = {
+export type ListEntriesWorkAuthsGetResponses = {
     /**
      * Successful Response
      */
-    200: WorkAuth;
+    200: PaginatedResponseWorkAuth;
 };
 
-export type GetWorkAuthForProjectWorkAuthsGetResponse = GetWorkAuthForProjectWorkAuthsGetResponses[keyof GetWorkAuthForProjectWorkAuthsGetResponses];
+export type ListEntriesWorkAuthsGetResponse = ListEntriesWorkAuthsGetResponses[keyof ListEntriesWorkAuthsGetResponses];
 
 export type CreateWorkAuthWorkAuthsPostData = {
     body: WorkAuthCreate;
