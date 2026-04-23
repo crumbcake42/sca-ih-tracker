@@ -33,7 +33,3 @@ Other blocking issues:
   -- get work auth by work_auth_id
   -- get work auth for project if exists
   -- get all work auths as paginated results
-
-### Notes tests
-
-- 4 of the notes tests are failing. need to be fixed.

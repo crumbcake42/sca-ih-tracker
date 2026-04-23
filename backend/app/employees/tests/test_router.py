@@ -249,3 +249,90 @@ class TestUpdateEmployee:
             f"/employees/{emp.id}", json={"phone": "555123666"}
         )
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /employees/{employee_id}/connections
+# ---------------------------------------------------------------------------
+
+
+class TestGetEmployeeConnections:
+    async def test_clean_entity_returns_zero_counts(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        emp = await _seed_employee(db_session)
+        response = await auth_client.get(f"/employees/{emp.id}/connections")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["time_entries"] == 0
+        assert data["sample_batch_inspectors"] == 0
+
+    async def test_counts_reflect_existing_references(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.lab_results.models import SampleBatch, SampleBatchInspector, SampleType
+
+        emp = await _seed_employee(db_session)
+
+        sample_type = SampleType(name="Air Asbestos Conn")
+        db_session.add(sample_type)
+        await db_session.flush()
+
+        from datetime import date
+
+        batch = SampleBatch(sample_type_id=sample_type.id, batch_num="B-CONN-EMP-001", date_collected=date(2025, 1, 1))
+        db_session.add(batch)
+        await db_session.flush()
+
+        db_session.add(SampleBatchInspector(batch_id=batch.id, employee_id=emp.id))
+        await db_session.flush()
+
+        response = await auth_client.get(f"/employees/{emp.id}/connections")
+        assert response.status_code == 200
+        assert response.json()["sample_batch_inspectors"] == 1
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.get("/employees/9999/connections")
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# DELETE /employees/{employee_id}
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteEmployee:
+    async def test_clean_delete_returns_204(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        emp = await _seed_employee(db_session)
+        response = await auth_client.delete(f"/employees/{emp.id}")
+        assert response.status_code == 204
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.delete("/employees/9999")
+        assert response.status_code == 404
+
+    async def test_blocked_by_sample_batch_inspector_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.lab_results.models import SampleBatch, SampleBatchInspector, SampleType
+
+        emp = await _seed_employee(db_session)
+
+        sample_type = SampleType(name="Air Asbestos Del")
+        db_session.add(sample_type)
+        await db_session.flush()
+
+        from datetime import date
+
+        batch = SampleBatch(sample_type_id=sample_type.id, batch_num="B-DEL-EMP-001", date_collected=date(2025, 1, 1))
+        db_session.add(batch)
+        await db_session.flush()
+
+        db_session.add(SampleBatchInspector(batch_id=batch.id, employee_id=emp.id))
+        await db_session.flush()
+
+        response = await auth_client.delete(f"/employees/{emp.id}")
+        assert response.status_code == 409
+        assert "sample_batch_inspectors" in response.json()["detail"]["blocked_by"]

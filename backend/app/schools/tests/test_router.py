@@ -412,3 +412,70 @@ class TestUpdateSchool:
             f"/schools/{school.id}", json={"state": "N"}
         )
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /schools/{school_id}/connections
+# ---------------------------------------------------------------------------
+
+
+class TestGetSchoolConnections:
+    async def test_clean_entity_returns_zero_counts(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school] = await _seed(db_session, _make_school())
+        response = await auth_client.get(f"/schools/{school.id}/connections")
+        assert response.status_code == 200
+        assert response.json()["project_school_links"] == 0
+
+    async def test_counts_reflect_existing_references(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.projects.models import Project
+
+        [school] = await _seed(db_session, _make_school())
+        project = Project(name="Conn Project", project_number="26-CONN-S001")
+        project.schools = [school]
+        db_session.add(project)
+        await db_session.flush()
+
+        response = await auth_client.get(f"/schools/{school.id}/connections")
+        assert response.status_code == 200
+        assert response.json()["project_school_links"] == 1
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.get("/schools/9999/connections")
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# DELETE /schools/{school_id}
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteSchool:
+    async def test_clean_delete_returns_204(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [school] = await _seed(db_session, _make_school())
+        response = await auth_client.delete(f"/schools/{school.id}")
+        assert response.status_code == 204
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.delete("/schools/9999")
+        assert response.status_code == 404
+
+    async def test_blocked_by_project_link_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.projects.models import Project
+
+        [school] = await _seed(db_session, _make_school())
+        project = Project(name="Del Project", project_number="26-DEL-S001")
+        project.schools = [school]
+        db_session.add(project)
+        await db_session.flush()
+
+        response = await auth_client.delete(f"/schools/{school.id}")
+        assert response.status_code == 409
+        assert "project_school_links" in response.json()["detail"]["blocked_by"]

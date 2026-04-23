@@ -230,3 +230,75 @@ class TestUpdateWACode:
             f"/wa-codes/{wa_code.id}", json={"default_fee": "-5.00"}
         )
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /wa-codes/{wa_code_id}/connections
+# ---------------------------------------------------------------------------
+
+
+class TestGetWACodeConnections:
+    async def test_clean_entity_returns_zero_counts(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [wa_code] = await _seed(db_session, _make_wa_code())
+        response = await auth_client.get(f"/wa-codes/{wa_code.id}/connections")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["work_auth_project_codes"] == 0
+        assert data["deliverable_wa_code_triggers"] == 0
+        assert data["sample_type_wa_codes"] == 0
+
+    async def test_counts_reflect_existing_references(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.deliverables.models import Deliverable, DeliverableWACodeTrigger
+
+        [wa_code] = await _seed(db_session, _make_wa_code())
+        deliverable = Deliverable(name="Conn Deliverable", level=WACodeLevel.PROJECT)
+        db_session.add(deliverable)
+        await db_session.flush()
+        db_session.add(DeliverableWACodeTrigger(deliverable_id=deliverable.id, wa_code_id=wa_code.id))
+        await db_session.flush()
+
+        response = await auth_client.get(f"/wa-codes/{wa_code.id}/connections")
+        assert response.status_code == 200
+        assert response.json()["deliverable_wa_code_triggers"] == 1
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.get("/wa-codes/9999/connections")
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# DELETE /wa-codes/{wa_code_id}
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteWACode:
+    async def test_clean_delete_returns_204(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [wa_code] = await _seed(db_session, _make_wa_code())
+        response = await auth_client.delete(f"/wa-codes/{wa_code.id}")
+        assert response.status_code == 204
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.delete("/wa-codes/9999")
+        assert response.status_code == 404
+
+    async def test_blocked_by_deliverable_trigger_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.deliverables.models import Deliverable, DeliverableWACodeTrigger
+
+        [wa_code] = await _seed(db_session, _make_wa_code())
+        deliverable = Deliverable(name="Del Deliverable", level=WACodeLevel.PROJECT)
+        db_session.add(deliverable)
+        await db_session.flush()
+        db_session.add(DeliverableWACodeTrigger(deliverable_id=deliverable.id, wa_code_id=wa_code.id))
+        await db_session.flush()
+
+        response = await auth_client.delete(f"/wa-codes/{wa_code.id}")
+        assert response.status_code == 409
+        assert "deliverable_wa_code_triggers" in response.json()["detail"]["blocked_by"]

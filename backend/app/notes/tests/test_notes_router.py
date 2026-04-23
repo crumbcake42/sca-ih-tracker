@@ -421,18 +421,18 @@ class TestResolveNote:
 
 class TestGetBlockingIssues:
     async def test_returns_empty_list_when_none(
-        self, client: AsyncClient, db_session: AsyncSession
+        self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await _seed_school(db_session, "K050")
         project = await _seed_project(db_session, school, "26-100-0050")
 
-        resp = await client.get(f"/projects/{project.id}/blocking-issues")
+        resp = await auth_client.get(f"/projects/{project.id}/blocking-issues")
 
         assert resp.status_code == 200
         assert resp.json() == []
 
     async def test_returns_blocking_note_on_project(
-        self, client: AsyncClient, db_session: AsyncSession
+        self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await _seed_school(db_session, "K051")
         project = await _seed_project(db_session, school, "26-100-0051")
@@ -441,7 +441,7 @@ class TestGetBlockingIssues:
             "Site access blocked", is_blocking=True,
         )
 
-        resp = await client.get(f"/projects/{project.id}/blocking-issues")
+        resp = await auth_client.get(f"/projects/{project.id}/blocking-issues")
 
         assert resp.status_code == 200
         data = resp.json()
@@ -452,7 +452,7 @@ class TestGetBlockingIssues:
         assert data[0]["link"] == f"/projects/{project.id}"
 
     async def test_excludes_resolved_notes(
-        self, client: AsyncClient, db_session: AsyncSession
+        self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await _seed_school(db_session, "K052")
         project = await _seed_project(db_session, school, "26-100-0052")
@@ -461,13 +461,13 @@ class TestGetBlockingIssues:
             "Resolved issue", is_blocking=True, resolved=True,
         )
 
-        resp = await client.get(f"/projects/{project.id}/blocking-issues")
+        resp = await auth_client.get(f"/projects/{project.id}/blocking-issues")
 
         assert resp.status_code == 200
         assert resp.json() == []
 
     async def test_returns_404_for_nonexistent_project(
-        self, client: AsyncClient
+        self, auth_client: AsyncClient
     ):
-        resp = await client.get("/projects/999999/blocking-issues")
+        resp = await auth_client.get("/projects/999999/blocking-issues")
         assert resp.status_code == 404

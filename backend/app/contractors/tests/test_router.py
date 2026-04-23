@@ -161,3 +161,86 @@ class TestUpdateContractor:
             f"/contractors/{contractor.id}", json={"state": "N"}
         )
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /contractors/{contractor_id}/connections
+# ---------------------------------------------------------------------------
+
+
+class TestGetContractorConnections:
+    async def test_clean_entity_returns_zero_counts(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [contractor] = await _seed(db_session, _make_contractor())
+        response = await auth_client.get(f"/contractors/{contractor.id}/connections")
+        assert response.status_code == 200
+        assert response.json()["project_contractors_links"] == 0
+
+    async def test_counts_reflect_existing_references(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.common.enums import Boro
+        from app.projects.models import Project
+        from app.projects.models.links import ProjectContractorLink
+        from app.schools.models import School
+
+        [contractor] = await _seed(db_session, _make_contractor())
+        school = School(code="K200", name="Conn School", address="1 Main", city=Boro.BROOKLYN, state="NY", zip_code="11201")
+        db_session.add(school)
+        await db_session.flush()
+        project = Project(name="Conn Project", project_number="26-CONN-C001")
+        project.schools = [school]
+        db_session.add(project)
+        await db_session.flush()
+        db_session.add(ProjectContractorLink(project_id=project.id, contractor_id=contractor.id))
+        await db_session.flush()
+
+        response = await auth_client.get(f"/contractors/{contractor.id}/connections")
+        assert response.status_code == 200
+        assert response.json()["project_contractors_links"] == 1
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.get("/contractors/9999/connections")
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# DELETE /contractors/{contractor_id}
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteContractor:
+    async def test_clean_delete_returns_204(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        [contractor] = await _seed(db_session, _make_contractor())
+        response = await auth_client.delete(f"/contractors/{contractor.id}")
+        assert response.status_code == 204
+
+    async def test_not_found_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.delete("/contractors/9999")
+        assert response.status_code == 404
+
+    async def test_blocked_by_project_link_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.common.enums import Boro
+        from app.projects.models import Project
+        from app.projects.models.links import ProjectContractorLink
+        from app.schools.models import School
+
+        [contractor] = await _seed(db_session, _make_contractor())
+        school = School(code="K201", name="Del School", address="1 Main", city=Boro.BROOKLYN, state="NY", zip_code="11201")
+        db_session.add(school)
+        await db_session.flush()
+        project = Project(name="Del Project", project_number="26-DEL-C001")
+        project.schools = [school]
+        db_session.add(project)
+        await db_session.flush()
+        db_session.add(ProjectContractorLink(project_id=project.id, contractor_id=contractor.id))
+        await db_session.flush()
+
+        response = await auth_client.delete(f"/contractors/{contractor.id}")
+        assert response.status_code == 409
+        assert "project_contractors_links" in response.json()["detail"]["blocked_by"]
