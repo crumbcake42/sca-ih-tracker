@@ -1,4 +1,13 @@
 {
+  "files.eol": "auto",
+  "editor.formatOnSave": true,
+  "eslint.format.enable": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
   "files.watcherExclude": {
     "**/routeTree.gen.ts": true
   },

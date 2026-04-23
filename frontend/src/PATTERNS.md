@@ -10,12 +10,12 @@ Codifies the conventions established during the structural refactor. Read before
 routes/  →  pages/  →  features/*  →  components/, hooks/, fields/, lib/
 ```
 
-| Layer             | Location                                               | Responsibility                                                                              |
-| ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks. shadcn primitives, DataTable, shared hooks.          |
-| Features          | `src/features/<domain>/`                               | Routing-agnostic domain components (take props, emit callbacks) + domain API wrappers.     |
-| Pages             | `src/pages/<route>/`                                   | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, loader data consumption.      |
-| Routes            | `src/routes/`                                          | TanStack Router file-based config only (path, loader, `beforeLoad`, `validateSearch`).     |
+| Layer             | Location                                                   | Responsibility                                                                         |
+| ----------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks. shadcn primitives, DataTable, shared hooks.      |
+| Features          | `src/features/<domain>/`                                   | Routing-agnostic domain components (take props, emit callbacks) + domain API wrappers. |
+| Pages             | `src/pages/<route>/`                                       | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, loader data consumption.  |
+| Routes            | `src/routes/`                                              | TanStack Router file-based config only (path, loader, `beforeLoad`, `validateSearch`). |
 
 **Direction is strictly one-way.** Features never import from `pages/` or `routes/`. Pages use `getRouteApi('/path')` and never import `Route` from a route file. Routes import only from `@/pages/` and `@/auth/`.
 
@@ -30,16 +30,16 @@ Every feature that talks to the backend owns `src/features/<domain>/api/<domain>
 ```ts
 // features/schools/api/schools.ts
 export {
-  listEntriesSchoolsGetOptions    as listSchoolsOptions,
-  listEntriesSchoolsGetQueryKey   as listSchoolsQueryKey,
+  listEntriesSchoolsGetOptions as listSchoolsOptions,
+  listEntriesSchoolsGetQueryKey as listSchoolsQueryKey,
   importBatchSchoolsBatchImportPostMutation as batchImportSchoolsMutation,
 } from "@/api/generated/@tanstack/react-query.gen";
 ```
 
 **Rules:**
 
-- Feature *components* and *pages* never import from `@/api/generated/sdk.gen` or `@/api/generated/@tanstack/**` directly.
-- Feature *api/* wrapper files are the exception — they are the bridge to the generated layer.
+- Feature _components_ and _pages_ never import from `@/api/generated/sdk.gen` or `@/api/generated/@tanstack/**` directly.
+- Feature _api/_ wrapper files are the exception — they are the bridge to the generated layer.
 - Wrappers use domain-operation names, not HTTP-path names: `listSchoolsOptions`, not `listEntriesSchoolsGetOptions`.
 - Wrappers are added just-in-time (when first used), not pre-mapped.
 - Composed/imperative operations (multi-step mutations, get-or-create) may import from `sdk.gen` inside the wrapper file.
@@ -90,3 +90,28 @@ Column definitions are declared as module-level constants outside the component 
 ## Combobox pattern
 
 Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handled explicitly (server-side for SchoolCombobox, client-side for EmployeeCombobox). Trigger button width matches the popover via `w-[var(--radix-popover-trigger-width)]`. Selecting the already-selected value deselects (toggles to `null`).
+
+---
+
+## Testing
+
+- **Runner:** vitest v3 with jsdom environment. `pnpm test` runs once; `pnpm exec vitest` for watch mode.
+- **Globals:** `describe`, `it`, `expect`, `vi`, `beforeEach`, `afterEach` are available without imports (configured in `vitest.config.ts`).
+- **jest-dom:** matchers like `toBeInTheDocument()`, `toHaveTextContent()`, `toBeDisabled()` are available without imports (loaded in `src/test/setup.ts`).
+- **Location:** test files live as `*.test.tsx` (or `.test.ts`) siblings inside the same feature or component folder. `src/test/` is for infrastructure only (setup, helpers, smoke test).
+- **`renderWithProviders`:** import from `@/test/renderWithProviders`. Wraps children in a fresh `QueryClient` (retries off, gcTime 0). Use for any component that calls `useQuery` / `useMutation`. Add router wrapping to this helper when the first router-aware test is written.
+- **Mock strategy:** prefer real in-memory data (pass props); use `vi.fn()` for callbacks; defer MSW / network mocking until a test genuinely needs it.
+- **`createTestQueryClient`:** import from `@/test/queryClient`. Shared by both `renderWithProviders` and the Storybook preview decorator — retries off, gcTime 0.
+- **Vitest workspace:** `pnpm test` runs the `unit` project (jsdom). `pnpm test:stories` runs the `storybook` project (Playwright — requires `pnpm exec playwright install` on first use).
+
+---
+
+## Storybook
+
+- **Dev server:** `pnpm storybook` (port 6006). **Build:** `pnpm build-storybook`.
+- **Story location:** `*.stories.tsx` sibling to the component file (same convention as `*.test.tsx`). New shared components get a story in the same session they are built.
+- **Type imports:** use `@storybook/react-vite` for `Meta`, `StoryObj`, `Decorator`, `Preview` — it re-exports everything from `@storybook/react`.
+- **Global QueryClient decorator:** every story is automatically wrapped in a fresh `QueryClient` (via `.storybook/preview.tsx`). No network calls ever hit in stories.
+- **Pre-seeding cache:** for components that call `useQuery` internally, use a per-story decorator that calls `queryClient.setQueryData(domainQueryKey(args), fixture)` inside a `useEffect`. Import the `*QueryKey` helper from the feature's `api/` wrapper, not from `@/api/generated/` directly.
+- **Naming conflicts:** avoid exporting stories with names that collide with JS globals (`Error`, `Promise`, etc.). Use a display name override: `export const TableError: Story = { name: "Error", ... }`.
+- **TanStack Start filter:** `.storybook/main.ts` strips any plugin whose name contains `"tanstack"` in `viteFinal` — same reason vitest uses its own config (SSR transforms break the browser build).

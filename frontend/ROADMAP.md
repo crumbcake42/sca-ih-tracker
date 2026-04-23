@@ -242,7 +242,7 @@ src/
   - `src/components/AppShell.tsx` — top nav with app name, Projects link, username, sign-out _(moved from `src/shared/` during structural refactor)_
   - Single shell for now (no AdminShell / ManagerShell split yet — deferred until admin/manager routing split is built)
 
-- [ ] **Session 0.5** — Testing infrastructure
+- [x] **Session 0.5** — Testing infrastructure
   - Install: `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`
   - `vitest.config.ts` — jsdom environment, globals: true, setupFiles pointing to `src/test/setup.ts`
   - `src/test/setup.ts` — imports `@testing-library/jest-dom` matchers
@@ -282,13 +282,13 @@ src/
   - **Note on Schools API:** backend has no individual create/update/delete — only list, get-by-identifier, and CSV batch import. Admin pages are read-only + import only.
   - Test: list paginates correctly (real `total` from API); import dialog resets on close; detail page renders all fields
 
-- [ ] **Session 1.5** — Notes panel (polymorphic)
+- [x] **Session 1.5** — Notes panel (polymorphic)
   - `<NotesPanel entityType entityId>` — threaded notes, create, reply, resolve
   - System notes (`note_type != null`): distinct visual treatment, no resolve button
   - Replies collapse/expand
   - Test: system note hides Resolve button; reply thread expands/collapses; new note form submits and invalidates query
 
-- [ ] **Session 1.6** — Storybook setup
+- [x] **Session 1.6** — Storybook setup
   - Install and configure Storybook for Vite + React
   - One story per exported shared component (DataTable, NotesPanel, field comboboxes; EntityListPage/FormPage once extracted in Session 2.2)
   - Convention going forward: new shared components get a story in the same session they are built
@@ -425,7 +425,7 @@ src/
 ## Ongoing — not a phase
 
 - Regenerate the API client after every backend change (`pnpm dlx @hey-api/openapi-ts` with backend running)
-- Storybook — add when shared field components stabilize and feedback cycles pick up
+- Storybook — configured (Session 1.6); add a story in the same session any new shared component is built
 - Error monitoring — Sentry or equivalent before first non-dev deploy
 
 ---

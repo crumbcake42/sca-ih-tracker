@@ -8,29 +8,66 @@
 
 ## Current State
 
-**Phase 0 complete. Sessions 1.1 through 1.4 complete. Structural refactor complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added.
+**Sessions 0.5 and 1.1–1.7 complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built. Testing infrastructure wired (`vitest` + jsdom + RTL + jest-dom + user-event). Storybook 10 configured and stories written for all shared components. Line-ending policy and format-on-save toolchain fixed.
 
-## What Was Done This Session (structural refactor)
+## What Was Done This Session (Session 1.7 — Storybook cleanup + tooling)
 
 **Done:**
 
-- Deleted dead code: `src/auth/{provider,context,types}.tsx`, `src/shared/components/{Header,Footer,ThemeToggle}.tsx`, `src/routes/{index,about}.tsx`, stray `console.log` in `_authenticated.tsx`
-- Flattened `src/shared/` → `src/{components,hooks,fields}/`; `src/lib/` unchanged
-- Removed `@/components/*` and `@/hooks/*` tsconfig aliases (only `@/*` remains); removed `#/*` from `package.json`
-- Created feature api/ wrappers: `features/schools/api/schools.ts`, `features/projects/api/projects.ts`, `features/auth/api/hooks.ts`; cross-cutting `src/auth/api.ts` for auth guard
-- Introduced `src/pages/` layer: login, dashboard (placeholder), projects list, admin overview, admin/schools list + detail
-- Split existing school + project route-body files into prop-driven feature components + URL-wired page files
-- Rewrote `_authenticated.tsx` guard: now async, calls `/users/me` via `queryClient.ensureQueryData`, clears auth and redirects on failure
-- Added `_authenticated/index.tsx` role-router (`admin`/`superadmin` → `/admin`, else → `/dashboard`)
-- Added `_authenticated/dashboard.tsx` and `_authenticated/admin/index.tsx` placeholder routes
-- Updated admin guard to include `superadmin` alongside `admin`
-- Added eslint `no-restricted-imports` rules enforcing layer boundaries
-- Created `src/PATTERNS.md`
-- `pnpm check` and `tsc --noEmit` clean
+- Diagnosed ~90 phantom "modified" files in `git status` as CRLF/LF noise — only 10 files had real content diffs; rest were working-copy CRLF vs LF-stored blobs with no `.gitattributes` enforcing a policy
+- Created `.gitattributes` at repo root (`* text=auto eol=lf`) — single source of truth; `core.autocrlf=input` means no OS-level conversion fights
+- Fixed `prettier.config.js`: changed `endOfLine: "crlf"` → `"auto"` (was the root cause of phantom diffs); also restored double-quotes + semicolons which had been accidentally stripped by prettier running on itself
+- Installed `eslint-plugin-prettier` + `eslint-config-prettier` (peer dep); updated `eslint.config.js` to spread `eslintPluginPrettier.configs["flat/recommended"]` — prettier rules now enforced via ESLint
+- Updated root `.vscode/settings.json`: ESLint as default formatter for `[typescript]` + `[typescriptreact]`, `eslint.format.enable: true`, `eslint.validate` list, `files.eol: "auto"`; removed stale `prettier.endOfLine: "lf"`
+- Updated `frontend/.vscode/settings.json`: same ESLint formatter settings (kept frontend-specific `routeTree.gen.ts` exclusions); removed `prettier.requireConfig`
+- Fixed `tsconfig.json`: added `.storybook/**/*.ts` and `.storybook/**/*.tsx` to `include` — `**` glob in TypeScript does not match dotfile directories so `.storybook/` was excluded, causing ESLint parse errors on `main.ts` and `preview.tsx`
+- Ran `git add --renormalize .`: cleared the 80 CRLF-noise entries; left only 10 real diffs staged
+- `pnpm tsc --noEmit`, `pnpm test` (2/2 green), `pnpm check` — all pass; format-on-save working via ESLint extension
 
-**Next:** Session 1.5 — Notes panel (`<NotesPanel entityType entityId>`)
+**Pending before next session:**
+- Visual Storybook smoke test (`pnpm storybook`) — confirm each story renders; commit `7e08157` still says "not tested yet"
+- Two commits (Commit A: `.gitattributes` + prettier config + vscode settings; Commit B: storybook style + renormalized files)
 
-**Blockers:** none
+**Next:** Session 2.1 — Employees admin CRUD (second concrete entity; validates generics shape)
+
+**Blockers:** `pnpm test:stories` (Storybook/Playwright integration) requires `pnpm exec playwright install chromium` before first use. Not a blocker for regular development.
+
+## What Was Done Previously (Session 1.6 — Storybook)
+
+**Done:**
+
+- Installed Storybook 10 (`storybook`, `@storybook/react-vite`, `@storybook/addon-a11y`, `@storybook/addon-docs`, `@storybook/addon-vitest`, `@chromatic-com/storybook`, `@vitest/browser`, `@vitest/coverage-v8`, `playwright`)
+- `.storybook/main.ts` — framework `@storybook/react-vite`; addons; `viteFinal` strips all `"tanstack"` plugins to avoid SSR transform errors (same fix as vitest's dedicated config)
+- `.storybook/preview.tsx` — imports `../src/styles.css` (Tailwind tokens); global `withQueryClient` decorator wraps every story in a fresh `QueryClient` (retries off, gcTime 0)
+- `src/test/queryClient.ts` — extracted `createTestQueryClient()` shared by both `renderWithProviders` and the Storybook preview decorator
+- `src/features/employees/api/employees.ts` — created just-in-time api wrapper exporting `listEmployeesOptions` / `listEmployeesQueryKey`
+- Wrote five story files:
+  - `src/components/DataTable.stories.tsx` — Default, Loading, Empty, Error variants
+  - `src/components/AppShell.stories.tsx` — Default (admin user seeded in Zustand), Unauthenticated; memory-router decorator for `<Link>` components
+  - `src/fields/SchoolCombobox.stories.tsx` — Default, WithSelection; cache pre-seeded via `listSchoolsQueryKey`
+  - `src/fields/EmployeeCombobox.stories.tsx` — Default, WithSelection; cache pre-seeded via `listEmployeesQueryKey`
+  - `src/features/notes/components/NotesPanel.stories.tsx` — Populated (manual + system + resolved notes), Empty
+- Vitest workspace split into two named projects: `unit` (jsdom, `pnpm test`) and `storybook` (Playwright, `pnpm test:stories`); `pnpm test` targets only `unit` so it never needs Playwright
+- Deleted wizard-generated `src/stories/` boilerplate
+- `src/PATTERNS.md` — added Storybook section
+- `pnpm test` → 2/2 green; `tsc --noEmit` clean
+
+**Next:** Session 2.1 — Employees admin CRUD (second concrete entity; validates generics shape)
+
+**Blockers:** `pnpm test:stories` (Storybook/Playwright integration) requires `pnpm exec playwright install chromium` before first use. Not a blocker for regular development.
+
+## What Was Done Previously (Session 0.5 — Test Infrastructure)
+
+**Done:**
+
+- Installed `@testing-library/user-event` and `@testing-library/jest-dom`
+- Created `vitest.config.ts` — dedicated config (jsdom, globals, `src/test/setup.ts`) that does NOT load the TanStack Start plugin (SSR transforms break vitest)
+- Updated `tsconfig.json` — added `"vitest/globals"` and `"@testing-library/jest-dom"` to `types` for zero-import globals and matchers
+- Created `src/test/setup.ts` — imports jest-dom/vitest extension, registers `afterEach(cleanup)`
+- Created `src/test/renderWithProviders.tsx` — `QueryClient` wrapper for component tests (retries off, gcTime 0); router wrapping deferred until first router-aware test
+- Created `src/test/smoke.test.tsx` — 2 tests: RTL + jest-dom render assertion, `@/` alias resolution via `cn()`
+- `pnpm test` → 2/2 green; `tsc --noEmit` and `pnpm check` clean
+- Added **Testing** section to `src/PATTERNS.md`
 
 ## Architecture Notes
 
@@ -73,13 +110,3 @@ Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handle
 `useReactTable` is called with `manualPagination: true` and `pageCount` from the API response (total ÷ page size). The route is responsible for declaring `validateSearch` with `page` / `pageSize` / filter params; `useUrlPagination` and `useUrlSearch` read them via `useSearch({ strict: false })` so they work generically across routes.
 
 Routes that use pagination must call `useUrlPagination` and pass `{ pagination, onPaginationChange }` to `<DataTable>`. Column definitions are declared as a module-level constant (`const columns: ColumnDef<T>[] = [...]`) outside the component to avoid re-creating the array on each render.
-
-## Next Step
-
-**Session 1.5 — Notes panel.**
-
-Build `<NotesPanel entityType entityId>` in `src/features/notes/components/NotesPanel.tsx`. Key constraints from ROADMAP.md:
-- System notes (`note_type != null`) get distinct visual treatment and no Resolve button
-- Replies are one level deep; collapse/expand
-- One component serves all four entity types (`project` | `time_entry` | `deliverable` | `sample_batch`)
-- Wrap `listNotesNotesEntityTypeEntityIdGetOptions` etc. under `src/features/notes/api/notes.ts` before using in the component

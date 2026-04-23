@@ -1,3 +1,7 @@
+// For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
+import storybook from "eslint-plugin-storybook";
+import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
+
 //  @ts-check
 
 import { tanstackConfig } from "@tanstack/eslint-config";
@@ -14,8 +18,7 @@ export default [
       "pnpm/json-enforce-catalog": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",
     },
-  },
-  // Feature components/hooks must not bypass the api/ wrapper layer or import from routing layers.
+  }, // Feature components/hooks must not bypass the api/ wrapper layer or import from routing layers.
   // Feature api/ wrappers are exempt — they ARE the bridge to @/api/generated/.
   {
     files: ["src/features/*/components/**", "src/features/*/hooks/**"],
@@ -42,8 +45,7 @@ export default [
         },
       ],
     },
-  },
-  // Pages must not bypass the feature api/ wrapper layer.
+  }, // Pages must not bypass the feature api/ wrapper layer.
   {
     files: ["src/pages/**"],
     rules: {
@@ -64,8 +66,7 @@ export default [
         },
       ],
     },
-  },
-  // Routes are config-only — they import from @/pages/ and @/auth/ only.
+  }, // Routes are config-only — they import from @/pages/ and @/auth/ only.
   {
     files: ["src/routes/**"],
     rules: {
@@ -91,4 +92,6 @@ export default [
   {
     ignores: ["eslint.config.js", "prettier.config.js", "src/api/generated/**", "src/routeTree.gen.ts"],
   },
+  ...storybook.configs["flat/recommended"],
+  eslintPluginPrettier,
 ];
