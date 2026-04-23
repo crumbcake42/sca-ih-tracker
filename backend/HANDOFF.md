@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-22 (Phase 1.6 Session D complete)
+# Session Handoff — 2026-04-23 (Phase 1.6 test cleanup complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,16 +6,26 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 1.6 complete.** All admin entities now have connections endpoints and guarded DELETE.
+**Phase 1.6 complete and fully tested.** All admin entities have connections endpoints, guarded DELETE, and passing integration tests.
 
 ---
 
 ## What Was Done This Session
 
-- `app/wa_codes/router/base.py` — added `_get_wa_code_references` (checks `work_auth_project_codes`, `work_auth_building_codes`, `rfa_project_codes`, `rfa_building_codes`, `deliverable_wa_code_triggers`, `sample_type_wa_codes`), `GET /wa_codes/{wa_code_id}/connections`, `DELETE /wa_codes/{wa_code_id}` (guarded)
-- `app/deliverables/router/base.py` — converted from bare `create_readonly_router` call to full `APIRouter` that includes the readonly router; added `_get_deliverable_references` (checks `project_deliverables`, `project_building_deliverables`, `deliverable_wa_code_triggers`), `GET /deliverables/{deliverable_id}/connections`, `DELETE /deliverables/{deliverable_id}` (guarded)
+Added DELETE endpoint tests across all Phase 1.6 entities. Each entity got `TestGet*Connections` (zero counts, non-zero counts, 404) and `TestDelete*` (204, 404, 409) appended to existing test files or in new files:
 
-**Non-obvious:** `deliverable_wa_code_triggers.wa_code_id` is `ondelete="CASCADE"` and `deliverable_wa_code_triggers.deliverable_id` is also `ondelete="CASCADE"` — these would auto-delete on DB side, but they're included in the connections/guard counts for defensive UX (force explicit cleanup before deletion).
+- `app/employees/tests/test_router.py` — appended `TestGetEmployeeConnections` + `TestDeleteEmployee`. Blocked case uses `SampleBatchInspector` (simpler than `TimeEntry` — fewer required FKs).
+- `app/schools/tests/test_router.py` — appended `TestGetSchoolConnections` + `TestDeleteSchool`.
+- `app/contractors/tests/test_router.py` — appended `TestGetContractorConnections` + `TestDeleteContractor`.
+- `app/wa_codes/tests/test_router.py` — appended `TestGetWACodeConnections` + `TestDeleteWACode`.
+- `app/deliverables/tests/test_router.py` — new file.
+- `app/hygienists/tests/test_router.py` — new file (+ `__init__.py`).
+
+Also fixed a pre-existing notes test failure: `TestGetBlockingIssues` was using `client` (unauthenticated) but `/projects` requires auth at the router level; changed to `auth_client`.
+
+All 128 tests in these files pass.
+
+**Non-obvious (carried forward):** `deliverable_wa_code_triggers.wa_code_id` and `.deliverable_id` are both `ondelete="CASCADE"` — these would auto-delete on DB side, but they're included in the connections/guard counts for defensive UX (force explicit cleanup before deletion).
 
 ---
 
@@ -25,11 +35,9 @@ This file captures decisions made and work completed in the most recent session.
 
 Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented when Phase 6.5 resumes.
 
-Other blocking issues:
+### Blocking issue — work auths endpoints
 
-### work auths endpoints
-
-- GET /work-auths endpoint requires project_id param, but this means there's no endpoint to get a paginated list of all work auths. Rethink this pattern so we can look up all these cases
-  -- get work auth by work_auth_id
-  -- get work auth for project if exists
-  -- get all work auths as paginated results
+GET /work-auths requires `project_id` param, so there is no endpoint to get a paginated list of all work auths. Needs a rethink:
+- GET /work-auths/{work_auth_id} — fetch a single work auth by ID
+- GET /work-auths?project_id={id} — fetch work auth for a specific project
+- GET /work-auths — paginated list of all work auths (currently missing)

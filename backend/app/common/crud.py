@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any, Protocol, TypeVar
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped
 
@@ -44,8 +44,8 @@ async def get_paginated_list(
     model: type[ModelT],
     skip: int = 0,
     limit: int = 50,
-    sort_by: Any | None = None,
-    search_attr: Any | None = None,
+    sort_by: ColumnElement[Any] | None = None,
+    search_attr: ColumnElement[str] | None = None,
     search_query: str | None = None,
 ) -> tuple[Sequence[ModelT], int]:
 
