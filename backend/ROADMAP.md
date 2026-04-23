@@ -187,6 +187,37 @@ Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str
 
 ---
 
+### Phase 1.7 — Generic Column Filtering in `create_readonly_router`
+
+> Cross-cutting infrastructure. Extends the factory so every factory-backed list endpoint supports query-param column filters without per-entity boilerplate.
+
+**Filter shape:**
+
+- `GET /[entity]` → paginated list (unchanged)
+- `GET /[entity]?col=v` → exact match
+- `GET /[entity]?col=v1&col=v2` → `col IN (v1, v2)` (OR within a column via repeated param)
+- `GET /[entity]?col_a=v1&col_b=v2` → AND across columns
+- Unknown column → 422, all bad names listed in the detail message
+
+**Design decisions:**
+- Filterable set: all scalar columns except `AuditMixin` fields (`created_at`, `updated_at`, `created_by_id`, `updated_by_id`)
+- Relationship filtering (e.g. `role_type`) is out of scope — column-only
+- Column filters and `search=` compose (AND); `search_attr` / `search` are not deprecated
+- Column filters do not appear in OpenAPI schema (consumed via `Request`) — acceptable for a dynamic surface
+
+**Work:**
+
+- [x] `app/common/introspection.py` — `filterable_columns(model) -> dict[str, Column]`; audit-field denylist
+- [x] `app/common/crud.py` — add `filters: Sequence[ColumnElement[bool]] | None` param to `get_paginated_list`
+- [x] `app/common/factories.py` — accept `request: Request`; validate + coerce query params; build `col.in_([...])` clauses; pass filters to `get_paginated_list`
+- [x] `app/schools/tests/test_router.py` — `TestListSchoolsColumnFilters` (canonical factory test suite)
+- [x] `app/wa_codes/tests/test_router.py` — one cross-entity smoke test
+- [x] `app/PATTERNS.md` + `app/common/README.md` — document filter contract
+
+**Follow-up (separate session after this lands):** Migrate `app/work_auths/router/base.py` hand-rolled `GET /` onto the factory; retire the single-object endpoint; add `frontend/HANDOFF.md` note about the breaking shape change (single object → paginated list).
+
+---
+
 ### Phase 2 — Projects Core + Relationships ✓ COMPLETE
 
 - [x] `projects` table — model, migrations, full CRUD (`GET/POST/PATCH/DELETE /projects/`) with name search + pagination; `project_number` field with regex validation

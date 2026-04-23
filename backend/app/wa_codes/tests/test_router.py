@@ -302,3 +302,30 @@ class TestDeleteWACode:
         response = await auth_client.delete(f"/wa-codes/{wa_code.id}")
         assert response.status_code == 409
         assert "deliverable_wa_code_triggers" in response.json()["detail"]["blocked_by"]
+
+
+# ---------------------------------------------------------------------------
+# Column filters — GET /wa-codes/?col=val (cross-entity smoke test)
+# ---------------------------------------------------------------------------
+
+
+class TestListWACodesColumnFilters:
+    async def test_filter_by_level(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _seed(
+            db_session,
+            _make_wa_code(code="WA-001", level=WACodeLevel.PROJECT),
+            _make_wa_code(code="WA-002", description="Building code", level=WACodeLevel.BUILDING),
+        )
+        response = await auth_client.get("/wa-codes/?level=project")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["code"] == "WA-001"
+
+    async def test_unknown_column_returns_422(self, auth_client: AsyncClient):
+        """Smoke test confirming factory filter behaviour is consistent across entities."""
+        response = await auth_client.get("/wa-codes/?unknown_col=x")
+        assert response.status_code == 422
+        assert "unknown_col" in response.json()["detail"]

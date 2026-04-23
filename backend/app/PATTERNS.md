@@ -280,6 +280,37 @@ Tests use a transaction-based rollback fixture. Each test opens a savepoint, run
 
 ---
 
+## 15. Factory query-param column filters
+
+Every `create_readonly_router`-backed `GET /` endpoint accepts column-filter query params automatically — no per-entity boilerplate required.
+
+**Filter shapes:**
+
+- `?col=v` — exact match (`col = v`)
+- `?col=v1&col=v2` — OR within one column (`col IN (v1, v2)`)
+- `?col_a=v1&col_b=v2` — AND across columns (both clauses apply)
+- `?col=v&search=q` — column filter AND search compose (AND)
+
+**Filterable set:** all scalar columns except `AuditMixin` fields (`created_at`, `updated_at`, `created_by_id`, `updated_by_id`). Relationship attributes are excluded. The set is computed once at factory-construction time via `app/common/introspection.filterable_columns()`.
+
+**Reserved params** (`skip`, `limit`, `search`) are never treated as column names.
+
+**Error responses (422):**
+
+```
+# Unknown column names — all listed, sorted alphabetically
+{"detail": "Unknown query parameters: bad_col, other_col"}
+
+# Type coercion failure — first bad value reported
+{"detail": "Invalid value for 'id': 'not-a-number'"}
+```
+
+**Consumed via `Request`** — column filters do not appear in the OpenAPI schema. This is intentional: the filterable surface is dynamic and adding it to OpenAPI would require per-entity schema overrides that defeat the purpose of the factory.
+
+**When adding a new factory-backed entity**, column filtering works automatically. No changes needed in the factory or the entity module unless a column should be excluded — in which case add it to `AuditMixin` (permanent audit fields) or file a separate request to widen `filterable_columns()`.
+
+---
+
 ## 14. Guarded DELETE
 
 Every deletable reference entity gets two endpoints and a shared helper:

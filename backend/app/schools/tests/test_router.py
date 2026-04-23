@@ -479,3 +479,110 @@ class TestDeleteSchool:
         response = await auth_client.delete(f"/schools/{school.id}")
         assert response.status_code == 409
         assert "project_school_links" in response.json()["detail"]["blocked_by"]
+
+
+# ---------------------------------------------------------------------------
+# Column filters — GET /schools/?col=val
+# ---------------------------------------------------------------------------
+# Canonical test suite for the factory's generic filter surface.  A bug here
+# means the same bug affects every factory-backed list endpoint.
+
+
+class TestListSchoolsColumnFilters:
+    async def test_exact_match(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _seed(
+            db_session,
+            _make_school(code="M134"),
+            _make_school(code="K001", name="School K"),
+        )
+        response = await auth_client.get("/schools/?code=M134")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["code"] == "M134"
+
+    async def test_multi_value_or(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _seed(
+            db_session,
+            _make_school(code="M134"),
+            _make_school(code="K001", name="School K"),
+            _make_school(code="Q001", name="School Q"),
+        )
+        response = await auth_client.get("/schools/?code=M134&code=K001")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        assert {item["code"] for item in data["items"]} == {"M134", "K001"}
+
+    async def test_and_across_columns(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _seed(
+            db_session,
+            _make_school(code="M134", city=Boro.MANHATTAN, state="NY"),
+            _make_school(code="K001", name="School K", city=Boro.BROOKLYN, state="NY"),
+        )
+        response = await auth_client.get("/schools/?state=NY&city=MANHATTAN")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["code"] == "M134"
+
+    async def test_unknown_column_returns_422(self, auth_client: AsyncClient):
+        response = await auth_client.get("/schools/?blah=x")
+        assert response.status_code == 422
+        assert "blah" in response.json()["detail"]
+
+    async def test_multiple_unknown_columns_all_listed(
+        self, auth_client: AsyncClient
+    ):
+        response = await auth_client.get("/schools/?foo=1&bar=2")
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+        assert "bar" in detail
+        assert "foo" in detail
+
+    async def test_bad_type_returns_422(self, auth_client: AsyncClient):
+        # id is an int column; a non-numeric value must produce 422.
+        response = await auth_client.get("/schools/?id=not-a-number")
+        assert response.status_code == 422
+        assert "id" in response.json()["detail"]
+
+    async def test_search_and_filter_compose(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        # search (ilike on code) and a column filter must both apply (AND).
+        await _seed(
+            db_session,
+            _make_school(code="M134", city=Boro.MANHATTAN),
+            _make_school(code="M200", name="School M200", city=Boro.BROOKLYN),
+        )
+        response = await auth_client.get("/schools/?search=M&city=MANHATTAN")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["code"] == "M134"
+
+    async def test_audit_column_blocked_as_unknown(self, auth_client: AsyncClient):
+        # AuditMixin fields must not be filterable.
+        response = await auth_client.get("/schools/?created_at=2024-01-01")
+        assert response.status_code == 422
+        assert "created_at" in response.json()["detail"]
+
+    async def test_filtered_total_reflects_filter(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        # total in the response must count only matching rows.
+        await _seed(
+            db_session,
+            _make_school(code="M134"),
+            _make_school(code="K001", name="School K"),
+        )
+        response = await auth_client.get("/schools/?code=M134")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1

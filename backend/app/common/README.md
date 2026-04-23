@@ -20,7 +20,10 @@ This module does **not** contain business logic. If a function is specific to on
 
 **`factories.py` provides two router factory functions:**
 - `create_batch_import_router()` — generates a `POST /{resource}/batch/import` endpoint that accepts a CSV and bulk-inserts rows. Used by `schools/`, `contractors/`, `wa_codes/`, `deliverables/`.
-- `create_readonly_router()` — generates paginated `GET /` and `GET /{id}` endpoints. Used by read-only reference data modules.
+- `create_readonly_router()` — generates a paginated `GET /` endpoint with built-in search (`?search=`) and generic column filters (`?col=val`). See `PATTERNS.md §15` for the full filter contract.
+
+**`introspection.py` provides:**
+- `filterable_columns(model)` — returns `{attr_name: Column}` for all scalar non-audit columns on a model. Called once at factory-construction time. Excludes `AuditMixin` fields by reading them directly from `AuditMixin.__annotations__`.
 
 ---
 

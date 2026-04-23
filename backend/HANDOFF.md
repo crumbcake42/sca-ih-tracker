@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-23 (Phase 1.6 test cleanup complete)
+# Session Handoff — 2026-04-23 (Phase 1.7 complete)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,38 +6,43 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 1.6 complete and fully tested.** All admin entities have connections endpoints, guarded DELETE, and passing integration tests.
+**Phase 1.7 complete and fully tested.** Every factory-backed `GET /[entity]` endpoint now supports generic column-filter query params.
 
 ---
 
 ## What Was Done This Session
 
-Added DELETE endpoint tests across all Phase 1.6 entities. Each entity got `TestGet*Connections` (zero counts, non-zero counts, 404) and `TestDelete*` (204, 404, 409) appended to existing test files or in new files:
+Implemented Phase 1.7 — generic column filtering in `create_readonly_router`.
 
-- `app/employees/tests/test_router.py` — appended `TestGetEmployeeConnections` + `TestDeleteEmployee`. Blocked case uses `SampleBatchInspector` (simpler than `TimeEntry` — fewer required FKs).
-- `app/schools/tests/test_router.py` — appended `TestGetSchoolConnections` + `TestDeleteSchool`.
-- `app/contractors/tests/test_router.py` — appended `TestGetContractorConnections` + `TestDeleteContractor`.
-- `app/wa_codes/tests/test_router.py` — appended `TestGetWACodeConnections` + `TestDeleteWACode`.
-- `app/deliverables/tests/test_router.py` — new file.
-- `app/hygienists/tests/test_router.py` — new file (+ `__init__.py`).
+**Files created/modified:**
 
-Also fixed a pre-existing notes test failure: `TestGetBlockingIssues` was using `client` (unauthenticated) but `/projects` requires auth at the router level; changed to `auth_client`.
+- `app/common/introspection.py` *(new)* — `filterable_columns(model)` helper. Iterates `mapper.iterate_properties`, skips non-`ColumnProperty` attrs, excludes `AuditMixin` fields (derived dynamically from `AuditMixin.__annotations__`, not a hardcoded list), excludes columns whose type has no `python_type`. Returns `{attr_name: Column}`.
+- `app/common/crud.py` — added `filters: Sequence[ColumnElement[bool]] | None = None` to `get_paginated_list`; applied before `count_stmt` so `total` reflects filters.
+- `app/common/factories.py` — added `Request` injection to `list_entries`; builds `_filterable` map at factory-construction time; walks `request.query_params.multi_items()` per request; skips reserved params (`skip`, `limit`, `search`); collects unknowns and coercion errors; raises 422 (unknowns listed sorted, coercion reports first failure); builds `col.in_(values)` clauses; passes to `get_paginated_list`.
+- `app/schools/tests/test_router.py` — appended `TestListSchoolsColumnFilters` (9 tests: exact match, multi-value OR, AND across columns, unknown 422, multiple unknowns 422, bad type 422, search+filter compose, audit column blocked, filtered total).
+- `app/wa_codes/tests/test_router.py` — appended `TestListWACodesColumnFilters` (2 tests: filter by level success case, unknown column 422).
+- `app/PATTERNS.md` — added entry **#15 — Factory query-param column filters**.
+- `app/common/README.md` — documented `introspection.py` and updated factory section.
 
-All 128 tests in these files pass.
+All 78 tests in the affected files pass (no regressions).
 
-**Non-obvious (carried forward):** `deliverable_wa_code_triggers.wa_code_id` and `.deliverable_id` are both `ondelete="CASCADE"` — these would auto-delete on DB side, but they're included in the connections/guard counts for defensive UX (force explicit cleanup before deletion).
+---
+
+## Non-obvious Decisions
+
+- **`_filterable` built at factory construction, not per-request.** The column map is static — computing it once avoids inspecting the mapper on every GET.
+- **`col.in_(values)` always** — even single-value filters use `.in_([v])` rather than `== v`. Keeps the clause-building loop uniform.
+- **Unknown columns reported, coercion errors reported separately** — unknowns list all bad names sorted; coercion reports first failure only. Tests confirm both.
+- **Audit fields excluded via `AuditMixin.__annotations__`** — self-updating if AuditMixin gains new fields.
 
 ---
 
 ## Next Step
 
-**Phase 1.6 is complete.** See `ROADMAP.md` for what comes next.
+Phase 1.7 is complete. The known follow-up from the roadmap is:
 
-Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented when Phase 6.5 resumes.
+**Work-auths migration (separate session):** `GET /work-auths/?project_id=` is currently hand-rolled and returns a single object. After Phase 1.7 lands, migrate it onto the factory (breaking FE contract change: single object → paginated list). Needs a `frontend/HANDOFF.md` note before implementing. That is its own session.
 
-### Blocking issue — work auths endpoints
+After that, the next major phase is **Phase 2 work** or **Phase 6.5**, depending on priority.
 
-GET /work-auths requires `project_id` param, so there is no endpoint to get a paginated list of all work auths. Needs a rethink:
-- GET /work-auths/{work_auth_id} — fetch a single work auth by ID
-- GET /work-auths?project_id={id} — fetch work auth for a specific project
-- GET /work-auths — paginated list of all work auths (currently missing)
+Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented.

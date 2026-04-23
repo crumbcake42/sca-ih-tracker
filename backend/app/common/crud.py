@@ -47,6 +47,7 @@ async def get_paginated_list(
     sort_by: ColumnElement[Any] | None = None,
     search_attr: ColumnElement[str] | None = None,
     search_query: str | None = None,
+    filters: Sequence[ColumnElement[bool]] | None = None,
 ) -> tuple[Sequence[ModelT], int]:
 
     stmt = select(model)
@@ -54,6 +55,11 @@ async def get_paginated_list(
     # Apply search filter if provided
     if search_attr is not None and search_query:
         stmt = stmt.where(search_attr.ilike(f"%{search_query}%"))
+
+    # Apply column filters (AND-composed; each clause is built by the caller)
+    if filters:
+        for f in filters:
+            stmt = stmt.where(f)
 
     # Count must reflect the filtered total, not the whole table
     count_stmt = select(func.count()).select_from(stmt.subquery())
