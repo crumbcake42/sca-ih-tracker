@@ -1,9 +1,5 @@
-import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { Controller } from "react-hook-form";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import type { Employee, TitleEnum } from "@/api/generated/types.gen";
-import { applyServerErrors } from "@/lib/form-errors";
+import { useEntityForm } from "@/hooks/useEntityForm";
 import {
   createEmployeeMutation,
   updateEmployeeMutation,
@@ -48,11 +44,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  employee?: Employee;
-}
+const DEFAULT_VALUES: FormValues = { first_name: "", last_name: "" };
 
 function toFormValues(employee: Employee): FormValues {
   return {
@@ -66,87 +58,59 @@ function toFormValues(employee: Employee): FormValues {
   };
 }
 
+function toBody(values: FormValues) {
+  return {
+    first_name: values.first_name,
+    last_name: values.last_name,
+    display_name: values.display_name || null,
+    title: values.title ?? null,
+    email: values.email || null,
+    phone: values.phone || null,
+    adp_id: values.adp_id || null,
+  };
+}
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employee?: Employee;
+}
+
+/** Create / edit dialog for an Employee record. */
 export function EmployeeFormDialog({ open, onOpenChange, employee }: Props) {
-  const queryClient = useQueryClient();
-  const isEdit = !!employee;
+  const { form, onSubmit, isPending, isEdit } = useEntityForm({
+    entity: employee,
+    open,
+    schema,
+    defaultValues: DEFAULT_VALUES,
+    toFormValues,
+    createMutationOptions: createEmployeeMutation(),
+    updateMutationOptions: updateEmployeeMutation(),
+    buildCreateVars: (values) => ({ body: toBody(values) }),
+    buildUpdateVars: (values, emp) => ({
+      path: { employee_id: emp.id },
+      body: toBody(values),
+    }),
+    invalidateKeys: (emp) =>
+      emp
+        ? [
+            listEmployeesQueryKey(),
+            getEmployeeQueryKey({ path: { employee_id: emp.id } }),
+          ]
+        : [listEmployeesQueryKey()],
+    entityLabel: "Employee",
+    onSuccess: () => onOpenChange(false),
+  });
 
   const {
     register,
-    handleSubmit,
     control,
-    reset,
-    setError,
+    handleSubmit,
     formState: { errors },
-  } = useForm<FormValues>({
-    resolver: standardSchemaResolver(schema),
-    defaultValues: employee
-      ? toFormValues(employee)
-      : { first_name: "", last_name: "" },
-  });
-
-  useEffect(() => {
-    if (open) {
-      reset(
-        employee ? toFormValues(employee) : { first_name: "", last_name: "" },
-      );
-    }
-  }, [open, employee, reset]);
-
-  const { mutate: createEmployee, isPending: isCreating } = useMutation({
-    ...createEmployeeMutation(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: listEmployeesQueryKey() });
-      toast.success("Employee created.");
-      onOpenChange(false);
-    },
-    onError: (err) => {
-      if (!applyServerErrors(err, setError)) {
-        toast.error("Could not create employee.");
-      }
-    },
-  });
-
-  const { mutate: updateEmployee, isPending: isUpdating } = useMutation({
-    ...updateEmployeeMutation(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: listEmployeesQueryKey() });
-      if (employee) {
-        void queryClient.invalidateQueries({
-          queryKey: getEmployeeQueryKey({ path: { employee_id: employee.id } }),
-        });
-      }
-      toast.success("Employee updated.");
-      onOpenChange(false);
-    },
-    onError: (err) => {
-      if (!applyServerErrors(err, setError)) {
-        toast.error("Could not update employee.");
-      }
-    },
-  });
-
-  const isPending = isCreating || isUpdating;
-
-  const onSubmit = (values: FormValues) => {
-    const body = {
-      first_name: values.first_name,
-      last_name: values.last_name,
-      display_name: values.display_name || null,
-      title: values.title ?? null,
-      email: values.email || null,
-      phone: values.phone || null,
-      adp_id: values.adp_id || null,
-    };
-
-    if (isEdit && employee) {
-      updateEmployee({ path: { employee_id: employee.id }, body });
-    } else {
-      createEmployee({ body });
-    }
-  };
+  } = form;
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) reset();
+    if (!next) form.reset();
     onOpenChange(next);
   };
 

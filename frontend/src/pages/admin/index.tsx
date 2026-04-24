@@ -78,7 +78,8 @@ const ENTITY_CARDS: readonly EntityCard[] = [
   },
   {
     label: "Users",
-    description: "Manage system user accounts and password resets. Coming in Phase 2.4.",
+    description:
+      "Manage system user accounts and password resets. Coming in Phase 2.4.",
     Icon: UserCircleIcon,
     disabled: true,
   },

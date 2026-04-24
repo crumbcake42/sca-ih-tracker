@@ -10,19 +10,40 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, and 1.5C complete.** All shadcn primitives now have Storybook stories. Admin shell is live with WordPress-style sidebar, AdminTopBar, and WP-style dashboard.
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, and 2.2 complete.**
 
-**Next is Session 2.2 — Extract generics + retrofit (Schools + Employees → `EntityListPage`/`EntityFormDialog`).**
+- `EntityListPage<T>` extracted to `src/components/`; `SchoolsList` and `EmployeesList` deleted; both pages retrofitted.
+- `useEntityForm` extracted to `src/hooks/`; `EmployeeFormDialog` retrofitted.
+- `src/PATTERNS.md` updated with EntityListPage pattern, useEntityForm pattern, `src/fields/` rationale, and testing strategy (closes both HANDOFF open items).
+- Tests: `EntityListPage.test.tsx` (6 tests) and `useEntityForm.test.ts` (6 tests) added.
+- Storybook: `EntityListPage.stories.tsx` (Default, WithActions, Loading, Empty, Error) added.
+
+**Next is Session 2.3 — Contractors, hygienists, WA codes, deliverables.**
 
 **Collateral pickups from other backend work:**
 
 - **`GET /work-auths/` is now paginated** — previously returned a single `WorkAuth` or 404; now returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
 - **New contractors endpoints** (`GET/POST/PATCH /contractors/`) — regenerated client exposes them. Not needed until Session 2.3.
 
-**Priority after completing phase 2.1** - issues and patterns to resolve (written by me, the user, not Claude)
+---
 
-- commit to file structure decision: explain why entity fields like employee and school combobox are in src/fields instead of src/[entity]/components/
-- discuss testing strategy. is it not in roadmap or is there a reason why the code we've written so far doesn't need unit/regression/integration tests?
+## What Was Done This Session (Session 2.2 — Extract generics + retrofit)
+
+**Done:**
+
+- Created `src/hooks/useEntityForm.ts` — 4-generic hook encapsulating RHF setup, reset-on-open effect, create/update mutation pair, per-key cache invalidation, `applyServerErrors` → toast fallback. Hook owns `onSuccess`/`onError`; callers supply mutation options, `buildCreateVars`/`buildUpdateVars` adapters, `invalidateKeys`, and `entityLabel`.
+- Created `src/components/EntityListPage.tsx` — generic `<EntityListPage<T>>` owning `useUrlSearch` + `useUrlPagination`, running the list query, rendering Card-wrapped `DataTable` with header/search/`actions` slot.
+- Deleted `src/features/schools/components/SchoolsList.tsx` and `src/features/employees/components/EmployeesList.tsx`.
+- Rewrote `src/pages/admin/schools/index.tsx` and `src/pages/admin/employees/index.tsx` as thin compositions over `EntityListPage`; `actions` slot supplies the Import CSV / Add Employee buttons; `useFormDialog` used for dialog state (normalized Schools and Employees).
+- Rewrote `src/features/employees/components/EmployeeFormDialog.tsx` to consume `useEntityForm`; public prop signature unchanged; fields JSX unchanged.
+- Created `src/components/EntityListPage.test.tsx` (6 tests: heading, rows, empty state, actions slot, onRowClick, search navigate).
+- Created `src/hooks/useEntityForm.test.ts` (6 tests: isEdit flag, reset-on-open, create path, update path, 422 → field error / no toast, generic error → toast).
+- Created `src/components/EntityListPage.stories.tsx` — Default, WithActions, Loading, Empty, Error.
+- Appended to `src/PATTERNS.md`: Entity admin list pattern, Entity form pattern, `src/fields/` rationale, Testing strategy (closes both HANDOFF open items from Session 2.1).
+
+**Next:** Session 2.3 — Contractors, hygienists, WA codes, deliverables.
+
+**Blockers:** none
 
 ---
 

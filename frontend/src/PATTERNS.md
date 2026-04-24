@@ -106,6 +106,112 @@ Both comboboxes use `shouldFilter={false}` on `<Command>` so filtering is handle
 
 ---
 
+## Entity admin list pattern
+
+`EntityListPage<T>` (`src/components/EntityListPage.tsx`) is the standard layout for all admin list screens. It owns `useUrlSearch` + `useUrlPagination`, runs the list query, and renders a Card-wrapped `DataTable` with a header (title + search input + `actions` slot).
+
+**Usage:**
+
+```tsx
+// Module-scope column definitions (avoid recreating on every render)
+const columns: ColumnDef<Employee>[] = [ ... ];
+
+// In the page component:
+<EntityListPage<Employee>
+  title="Employees"
+  columns={columns}
+  queryOptions={listEmployeesOptions}          // pass the factory directly
+  searchPlaceholder="Search employees…"
+  emptyMessage="No employees found."
+  actions={<Button size="sm" onClick={...}>Add employee</Button>}
+  onRowClick={(emp) => void navigate({ to: "...", params: { ... } })}
+/>
+```
+
+**`queryOptions` contract:** the factory must accept `options?: { query?: { search?, skip?, limit? } }` and return an object with `queryKey` and `queryFn` whose data type extends `Paginated<T> = { items: T[]; total: number; skip: number; limit: number }`. All generated `listXxx Options` factories satisfy this — pass them directly with no cast.
+
+**Why `QueryFunction<TPageData, never, never>`:** The code generator stamps `queryFn` with a specific mutable tuple as `TQueryKey`. The generic `QueryKey = readonly unknown[]` is incompatible with that specific tuple in the contravariant `QueryFunctionContext` parameter. Using `never` for `TQueryKey` sidesteps this: `never` is assignable to _any_ type, so any specific-key `QueryFunction` satisfies `QueryFunction<TPageData, never, never>` — but the data type check is preserved, so passing `listEmployeesOptions` to `EntityListPage<School>` is still a compile error. The one internal cast (`opts.queryFn as QueryFunction<TPageData>`) lives inside `EntityListPage`, not at every call site.
+
+**Column definitions** live at module scope in the page file (or a sibling `columns.ts` when the file grows beyond ~30 lines of column config).
+
+**`actions` slot** is a `ReactNode` rendered to the right of the search input. Keep it lean — one or two buttons. Dialogs triggered from here should have their state managed by `useFormDialog()` in the page, with the dialog rendered as a sibling of `EntityListPage`.
+
+---
+
+## Entity form pattern
+
+`useEntityForm` (`src/hooks/useEntityForm.ts`) encapsulates the create/edit lifecycle shared by all admin entity dialogs: RHF setup, reset-on-open, create/update mutation branching, cache invalidation, and error handling (`applyServerErrors` → toast fallback).
+
+**Usage:**
+
+```tsx
+const { form, onSubmit, isPending, isEdit } = useEntityForm({
+  entity: employee, // undefined = create mode; defined = edit mode
+  open, // drives the reset effect
+  schema, // Zod schema for TFormValues
+  defaultValues, // used in create mode and on close
+  toFormValues, // maps TEntity → TFormValues for edit mode
+  createMutationOptions: createEmployeeMutation(),
+  updateMutationOptions: updateEmployeeMutation(),
+  buildCreateVars: (values) => ({ body: toBody(values) }),
+  buildUpdateVars: (values, emp) => ({
+    path: { employee_id: emp.id },
+    body: toBody(values),
+  }),
+  invalidateKeys: (emp) =>
+    emp
+      ? [
+          listEmployeesQueryKey(),
+          getEmployeeQueryKey({ path: { employee_id: emp.id } }),
+        ]
+      : [listEmployeesQueryKey()],
+  entityLabel: "Employee", // used in toast copy
+  onSuccess: () => onOpenChange(false),
+});
+// Then: <form onSubmit={form.handleSubmit(onSubmit)}>...</form>
+```
+
+**What the hook does NOT own:** the Dialog shell (Dialog/DialogContent/Header/Footer), the fields JSX, or the dialog-title string. These stay in the entity-specific component — the Dialog markup is short and varies per entity.
+
+**`buildCreateVars` / `buildUpdateVars` split:** keeps the hook agnostic to the generated SDK's path-param shape, which differs per entity. Each caller provides an arrow function that builds the exact variables the mutation expects.
+
+**`invalidateKeys(entity?)` convention:** the hook calls `invalidateKeys(undefined)` on create (no entity ID yet) and `invalidateKeys(existingEntity)` on update. Return `[listQueryKey()]` for create; include the detail key too for update.
+
+**409 / inline-banner escape hatch:** when an entity has a 409 error that should render inline (not as a toast), do NOT use `useEntityForm` for that mutation — handle the error manually via `setError("root.serverError", { message: ... })` after calling `useMutation` directly. See `EmployeeRoleFormDialog` for the reference implementation.
+
+---
+
+## `src/fields/` rationale
+
+Combobox fields and other form-primitive-adjacent components go in `src/fields/` rather than inside a feature, because they are consumed by ≥2 distinct features and are conceptually part of the form-primitive layer (alongside `Input`, `Select`, `Field`).
+
+| Where to put it                     | Rule                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| `src/fields/`                       | Shared across ≥2 features OR form-primitive-adjacent (combobox, date picker, autocomplete) |
+| `src/features/<entity>/components/` | Only used inside that one feature                                                          |
+
+**Example:** `EmployeeCombobox` lives in `src/fields/` because it will be consumed by time-entry forms, role-assignment forms, and project-manager pickers — not just the admin employee list. `EmployeeRolesTab` lives in `src/features/employees/components/` because nothing else ever renders it.
+
+---
+
+## Testing strategy
+
+Coverage lives at the layers where logic concentrates; pages mostly compose and don't warrant separate tests.
+
+| Layer                               | What to test                                                                                                                       | What to skip                                                      |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `src/lib/`                          | Pure utilities — all branches                                                                                                      | —                                                                 |
+| `src/components/`, `src/hooks/`     | Branching logic: loading/empty/error states, URL wiring, mutation lifecycle (see `useEntityForm.test.ts`)                          | Trivial pass-through props                                        |
+| `src/fields/`                       | Server-error UX, debounce behaviour, toggle semantics                                                                              | Snapshot/visual states (Storybook covers those)                   |
+| `src/features/<domain>/components/` | Server-error UX (422 field mapping, 409 inline banner), non-obvious invariants (immutable fields in edit mode, cache invalidation) | Happy-path rendering (Storybook), every possible prop combination |
+| `src/pages/`                        | Usually none — pages are thin compositions; the composed primitives carry the coverage                                             | —                                                                 |
+
+**Visual states** (loading skeleton, empty, populated, error) are covered by Storybook stories, not by vitest tests. Avoid reproducing the same matrix in both.
+
+**Mock strategy:** mock the feature's API barrel (`vi.mock("@/features/<entity>/api/<entity>", ...)`) and return `{ mutationFn: mockFn }`. Never import from `@/api/generated/` in tests.
+
+---
+
 ## Storybook
 
 - **Dev server:** `pnpm storybook` (port 6006). **Build:** `pnpm build-storybook`.

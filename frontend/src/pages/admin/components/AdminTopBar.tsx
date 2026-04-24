@@ -22,13 +22,13 @@ export function AdminTopBar() {
       </div>
 
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         {user && (
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <UserIcon size={15} />
             {user.username}
           </span>
         )}
-        <ThemeToggle />
         <Button
           variant="ghost"
           size="sm"
