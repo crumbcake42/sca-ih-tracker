@@ -44,25 +44,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
 
-          {user ? (
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                <UserIcon size={15} />
-                {user?.username}
-              </span>
-              <ThemeToggle />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="flex items-center gap-1.5"
-              >
-                <SignOutIcon size={15} />
-                Sign out
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {user ? (
+              <>
+                <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                  <UserIcon size={15} />
+                  {user?.username}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={logout}
+                  className="flex items-center gap-1.5"
+                >
+                  <SignOutIcon size={15} />
+                  Sign out
+                </Button>
+              </>
+            ) : (
               <Link to="/login">
                 <Button
                   variant="ghost"
@@ -74,8 +74,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Sign In
                 </Button>
               </Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
