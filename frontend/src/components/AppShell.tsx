@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/auth/store";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <UserIcon size={15} />
                 {user?.username}
               </span>
+              <ThemeToggle />
               <Button
                 variant="ghost"
                 size="sm"

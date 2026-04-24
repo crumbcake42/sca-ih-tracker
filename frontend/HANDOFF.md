@@ -10,9 +10,9 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, and 2.1c complete.** Employees feature is fully implemented: list page, create/edit dialog, detail page with Details tab and Roles tab (add/edit/delete roles, 409 inline banner, 422 field errors). **Phase 1.5 (UI skeleton) is inserted before Session 2.2** — see ROADMAP.md Phase 1.5 for full scope.
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, and 1.5A complete.** Employees feature is fully implemented. Phase 1.5A theme work is done: island/sea palette removed, shadcn tokens are the sole palette, dark/light/auto toggle live in AppShell.
 
-**Next is Phase 1.5A — Theme consolidation + dark/light toggle.** Key changes: delete the island/sea palette from `src/styles.css`, fix the global `a { color }` legibility bug, add `src/lib/theme.ts` + `src/components/ThemeToggle.tsx`, wire toggle into `AppShell`, add Storybook theme decorator.
+**Next is Phase 1.5B — Admin shell (WordPress-style sidebar layout).**
 
 **Collateral pickups from other backend work:**
 
@@ -26,7 +26,30 @@
 
 ---
 
-## What Was Done This Session (Session 2.1c — Roles tab)
+## What Was Done This Session (Session 1.5A — Theme consolidation + dark/light toggle)
+
+**Done:**
+
+- Deleted island/sea palette from `src/styles.css` entirely — all `--sea-*`, `--lagoon*`, `--palm`, `--sand`, `--foam`, `--surface*`, `--line`, `--inset-glint`, `--kicker`, `--bg-base`, `--header-bg`, `--chip-*`, `--link-bg-hover`, `--hero-*` vars and their dark-mode overrides; shadcn neutral tokens are now the sole palette
+- Removed global `a { color: var(--lagoon-deep) }` rule — fixes Button-as-Link legibility everywhere
+- Removed island-specific CSS classes (`.island-shell`, `.feature-card`, `.island-kicker`, `.nav-link`, `.site-footer`, `.display-title`) and `body::before`/`body::after` decorative pseudo-elements
+- Switched `html { @apply font-mono }` → `html { @apply font-sans }` in `@layer base`; updated Google Fonts import to Manrope-only (removed Fraunces)
+- Updated `code` styles to use `var(--border)` + `var(--muted)` (shadcn tokens) instead of removed island vars
+- Removed `--font-heading` from `@theme inline` (was pointing at `--font-mono`; heading style no longer needed)
+- Simplified `THEME_INIT_SCRIPT` in `src/routes/__root.tsx` — drops `data-theme` attribute; now only toggles `.dark` class + `colorScheme`
+- Created `src/lib/theme.ts` — `getResolvedTheme()`, `setTheme(value: Theme)`, `useTheme()` via `useSyncExternalStore`; no Zustand slice; listeners set for cross-component sync
+- Created `src/components/ThemeToggle.tsx` — three-state cycle button (auto → light → dark → auto) using Phosphor `MonitorIcon` / `SunIcon` / `MoonIcon`; `aria-label` + `title` with current state
+- Updated `src/components/AppShell.tsx` — added `<ThemeToggle />` between user chip and sign-out button
+- Updated `.storybook/preview.tsx` — added `withTheme` decorator applying `.dark` class from `globals.theme`; added `globalTypes.theme` toolbar (light/dark); decorators order: `[withTheme, withQueryClient]`
+- `pnpm tsc --noEmit`, `pnpm test` (5/5 green), `pnpm check` — all clean
+
+**Next:** Session 1.5B — Admin shell (WordPress-style sidebar layout)
+
+**Blockers:** none
+
+---
+
+## What Was Done Previously (Session 2.1c — Roles tab)
 
 **Done:**
 

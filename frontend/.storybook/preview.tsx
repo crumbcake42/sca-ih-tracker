@@ -4,7 +4,6 @@ import { createTestQueryClient } from "../src/test/queryClient";
 
 import "../src/styles.css";
 
-/** Wrap every story in a fresh QueryClient (retries off, no cache). */
 const withQueryClient: Decorator = (Story) => {
   const queryClient = createTestQueryClient();
   return (
@@ -14,8 +13,33 @@ const withQueryClient: Decorator = (Story) => {
   );
 };
 
+/** Applies .dark class to the story root so shadcn tokens respond to the theme toolbar. */
+const withTheme: Decorator = (Story, context) => {
+  const theme = (context.globals["theme"] as string | undefined) ?? "light";
+  return (
+    <div className={theme === "dark" ? "dark" : ""}>
+      <Story />
+    </div>
+  );
+};
+
 const preview: Preview = {
-  decorators: [withQueryClient],
+  globalTypes: {
+    theme: {
+      description: "Color theme",
+      defaultValue: "light",
+      toolbar: {
+        title: "Theme",
+        icon: "circlehollow",
+        items: [
+          { value: "light", title: "Light", icon: "sun" },
+          { value: "dark", title: "Dark", icon: "moon" },
+        ],
+        dynamicTitle: true,
+      },
+    },
+  },
+  decorators: [withTheme, withQueryClient],
   parameters: {
     layout: "padded",
     controls: {
