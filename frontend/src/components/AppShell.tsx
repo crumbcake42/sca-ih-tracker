@@ -4,7 +4,6 @@ import {
   SignInIcon,
   FolderOpenIcon,
   UserIcon,
-  GearIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/auth/store";
@@ -29,18 +28,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Projects
                 </Link>
               </Button>
-              {(user?.role.name === "admin" ||
-                user?.role.name === "superadmin") && (
-                <Button variant="ghost" size="sm" asChild>
-                  <Link
-                    to="/admin/schools"
-                    className="flex items-center gap-1.5"
-                  >
-                    <GearIcon size={15} />
-                    Admin
-                  </Link>
-                </Button>
-              )}
             </nav>
           </div>
 

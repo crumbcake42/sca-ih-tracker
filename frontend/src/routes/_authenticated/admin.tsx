@@ -1,5 +1,6 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useAuthStore } from "@/auth/store";
+import { AdminLayout } from "@/pages/admin/layout";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: () => {
@@ -13,7 +14,3 @@ export const Route = createFileRoute("/_authenticated/admin")({
   },
   component: AdminLayout,
 });
-
-function AdminLayout() {
-  return <Outlet />;
-}

@@ -1,4 +1,9 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useAuthStore } from "@/auth/store";
 import { currentUserOptions } from "@/auth/api";
 import { queryClient } from "@/api/queryClient";
@@ -18,6 +23,10 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname.startsWith("/admin")) {
+    return <Outlet />;
+  }
   return (
     <AppShell>
       <Outlet />

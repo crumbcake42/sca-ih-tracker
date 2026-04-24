@@ -10,9 +10,9 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, and 1.5A complete.** Employees feature is fully implemented. Phase 1.5A theme work is done: island/sea palette removed, shadcn tokens are the sole palette, dark/light/auto toggle live in AppShell.
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, and 1.5B complete.** Employees feature is fully implemented. Admin shell is live: WordPress-style sidebar layout with collapsible nav, AdminTopBar with page title/actions slots, and WP-style dashboard.
 
-**Next is Phase 1.5B — Admin shell (WordPress-style sidebar layout).**
+**Next is Phase 1.5C — Storybook primitive stories + UI showcase.**
 
 **Collateral pickups from other backend work:**
 
@@ -43,7 +43,29 @@
 - Updated `.storybook/preview.tsx` — added `withTheme` decorator applying `.dark` class from `globals.theme`; added `globalTypes.theme` toolbar (light/dark); decorators order: `[withTheme, withQueryClient]`
 - `pnpm tsc --noEmit`, `pnpm test` (5/5 green), `pnpm check` — all clean
 
-**Next:** Session 1.5B — Admin shell (WordPress-style sidebar layout)
+**Next:** Session 1.5C — Storybook primitive stories + UI showcase
+
+**Blockers:** none
+
+---
+
+## What Was Done This Session (Session 1.5B — Admin shell)
+
+**Done:**
+
+- Created `src/lib/admin-shell-state.ts` — Zustand store; `sidebarCollapsed` persisted to `localStorage` under `"admin-shell"`; `pageTitle`/`pageActions` in-memory only (not persisted)
+- Created `src/components/admin/nav-items.ts` — discriminated-union `AdminNavItem` type; `ADMIN_NAV_ITEMS` array (Dashboard, Schools, Employees enabled; Projects/Contractors disabled)
+- Created `src/components/admin/AdminSidebar.tsx` — collapsible left rail (`w-60` expanded / `w-16` icon-only); active state via `useRouterState`; disabled items render as non-interactive spans; collapse toggle button at bottom
+- Created `src/components/admin/AdminTopBar.tsx` — reads `pageTitle`/`pageActions` from Zustand; right side has user chip + ThemeToggle + sign-out
+- Created `src/components/admin/AdminShell.tsx` — `AdminShell` (flex row: sidebar + stacked topbar/main); `AdminShell.Title` and `AdminShell.Actions` compound slots that write to Zustand via `useEffect`, invisible null-renders; Zustand store avoids React re-render loops
+- Created `src/components/admin/AdminShell.stories.tsx` — Default / Collapsed / WithSamplePage stories; memory-router decorator with `initialEntries: ["/admin"]`
+- Updated `src/routes/_authenticated.tsx` — skips `AppShell` wrapper when `pathname.startsWith("/admin")`; admin routes get full-page `AdminShell` instead
+- Updated `src/routes/_authenticated/admin.tsx` — mounts `<AdminShell><Outlet /></AdminShell>`
+- Updated `src/components/AppShell.tsx` — removed Admin ghost-link (GearIcon → `/admin/schools`); nav lives in AdminSidebar now
+- Rewrote `src/pages/admin/index.tsx` — WP-style card grid (Schools, Employees live; Projects/Contractors disabled); `AdminShell.Title` sets "Dashboard" in top bar
+- `pnpm tsc --noEmit`, `pnpm test` (5/5 green), `pnpm check` — all clean
+
+**Next:** Session 1.5C — Storybook primitive stories + UI showcase
 
 **Blockers:** none
 

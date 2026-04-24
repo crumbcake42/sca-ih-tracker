@@ -1,23 +1,83 @@
 import { Link } from "@tanstack/react-router";
+import {
+  GraduationCapIcon,
+  UsersIcon,
+  FolderOpenIcon,
+  HardHatIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminShell } from "./components/AdminShell";
+import { cn } from "@/lib/utils";
+
+type EntityCard =
+  | {
+      label: string;
+      description: string;
+      Icon: React.ComponentType<{ size?: number; className?: string }>;
+      to: string;
+      disabled?: false;
+    }
+  | {
+      label: string;
+      description: string;
+      Icon: React.ComponentType<{ size?: number; className?: string }>;
+      disabled: true;
+    };
+
+const ENTITY_CARDS: readonly EntityCard[] = [
+  {
+    label: "Schools",
+    description: "View and import school records used across all projects.",
+    Icon: GraduationCapIcon,
+    to: "/admin/schools",
+  },
+  {
+    label: "Employees",
+    description: "Manage employee records, titles, and role assignments.",
+    Icon: UsersIcon,
+    to: "/admin/employees",
+  },
+  {
+    label: "Projects",
+    description: "Create and manage projects. Coming in Phase 3.",
+    Icon: FolderOpenIcon,
+    disabled: true,
+  },
+  {
+    label: "Contractors",
+    description: "Manage contractor records. Coming in Phase 2.3.",
+    Icon: HardHatIcon,
+    disabled: true,
+  },
+];
 
 export function AdminOverviewPage() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Admin</h1>
+    <>
+      <AdminShell.Title>Dashboard</AdminShell.Title>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Schools</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button asChild size="sm">
-              <Link to="/admin/schools">Manage Schools</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {ENTITY_CARDS.map((card) => (
+          <Card key={card.label} className={cn(card.disabled && "opacity-50")}>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <card.Icon size={18} className="text-muted-foreground" />
+                {card.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {card.description}
+              </p>
+              {!card.disabled && (
+                <Button size="sm" asChild>
+                  <Link to={card.to as never}>Manage {card.label}</Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
-    </div>
+    </>
   );
 }
