@@ -380,17 +380,33 @@ Shared references for all three sub-sessions:
   - Invalidate `listEmployeeRolesQueryKey({path:{employee_id}})` on every role mutation
   - Test: `EmployeeRoleFormDialog.test.tsx` — 409 renders inline banner (asserts no toast); 422 attaches to `end_date` field; `role_type` + `start_date` disabled in edit mode
 
-- [ ] **Session 2.2** — Extract generics + retrofit _(DRY when two concrete entities exist)_
+- [x] **Session 2.2** — Extract generics + retrofit _(DRY when two concrete entities exist)_
   - Extract `EntityListPage`, `EntityFormPage`, `EntityFormDialog` from Schools + Employees patterns
   - These live in `src/components/` (pass the shared/ rubric — no entity imports, generic over `TData`)
   - Retrofit Schools and Employees to use the extracted components
   - Create `src/PATTERNS.md` now that the shapes are stable
   - Test: retrofitted pages render identically; PATTERNS.md documents the column config shape, form field patterns, query invalidation
 
-- [ ] **Session 2.3** — Contractors, hygienists, WA codes, deliverables
-  - `WaCode.level` (`project` | `building`) is immutable once in use — read-only in edit form when codes have linked records
-  - Deliverables: **Triggers** sub-section via multi-select of WA codes
-  - Test: WaCode level field is read-only when codes have linked records; deliverable triggers multi-select saves correctly
+- [ ] **Session 2.3a** — WA codes admin CRUD _(unblocked, next up)_
+  - `src/features/wa-codes/api/wa-codes.ts` — domain-named barrel: `listWaCodesOptions/QueryKey`, `getWaCodeOptions/QueryKey`, `createWaCodeMutation`, `updateWaCodeMutation`, `deleteWaCodeMutation`, `getWaCodeConnectionsOptions/QueryKey`, `importBatchWaCodesMutation`. Note: generated detail path uses `{identifier}`; update/delete use `{wa_code_id}` — aliased at this layer.
+  - `WaCodeFormDialog.tsx` via `useEntityForm`; Zod schema: `code`, `description`, `level` (`WaCodeLevel`), optional `default_fee`. In edit mode: `level` **disabled** when `getWaCodeConnections` reports linked records (implements "immutable once in use"); renders "in use — level locked" hint.
+  - `WaCodeDetail.tsx` — fields + connection counts; Edit + Delete (AlertDialog; 409 renders backend `detail` inline, not a toast).
+  - List page `src/pages/admin/wa-codes/index.tsx` — `EntityListPage<WaCode>`, module-scope columns: Code, Description, Level, Default Fee.
+  - Detail + loader: `src/pages/admin/wa-codes/{detail,loader}.tsx`.
+  - Routes: `src/routes/_authenticated/admin/wa-codes/{index,$waCodeId}.tsx` with `validateSearch` / `loader`. Run `pnpm exec tsr generate` after adding.
+  - Enable the WA Codes nav item in `nav-items.ts` (flip `disabled: true` → `{ to: "/admin/wa-codes" }`; icon already picked).
+  - Tests: `WaCodeFormDialog.test.tsx` — create path; 422 → `applyServerErrors`; **`level` disabled when connections present**. `WaCodeDetail.test.tsx` — 409 delete renders inline, no toast.
+  - Storybook: `WaCodeFormDialog.stories.tsx` — Create, Edit (no connections), Edit (level locked).
+
+- [ ] **Session 2.3b** — Deliverables + triggers _(BLOCKED: needs `POST /deliverables/` + `PATCH /deliverables/{id}`)_
+  - When unblocked: list + detail page. Detail includes a **Triggers** sub-panel — checklist of `WaCode` rows with inline add (`addTriggerMutation`) / remove (`removeTriggerMutation`); invalidates `listTriggersQueryKey({path:{deliverable_id}})` on each.
+  - `level` on Deliverables reuses `WaCodeLevel` enum.
+
+- [ ] **Session 2.3c** — Contractors _(BLOCKED: `GET /contractors/` must return `PaginatedResponseContractor` with `search`/`skip`/`limit`)_
+  - When unblocked: Employees pattern (list + detail + form dialog + delete-with-409 inline).
+
+- [ ] **Session 2.3d** — Hygienists _(BLOCKED: `GET /hygienists/` must return `PaginatedResponseHygienist` with `search`/`skip`/`limit`)_
+  - When unblocked: list + detail + form dialog; surfaces `getHygienistConnectionsOptions` on detail (linked projects).
 
 - [ ] **Session 2.4** — Users, roles, permissions
   - Password reset as a separate row-menu action → dialog

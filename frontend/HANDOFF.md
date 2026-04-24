@@ -6,6 +6,10 @@
 
 **Breaking change: `GET /work-auths/` now returns a paginated list.** Previously, `GET /work-auths/?project_id=X` returned a single `WorkAuth` object and raised 404 when no work auth existed for that project. It now returns a `PaginatedResponse<WorkAuth>` envelope (`{ items, total, skip, limit }`). When the project has no work auth, `total` is 0 and `items` is `[]` — there is no 404. Any frontend code that reads `response.project_id` directly must be updated to `response.items[0]?.project_id` (and guard for the empty case). Regenerate the OpenAPI client after the backend is running.
 
+**Paginate `GET /contractors/` and `GET /hygienists/`** — both currently return bare arrays with no `search`/`skip`/`limit` query params. Need to match the `PaginatedResponse<T>` envelope used by employees and schools (`{items, total, skip, limit}`) and accept `search`/`skip`/`limit` query params. Blocks Sessions 2.3c (Contractors) and 2.3d (Hygienists). Regenerate the OpenAPI client on the frontend after backend ships.
+
+**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities. Current API is batch-import + delete + trigger management only. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
+
 ---
 
 ## Current State
@@ -18,12 +22,27 @@
 - Tests: `EntityListPage.test.tsx` (6 tests) and `useEntityForm.test.ts` (6 tests) added.
 - Storybook: `EntityListPage.stories.tsx` (Default, WithActions, Loading, Empty, Error) added.
 
-**Next is Session 2.3 — Contractors, hygienists, WA codes, deliverables.**
+**Next is Session 2.3a — WA codes admin CRUD.** Sessions 2.3b (Deliverables), 2.3c (Contractors), and 2.3d (Hygienists) are blocked on backend changes noted above.
 
 **Collateral pickups from other backend work:**
 
 - **`GET /work-auths/` is now paginated** — previously returned a single `WorkAuth` or 404; now returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
-- **New contractors endpoints** (`GET/POST/PATCH /contractors/`) — regenerated client exposes them. Not needed until Session 2.3.
+- **New contractors endpoints** (`GET/POST/PATCH /contractors/`) — regenerated client exposes them. Not needed until Session 2.3c (blocked on backend pagination — see "Backend changes pending frontend pickup" above).
+
+---
+
+## What Was Done This Session (Planning session — Session 2.3 split + backend pickups)
+
+**Done:**
+
+- Audited generated client (`types.gen.ts`, `sdk.gen.ts`, `@tanstack/react-query.gen.ts`) against Session 2.3 scope; found three backend gaps: contractors + hygienists are not paginated, and deliverables have no single-item create/update.
+- Split Session 2.3 into four sub-sessions (2.3a–2.3d) in ROADMAP.md; 2.3b/c/d marked blocked with notes.
+- Marked Session 2.2 complete in ROADMAP.md (was `[ ]` despite HANDOFF already reporting it done).
+- Added backend pickup items to "Backend changes pending frontend pickup" (paginate contractors/hygienists list; add POST/PATCH deliverables).
+
+**Next:** Session 2.3a — WA codes admin CRUD.
+
+**Blockers:** Sessions 2.3b/c/d await backend pagination (contractors, hygienists) and deliverables create/update endpoints.
 
 ---
 
