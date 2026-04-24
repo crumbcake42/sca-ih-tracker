@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.factories import create_readonly_router
 from app.common.guards import assert_deletable
 from app.database import get_db
 from app.hygienists.models import Hygienist as HygienistModel
@@ -12,15 +13,14 @@ from app.users.models import User
 
 router = APIRouter()
 
-
-@router.get("/", response_model=list[Hygienist])
-async def list_hygienists(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(HygienistModel).order_by(
-            HygienistModel.last_name, HygienistModel.first_name
-        )
+router.include_router(
+    create_readonly_router(
+        model=HygienistModel,
+        read_schema=Hygienist,
+        default_sort=HygienistModel.last_name.asc(),
+        search_attr=HygienistModel.last_name,
     )
-    return result.scalars().all()
+)
 
 
 @router.get("/{hygienist_id}", response_model=Hygienist)

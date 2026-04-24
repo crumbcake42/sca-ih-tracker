@@ -52,6 +52,47 @@ async def _seed_project_with_hygienist(
 
 
 # ---------------------------------------------------------------------------
+# GET /hygienists/
+# ---------------------------------------------------------------------------
+
+
+class TestListHygienists:
+    async def test_empty_db_returns_empty_envelope(self, auth_client: AsyncClient):
+        response = await auth_client.get("/hygienists/")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
+
+    async def test_returns_seeded_hygienist(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _seed(db_session, _make_hygienist())
+        response = await auth_client.get("/hygienists/")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["last_name"] == "Hygienist"
+
+    async def test_ordered_by_last_name(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _seed(
+            db_session,
+            _make_hygienist(first_name="Zelda", last_name="Zara"),
+            _make_hygienist(first_name="Alice", last_name="Aaron"),
+        )
+        response = await auth_client.get("/hygienists/")
+        data = response.json()
+        assert data["items"][0]["last_name"] == "Aaron"
+        assert data["items"][1]["last_name"] == "Zara"
+
+    async def test_unauthenticated_returns_401(self, client: AsyncClient):
+        response = await client.get("/hygienists/")
+        assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
 # GET /hygienists/{hygienist_id}/connections
 # ---------------------------------------------------------------------------
 

@@ -20,8 +20,9 @@ from app.deliverables.models import Deliverable as DeliverableModel
 from app.deliverables.schemas import DeliverableCreate as DeliverableSchema
 from app.employees.models import Employee as EmployeeModel
 from app.employees.models import EmployeeRole as EmployeeRoleModel
+from app.employees.models import EmployeeRoleType as EmployeeRoleTypeModel
 from app.employees.schemas import EmployeeCreate as EmployeeSchema
-from app.employees.schemas import EmployeeRoleCreate
+from app.employees.schemas import EmployeeRoleTypeCreate
 from app.hygienists.models import Hygienist as HygienistModel
 from app.hygienists.schemas import HygienistCreate as HygienistSchema
 from app.schools.models import School as SchoolModel
@@ -105,7 +106,8 @@ async def seed_from_csv(
 
 
 async def seed_employee_roles(db: AsyncSession) -> None:
-    """Seed employee_roles from CSV, matching rows to employees via adp_id."""
+    """Seed employee_roles from CSV, matching rows to employees via adp_id
+    and role types via name."""
     filename = "employee_roles.csv"
     file_path = SEED_DATA_PATH / filename
     if not file_path.exists():
@@ -120,45 +122,64 @@ async def seed_employee_roles(db: AsyncSession) -> None:
         reader = csv.DictReader(f)
         for line_num, row in enumerate(reader, start=2):
             adp_id = row.pop("adp_id", "").strip()
+            role_type_name = row.pop("role_type", "").strip()
             row.pop("name", None)  # ignore reference-only column if present
             try:
-                validated = EmployeeRoleCreate.model_validate(row)
+                from datetime import date as date_type
+                from decimal import Decimal
 
-                result = await db.execute(
-                    select(EmployeeModel).where(EmployeeModel.adp_id == adp_id)
-                )
-                employee = result.scalar_one_or_none()
-                if not employee:
-                    print(
-                        f"  [ERROR] Line {line_num}: No employee with adp_id={adp_id!r}"
+                start_date = date_type.fromisoformat(row["start_date"])
+                end_date = date_type.fromisoformat(row["end_date"]) if row.get("end_date") else None
+                hourly_rate = Decimal(row["hourly_rate"])
+
+                # Resolve employee
+                employee = (
+                    await db.execute(
+                        select(EmployeeModel).where(EmployeeModel.adp_id == adp_id)
                     )
+                ).scalar_one_or_none()
+                if not employee:
+                    print(f"  [ERROR] Line {line_num}: No employee with adp_id={adp_id!r}")
                     error_count += 1
                     continue
 
-                existing = await db.execute(
-                    select(EmployeeRoleModel).where(
-                        EmployeeRoleModel.employee_id == employee.id,
-                        EmployeeRoleModel.role_type == validated.role_type,
-                        EmployeeRoleModel.start_date == validated.start_date,
+                # Resolve role type by name
+                role_type = (
+                    await db.execute(
+                        select(EmployeeRoleTypeModel).where(
+                            EmployeeRoleTypeModel.name == role_type_name
+                        )
                     )
-                )
-                if existing.scalar_one_or_none():
+                ).scalar_one_or_none()
+                if not role_type:
+                    print(f"  [ERROR] Line {line_num}: No role type with name={role_type_name!r}")
+                    error_count += 1
+                    continue
+
+                # Skip duplicates
+                existing = (
+                    await db.execute(
+                        select(EmployeeRoleModel).where(
+                            EmployeeRoleModel.employee_id == employee.id,
+                            EmployeeRoleModel.role_type_id == role_type.id,
+                            EmployeeRoleModel.start_date == start_date,
+                        )
+                    )
+                ).scalar_one_or_none()
+                if existing:
                     continue
 
                 db.add(
                     EmployeeRoleModel(
                         employee_id=employee.id,
-                        role_type=validated.role_type,
-                        start_date=validated.start_date,
-                        end_date=validated.end_date,
-                        hourly_rate=validated.hourly_rate,
+                        role_type_id=role_type.id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        hourly_rate=hourly_rate,
                     )
                 )
                 added_count += 1
 
-            except ValidationError as e:
-                error_count += 1
-                print(f"  [ERROR] Line {line_num}: {e.errors()[0]['msg']}")
             except Exception as e:
                 error_count += 1
                 print(f"  [FATAL] Line {line_num}: {str(e)}")
@@ -286,6 +307,7 @@ async def initialize():
             seed_files = [
                 (db, SchoolModel, SchoolSchema, "schools.csv", "code"),
                 (db, ContractorModel, ContractorSchema, "contractors.csv", "name"),
+                (db, EmployeeRoleTypeModel, EmployeeRoleTypeCreate, "employee_role_types.csv", "name"),
                 (db, EmployeeModel, EmployeeSchema, "employees.csv", "adp_id"),
                 (db, HygienistModel, HygienistSchema, "hygienists.csv", "email"),
                 (db, WACodeModel, WACodeSchema, "wa_codes.csv", "code"),
