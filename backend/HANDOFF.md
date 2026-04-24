@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-24 (paginate contractors + hygienists)
+# Session Handoff — 2026-04-24 (promote EmployeeRoleType to admin-managed table)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,42 +6,46 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**`GET /contractors/` and `GET /hygienists/` are now paginated. One FE-blocking task remains: promote `EmployeeRoleType` to an admin-managed DB table (blocks FE Session 2.3).**
+**`EmployeeRoleType` is now an admin-managed DB table. `EmployeeRole.role_type` is a FK (`role_type_id`) into it. Migration written but not yet applied — user runs it.**
 
 ---
 
 ## What Was Done This Session
 
-### Migrated `GET /contractors/` and `GET /hygienists/` onto `create_readonly_router`
+### Promoted `EmployeeRoleType` from `StrEnum` to DB table
 
-Both endpoints previously returned bare arrays with no `search`/`skip`/`limit` support. They now return `PaginatedResponse[T]` and accept `search`, `skip`, `limit`, and column-filter query params — identical shape to employees and schools.
+`EmployeeRole.role_type` was a `SQLEnum(EmployeeRoleType)` column storing full certification strings. It is now a FK `role_type_id → employee_role_types.id`. Admins can add new role types at runtime.
 
 **Files modified:**
 
-- `app/contractors/router/base.py` — added `create_readonly_router` import; added `router.include_router(create_readonly_router(model=ContractorModel, read_schema=Contractor, default_sort=ContractorModel.name.asc(), search_attr=ContractorModel.name))` immediately after `router = APIRouter()`; removed the hand-rolled `list_contractors` function.
-- `app/hygienists/router/base.py` — same pattern; `default_sort=HygienistModel.last_name.asc()`, `search_attr=HygienistModel.last_name`; removed hand-rolled `list_hygienists`.
-- `app/contractors/tests/test_router.py` — updated `TestListContractors`: three tests now assert the `{items, total, skip, limit}` envelope instead of bare arrays.
-- `app/hygienists/tests/test_router.py` — added `TestListHygienists` class (empty envelope, seeded item, ordering, 401); no list tests existed before.
+- `app/employees/models.py` — Added `EmployeeRoleType` model (`employee_role_types` table, `AuditMixin`); `EmployeeRole.role_type` → `role_type_id` FK + `role_type` relationship (`lazy="selectin"`).
+- `app/employees/schemas.py` — Removed `EmployeeRoleType` enum import; added `EmployeeRoleTypeRead/Create/Update`; `EmployeeRoleBase.role_type` → `role_type_id: int`; `EmployeeRole` (read) now includes `role_type: EmployeeRoleTypeRead`.
+- `app/employees/router/base.py` — Updated `create_employee_role`: validates `role_type_id` FK (422 if not found), overlap check now uses `role_type_id`; re-fetches via `select()` after commit (avoids selectin reload issue). Updated `update_employee_role` same way. Updated `list_employee_roles` to use explicit `.selectinload(EmployeeRoleModel.role_type)`.
+- `app/employees/router/role_types.py` — **New file.** CRUD router for `EmployeeRoleType`: `GET /employee-role-types/`, `POST /`, `GET /{id}`, `PATCH /{id}`, `DELETE /{id}`. DELETE returns 409 if any roles reference the type. CUD requires `PROJECT_EDIT` permission.
+- `app/employees/router/__init__.py` — Added `role_types_router` import + `__all__` export.
+- `app/main.py` — Registered `role_types_router` (prefix `/employee-role-types`).
+- `app/employees/tests/test_roles.py` — Full rewrite: `_seed_role_type()` helper; `_seed_role()` takes `role_type_id: int`; `_role_payload()` takes `role_type_id: int`; new `test_create_role_with_missing_role_type_returns_422`; assertions updated to check `data["role_type"]["name"]`. 61/61 pass.
+- `app/employees/tests/test_schemas.py` — `_make_role()` now uses `role_type_id=1` (FK not validated at schema layer); removed `EmployeeRoleType` import.
+- `app/employees/README.md` — Updated to document the new table pattern and StrEnum distinction.
 
-**Non-obvious:** the hand-rolled `list_hygienists` sorted by `(last_name, first_name)` — a compound sort. The factory only accepts a single `default_sort` column, so the new endpoint sorts by `last_name` only. This is acceptable; first-name tiebreaking at this entity count is not worth special-casing.
+**New file:**
+
+- `migrations/versions/e3a7d52b1c09_promote_employee_role_type_to_table.py` — Creates `employee_role_types`, seeds 10 rows, adds `role_type_id` to `employee_roles`, populates from old string values, drops `role_type` column. Downgrade restores as String column. **Not yet applied — run `alembic upgrade head`.**
+
+**Non-obvious:**
+
+- `EmployeeRoleType` (StrEnum) in `app/common/enums.py` was NOT removed — it's still used by `SampleTypeRequiredRole` in the lab_results module. The new `EmployeeRoleType` model class in `app/employees/models.py` is a separate thing. They share a name but live in different namespaces.
+- `list_employee_roles` uses explicit `selectinload(EmployeeModel.roles).selectinload(EmployeeRoleModel.role_type)` to avoid the nested selectin being lazy-loaded outside the right context.
 
 ---
 
 ## Next Step
 
-### Priority: Promote `EmployeeRoleType` to Admin-Managed Table (blocks FE Session 2.3)
+### Regenerate the frontend OpenAPI client
 
-`EmployeeRoleType` is currently a `StrEnum` baked into the backend code. The frontend admin employee roles form (Session 2.3) needs to hit a dynamic endpoint for role types rather than use a static enum. An admin must be able to add a new role type (e.g. "Environmental Scientist") without a code change.
-
-**Concrete subtasks:**
-
-1. New `EmployeeRoleType` model (`id`, `name`, `description?`) + CRUD endpoints
-2. Migrate `EmployeeRole.role_type` from `SQLEnum(EmployeeRoleType)` to a FK on the new table
-3. Migration to seed the existing 10 enum values as rows
-4. Update `EmployeeRoleCreate` / `EmployeeRoleRead` schemas to reference the FK
-5. Regenerate the frontend OpenAPI client after — `EmployeeRoleType` union literal becomes a numeric ID or `EmployeeRoleTypeRead` object (FE pickup required)
-
-Pattern reference: similar to the `SampleType` admin-managed table from Session 2.5.
+After applying the migration, run the codegen command from `frontend/CLAUDE.md`. The `EmployeeRole` response shape changed significantly:
+- `role_type: EmployeeRoleType` (string union) → `role_type_id: int` + `role_type: EmployeeRoleTypeRead` (object with `id`, `name`, `description?`)
+- New endpoints: `GET/POST/PATCH/DELETE /employee-role-types/`
 
 ### After that: Phase 6.5
 

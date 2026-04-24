@@ -18,12 +18,15 @@ This module does **not** own user authentication or permissions (that's `users/`
 
 **`employee_id` on `users` is nullable.** Not every user is a field employee (e.g., office coordinators may have logins but no employee record), and not every employee has a system login. The join is optional in both directions.
 
-**`EmployeeRoleType` values are long certification strings**, not short codes. They map directly to NYC DOE certification categories. Do not rename or remove values — existing `employee_roles` rows reference them as stored enum strings.
+**`EmployeeRoleType` is an admin-managed DB table** (`employee_role_types`), not a `StrEnum`. Admins can add new types at runtime via `POST /employee-role-types/`. The 10 original NYC DOE certification strings were seeded as rows in the initial migration. `EmployeeRole.role_type_id` is a FK into this table; overlap validation compares `role_type_id` values, not strings.
+
+**`EmployeeRoleType` (StrEnum) in `app/common/enums.py`** is a separate, unrelated type used by `SampleTypeRequiredRole` in the lab results module. Do not conflate the two.
 
 ---
 
 ## Before you modify
 
-- **Changes to `EmployeeRoleType`** propagate to `sample_type_required_roles` (lab results config) and the time entry role-validation service. Adding a new value is safe; renaming or removing an existing value requires a data migration of any rows using that value.
-- **Role date-overlap logic** lives in the employees service. Any endpoint that creates or patches an `EmployeeRole` must call that validation before committing.
+- **Adding/renaming a role type**: Use the admin API (`POST /employee-role-types/`). No code change or migration needed.
+- **Deleting a role type**: Blocked with 409 if any `employee_roles` rows reference it — delete those roles first.
+- **Role date-overlap logic** lives in the router (`create_employee_role`). Overlap is checked per `role_type_id`. Any direct DB insert that bypasses the API must check for overlap manually.
 - **Tests**: run `pytest tests/ -v -k employees` after changes to role date logic.

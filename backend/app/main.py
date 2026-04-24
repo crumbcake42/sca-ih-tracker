@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.contractors.router import router as contractors_router
 from app.database import Base, engine
 from app.deliverables.router import router as deliverables_router
-from app.employees.router import router as employees_router
+from app.employees.router import role_types_router, router as employees_router
 from app.hygienists.router import router as hygienists_router
 from app.lab_results.router import router as lab_results_router
 from app.notes.router import router as notes_router
@@ -48,6 +48,7 @@ app.include_router(lab_results_router)
 app.include_router(notes_router)
 app.include_router(deliverables_router)
 app.include_router(employees_router)
+app.include_router(role_types_router)
 app.include_router(hygienists_router)
 app.include_router(projects_router)
 app.include_router(schools_router)

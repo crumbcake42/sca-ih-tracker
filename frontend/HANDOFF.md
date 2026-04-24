@@ -8,6 +8,8 @@
 
 **Breaking change: `GET /contractors/` and `GET /hygienists/` now return paginated envelopes.** Both previously returned bare arrays. They now return `PaginatedResponse<Contractor>` and `PaginatedResponse<Hygienist>` respectively (`{ items, total, skip, limit }`). Both also accept `search`, `skip`, and `limit` query params. Any frontend code reading these as arrays must migrate to `.items`. The contractors endpoint also gained `search_attr` on `name`; hygienists on `last_name`.
 
+**Breaking change: `EmployeeRole.role_type` field removed — replaced by `role_type_id` + `role_type` object.** `EmployeeRole` now returns `{ role_type_id: number, role_type: { id: number, name: string, description?: string }, ... }` instead of `{ role_type: string, ... }`. Any code reading `role.role_type` as a string must migrate to `role.role_type.name`; any code writing `role_type` to the create endpoint must switch to `role_type_id: number`. New endpoints `GET/POST/PATCH/DELETE /employee-role-types/` expose the admin-managed list. Session 2.3 (Roles admin) will consume this. If `EmployeeRolesTab` or `EmployeeRoleFormDialog` are found using the old field, update them during Session 2.2 or before.
+
 ---
 
 ## Current State

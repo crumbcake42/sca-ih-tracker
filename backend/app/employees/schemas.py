@@ -4,7 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field, model_validator
 
-from app.common.enums import EmployeeRoleType, TitleEnum
+from app.common.enums import TitleEnum
 from app.common.formatters import format_phone_number
 from app.common.schemas import OptionalField
 
@@ -50,8 +50,35 @@ class Employee(EmployeeBase):
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
 
 
+# ---------------------------------------------------------------------------
+# Employee Role Type schemas (admin-managed config)
+# ---------------------------------------------------------------------------
+
+
+class EmployeeRoleTypeRead(BaseModel):
+    id: int
+    name: str
+    description: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmployeeRoleTypeCreate(BaseModel):
+    name: str = Field(..., max_length=200)
+    description: str | None = None
+
+
+class EmployeeRoleTypeUpdate(BaseModel):
+    name: str | None = Field(None, max_length=200)
+    description: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Employee Role schemas
+# ---------------------------------------------------------------------------
+
+
 class EmployeeRoleBase(BaseModel):
-    role_type: EmployeeRoleType
+    role_type_id: int
     start_date: date
     end_date: date | None = None
     hourly_rate: Decimal = Field(..., ge=0, decimal_places=2)
@@ -75,4 +102,5 @@ class EmployeeRoleUpdate(BaseModel):
 class EmployeeRole(EmployeeRoleBase):
     id: int
     employee_id: int
+    role_type: EmployeeRoleTypeRead
     model_config = ConfigDict(from_attributes=True)
