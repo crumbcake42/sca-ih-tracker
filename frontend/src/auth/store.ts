@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { client } from "@/api/generated/client.gen";
 import { setTokenGetter } from "@/api/client";
+import { queryClient } from "@/api/queryClient";
+import { currentUserQueryKey } from "@/auth/api";
 import type { User } from "@/api/generated/types.gen";
 
 interface AuthState {
@@ -32,6 +34,10 @@ setTokenGetter(() => useAuthStore.getState().token);
 client.interceptors.response.use((response) => {
   if (response.status === 401) {
     useAuthStore.getState().clearAuth();
+    queryClient.removeQueries({ queryKey: currentUserQueryKey() });
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   }
   return response;
 });

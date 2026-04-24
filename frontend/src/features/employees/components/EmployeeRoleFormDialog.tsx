@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,31 +21,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import type { EmployeeRole, EmployeeRoleType } from "@/api/generated/types.gen";
+import type { EmployeeRole } from "@/api/generated/types.gen";
 import { applyServerErrors } from "@/lib/form-errors";
 import {
   createEmployeeRoleMutation,
   updateEmployeeRoleMutation,
   listEmployeeRolesQueryKey,
+  listEmployeeRoleTypesOptions,
 } from "@/features/employees/api/employees";
 
-const ROLE_TYPE_OPTIONS: readonly EmployeeRoleType[] = [
-  "Asbestos On Site Technical Air Testing",
-  "Asbestos Project Monitor",
-  "Asbestos Inspector Level A",
-  "Asbestos Investigator Level A",
-  "Asbestos Project Manager Level A",
-  "Certified Lead Inspector / Risk Assessor Level A",
-  "Certified Lead Inspector / Risk Assessor Level B",
-  "Mold Field Technician",
-  "Mold Project Manager Level A",
-  "Mold Project Manager Level B",
-];
-
 const schema = z.object({
-  role_type: z.enum(
-    ROLE_TYPE_OPTIONS as [EmployeeRoleType, ...EmployeeRoleType[]],
-  ),
+  role_type_id: z.coerce.number().min(1, "Role type is required."),
   start_date: z.string().min(1, "Start date is required."),
   end_date: z.string().optional(),
   hourly_rate: z
@@ -79,7 +65,7 @@ function get409Detail(err: unknown): string | null {
 
 function toFormValues(role: EmployeeRole): FormValues {
   return {
-    role_type: role.role_type,
+    role_type_id: role.role_type_id,
     start_date: role.start_date,
     end_date: role.end_date ?? "",
     hourly_rate: String(role.hourly_rate),
@@ -87,7 +73,7 @@ function toFormValues(role: EmployeeRole): FormValues {
 }
 
 const DEFAULT_VALUES: FormValues = {
-  role_type: ROLE_TYPE_OPTIONS[0],
+  role_type_id: 0,
   start_date: "",
   end_date: "",
   hourly_rate: "",
@@ -102,6 +88,8 @@ export function EmployeeRoleFormDialog({
 }: Props) {
   const queryClient = useQueryClient();
   const isEdit = !!role;
+
+  const { data: roleTypes } = useQuery(listEmployeeRoleTypesOptions());
 
   const {
     register,
@@ -175,7 +163,7 @@ export function EmployeeRoleFormDialog({
       createRole({
         path: { employee_id: employeeId },
         body: {
-          role_type: values.role_type,
+          role_type_id: values.role_type_id,
           start_date: values.start_date,
           end_date: values.end_date || null,
           hourly_rate: values.hourly_rate,
@@ -205,36 +193,36 @@ export function EmployeeRoleFormDialog({
             </p>
           )}
 
-          <Field data-invalid={!!errors.role_type}>
+          <Field data-invalid={!!errors.role_type_id}>
             <FieldLabel htmlFor="role-type">Role type</FieldLabel>
             <Controller
               control={control}
-              name="role_type"
+              name="role_type_id"
               render={({ field }) => (
                 <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
+                  value={field.value > 0 ? String(field.value) : ""}
+                  onValueChange={(v) => field.onChange(Number(v))}
                   disabled={isEdit}
                 >
                   <SelectTrigger
                     id="role-type"
                     className="w-full"
-                    aria-invalid={!!errors.role_type}
+                    aria-invalid={!!errors.role_type_id}
                     data-testid="role-type-trigger"
                   >
                     <SelectValue placeholder="Select role type…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLE_TYPE_OPTIONS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
+                    {roleTypes?.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             />
-            <FieldError errors={[errors.role_type]} />
+            <FieldError errors={[errors.role_type_id]} />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">

@@ -402,11 +402,18 @@ Shared references for all three sub-sessions:
   - When unblocked: list + detail page. Detail includes a **Triggers** sub-panel — checklist of `WaCode` rows with inline add (`addTriggerMutation`) / remove (`removeTriggerMutation`); invalidates `listTriggersQueryKey({path:{deliverable_id}})` on each.
   - `level` on Deliverables reuses `WaCodeLevel` enum.
 
-- [ ] **Session 2.3c** — Contractors _(BLOCKED: `GET /contractors/` must return `PaginatedResponseContractor` with `search`/`skip`/`limit`)_
-  - When unblocked: Employees pattern (list + detail + form dialog + delete-with-409 inline).
+- [ ] **Session 2.3c** — Contractors _(unblocked: `GET /contractors/` returns `PaginatedResponseContractor` with `search`/`skip`/`limit`)_
+  - Employees pattern: list + detail + form dialog + delete-with-409 inline.
+  - `src/features/contractors/api/contractors.ts` barrel; `EntityListPage<Contractor>` with module-scope columns.
 
-- [ ] **Session 2.3d** — Hygienists _(BLOCKED: `GET /hygienists/` must return `PaginatedResponseHygienist` with `search`/`skip`/`limit`)_
-  - When unblocked: list + detail + form dialog; surfaces `getHygienistConnectionsOptions` on detail (linked projects).
+- [ ] **Session 2.3d** — Hygienists _(unblocked: `GET /hygienists/` returns `PaginatedResponseHygienist` with `search`/`skip`/`limit`)_
+  - List + detail + form dialog; surface `getHygienistConnectionsOptions` on detail (linked projects).
+
+- [ ] **Session 2.3e** — Employee Role Types admin _(unblocked: `GET/POST/PATCH/DELETE /employee-role-types/` now live)_
+  - Admin CRUD for the role-type lookup table. `EmployeeRoleFormDialog` already fetches from this endpoint; this session adds the management surface.
+  - `src/features/employees/api/employees.ts` barrel already has all five wrappers (`listEmployeeRoleTypesOptions/QueryKey`, `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`).
+  - `EntityListPage<EmployeeRoleTypeRead>` — columns: Name, Description. Add/Edit via simple dialog (name required, description optional). Delete: 409 if any `EmployeeRole` rows reference it — render inline.
+  - Enable a "Role Types" nav item in `nav-items.ts` under Employees.
 
 - [ ] **Session 2.4** — Users, roles, permissions
   - Password reset as a separate row-menu action → dialog

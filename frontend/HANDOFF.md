@@ -2,36 +2,41 @@
 
 ## Backend changes pending frontend pickup
 
-**Regenerate the OpenAPI client** — multiple backend endpoints changed shape. Run the codegen command from `frontend/CLAUDE.md` after the backend is running.
+**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
 
-**Breaking change: `GET /work-auths/` now returns a paginated list.** Previously, `GET /work-auths/?project_id=X` returned a single `WorkAuth` object and raised 404 when no work auth existed for that project. It now returns a `PaginatedResponse<WorkAuth>` envelope (`{ items, total, skip, limit }`). When the project has no work auth, `total` is 0 and `items` is `[]` — there is no 404. Any frontend code that reads `response.project_id` directly must be updated to `response.items[0]?.project_id` (and guard for the empty case).
-
-**Breaking change: `GET /contractors/` and `GET /hygienists/` now return paginated envelopes.** Both previously returned bare arrays. They now return `PaginatedResponse<Contractor>` and `PaginatedResponse<Hygienist>` respectively (`{ items, total, skip, limit }`). Both also accept `search`, `skip`, and `limit` query params. Any frontend code reading these as arrays must migrate to `.items`. The contractors endpoint also gained `search_attr` on `name`; hygienists on `last_name`.
-
-**Breaking change: `EmployeeRole.role_type` field removed — replaced by `role_type_id` + `role_type` object.** `EmployeeRole` now returns `{ role_type_id: number, role_type: { id: number, name: string, description?: string }, ... }` instead of `{ role_type: string, ... }`. Any code reading `role.role_type` as a string must migrate to `role.role_type.name`; any code writing `role_type` to the create endpoint must switch to `role_type_id: number`. New endpoints `GET/POST/PATCH/DELETE /employee-role-types/` expose the admin-managed list. Session 2.3 (Roles admin) will consume this. If `EmployeeRolesTab` or `EmployeeRoleFormDialog` are found using the old field, update them during Session 2.2 or before.
-
-**Paginate `GET /contractors/` and `GET /hygienists/`** — both currently return bare arrays with no `search`/`skip`/`limit` query params. Need to match the `PaginatedResponse<T>` envelope used by employees and schools (`{items, total, skip, limit}`) and accept `search`/`skip`/`limit` query params. Blocks Sessions 2.3c (Contractors) and 2.3d (Hygienists). Regenerate the OpenAPI client on the frontend after backend ships.
-
-**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities. Current API is batch-import + delete + trigger management only. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
+**`GET /work-auths/` is now paginated** — returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
 
 ---
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, and 2.2 complete.**
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, and backend-pickup migration complete.**
 
-- `EntityListPage<T>` extracted to `src/components/`; `SchoolsList` and `EmployeesList` deleted; both pages retrofitted.
-- `useEntityForm` extracted to `src/hooks/`; `EmployeeFormDialog` retrofitted.
-- `src/PATTERNS.md` updated with EntityListPage pattern, useEntityForm pattern, `src/fields/` rationale, and testing strategy (closes both HANDOFF open items).
-- Tests: `EntityListPage.test.tsx` (6 tests) and `useEntityForm.test.ts` (6 tests) added.
-- Storybook: `EntityListPage.stories.tsx` (Default, WithActions, Loading, Empty, Error) added.
+- OpenAPI client regenerated after backend unblocking session.
+- `EmployeeRolesTab` + `EmployeeRoleFormDialog` migrated from `role_type: string` to `role_type_id: number` + `role_type: EmployeeRoleTypeRead`; select options now fetched from `/employee-role-types/`.
+- `src/features/employees/api/employees.ts` barrel extended with `listEmployeeRoleTypesOptions/QueryKey`, `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`.
+- `EmployeeRoleFormDialog.test.tsx` updated to match new shape.
 
-**Next is Session 2.3a — WA codes admin CRUD.** Sessions 2.3b (Deliverables), 2.3c (Contractors), and 2.3d (Hygienists) are blocked on backend changes noted above.
+**Next is Session 2.3a — WA codes admin CRUD.** Sessions 2.3c (Contractors) and 2.3d (Hygienists) are now unblocked. Session 2.3b (Deliverables) still blocked — see "Backend changes pending frontend pickup" above.
 
-**Collateral pickups from other backend work:**
+---
 
-- **`GET /work-auths/` is now paginated** — previously returned a single `WorkAuth` or 404; now returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
-- **New contractors endpoints** (`GET/POST/PATCH /contractors/`) — regenerated client exposes them. Not needed until Session 2.3c (blocked on backend pagination — see "Backend changes pending frontend pickup" above).
+## What Was Done This Session (Backend pickup migration — regenerated client + role-type shape)
+
+**Done:**
+
+- Audited the regenerated OpenAPI client against all outstanding backend pickup items from HANDOFF.md.
+- Confirmed: contractors paginated ✅, hygienists paginated ✅, `EmployeeRole` shape changed to `role_type_id + role_type: EmployeeRoleTypeRead` ✅, new `/employee-role-types/` CRUD endpoints ✅.
+- Confirmed still missing: `POST /deliverables/` and `PATCH /deliverables/{id}` — Session 2.3b remains blocked.
+- Migrated `EmployeeRolesTab.tsx` — `role.role_type` → `role.role_type.name` (two sites).
+- Migrated `EmployeeRoleFormDialog.tsx` — schema uses `role_type_id: z.coerce.number().min(1)`, select options fetched from `listEmployeeRoleTypesOptions()`, create body passes `role_type_id`.
+- Extended `src/features/employees/api/employees.ts` with five new role-type wrappers.
+- Updated `EmployeeRoleFormDialog.test.tsx` — `SAMPLE_ROLE` has `role_type_id` + `role_type` object, mock includes `listEmployeeRoleTypesOptions`, 409 test adds select step.
+- Updated HANDOFF.md — removed resolved pickup items, kept deliverables blocker and work-auth pagination note.
+
+**Next:** Session 2.3a — WA codes admin CRUD.
+
+**Blockers:** Session 2.3b (Deliverables admin) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`.
 
 ---
 
