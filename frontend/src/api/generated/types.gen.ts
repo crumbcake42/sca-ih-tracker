@@ -808,6 +808,28 @@ export type NoteResolve = {
 export type NoteType = 'time_entry_conflict' | 'missing_sample_type_wa_code';
 
 /**
+ * PaginatedResponse[Contractor]
+ */
+export type PaginatedResponseContractor = {
+    /**
+     * Items
+     */
+    items: Array<Contractor>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Skip
+     */
+    skip: number;
+    /**
+     * Limit
+     */
+    limit: number;
+};
+
+/**
  * PaginatedResponse[Deliverable]
  */
 export type PaginatedResponseDeliverable = {
@@ -837,6 +859,28 @@ export type PaginatedResponseEmployee = {
      * Items
      */
     items: Array<Employee>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Skip
+     */
+    skip: number;
+    /**
+     * Limit
+     */
+    limit: number;
+};
+
+/**
+ * PaginatedResponse[Hygienist]
+ */
+export type PaginatedResponseHygienist = {
+    /**
+     * Items
+     */
+    items: Array<Hygienist>;
     /**
      * Total
      */
@@ -2279,23 +2323,43 @@ export type WorkAuthUpdate = {
     is_saved?: boolean | null;
 };
 
-export type ListContractorsContractorsGetData = {
+export type ListEntriesContractorsGetData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Search
+         */
+        search?: string | null;
+    };
     url: '/contractors/';
 };
 
-export type ListContractorsContractorsGetResponses = {
+export type ListEntriesContractorsGetErrors = {
     /**
-     * Response List Contractors Contractors  Get
-     *
-     * Successful Response
+     * Validation Error
      */
-    200: Array<Contractor>;
+    422: HttpValidationError;
 };
 
-export type ListContractorsContractorsGetResponse = ListContractorsContractorsGetResponses[keyof ListContractorsContractorsGetResponses];
+export type ListEntriesContractorsGetError = ListEntriesContractorsGetErrors[keyof ListEntriesContractorsGetErrors];
+
+export type ListEntriesContractorsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PaginatedResponseContractor;
+};
+
+export type ListEntriesContractorsGetResponse = ListEntriesContractorsGetResponses[keyof ListEntriesContractorsGetResponses];
 
 export type CreateContractorContractorsPostData = {
     body: ContractorCreate;
@@ -3808,23 +3872,43 @@ export type ImportBatchEmployeesBatchImportPostResponses = {
 
 export type ImportBatchEmployeesBatchImportPostResponse = ImportBatchEmployeesBatchImportPostResponses[keyof ImportBatchEmployeesBatchImportPostResponses];
 
-export type ListHygienistsHygienistsGetData = {
+export type ListEntriesHygienistsGetData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Search
+         */
+        search?: string | null;
+    };
     url: '/hygienists/';
 };
 
-export type ListHygienistsHygienistsGetResponses = {
+export type ListEntriesHygienistsGetErrors = {
     /**
-     * Response List Hygienists Hygienists  Get
-     *
-     * Successful Response
+     * Validation Error
      */
-    200: Array<Hygienist>;
+    422: HttpValidationError;
 };
 
-export type ListHygienistsHygienistsGetResponse = ListHygienistsHygienistsGetResponses[keyof ListHygienistsHygienistsGetResponses];
+export type ListEntriesHygienistsGetError = ListEntriesHygienistsGetErrors[keyof ListEntriesHygienistsGetErrors];
+
+export type ListEntriesHygienistsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PaginatedResponseHygienist;
+};
+
+export type ListEntriesHygienistsGetResponse = ListEntriesHygienistsGetResponses[keyof ListEntriesHygienistsGetResponses];
 
 export type CreateHygienistHygienistsPostData = {
     body: HygienistCreate;
