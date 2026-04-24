@@ -191,6 +191,12 @@ src/
 │   ├── dashboard/index.tsx  # placeholder until Phase 5
 │   ├── projects/index.tsx
 │   └── admin/
+│       ├── components/      # admin-shell-specific components (not globally shared)
+│       │   ├── AdminShell.tsx
+│       │   ├── AdminSidebar.tsx
+│       │   ├── AdminTopBar.tsx
+│       │   └── nav-items.ts
+│       ├── layout.tsx       # AdminLayout — wraps <Outlet /> in <AdminShell>; imported by routes/ only
 │       ├── index.tsx
 │       └── schools/
 │           ├── index.tsx
@@ -299,7 +305,7 @@ src/
 
 Inserted before Session 2.2 to establish a legible, coherent, themeable UI baseline. The default Vite + TanStack Router template installed a custom "island/sea" colour palette that fights shadcn's neutral token layer — the most visible symptom is teal-on-white link text (e.g. "Manage Schools" on the admin overview) caused by a global `a { color }` rule. This phase fixes that root cause, adds a WP-style admin shell, and fills in Storybook coverage for shadcn primitives.
 
-- [ ] **Session 1.5A** — Theme consolidation + dark/light toggle
+- [x] **Session 1.5A** — Theme consolidation + dark/light toggle
   - Delete the island/sea palette from `src/styles.css` entirely (all `--sea-*`, `--lagoon*`, `--palm`, `--sand`, `--foam`, `--surface*`, and associated dark-mode overrides); shadcn neutral tokens become the sole palette
   - Remove the global `a { color: var(--lagoon-deep) }` rule — fixes Button-as-Link legibility everywhere
   - Switch default font from mono to sans (`html { @apply font-sans }`)
@@ -309,16 +315,17 @@ Inserted before Session 2.2 to establish a legible, coherent, themeable UI basel
   - Add `<ThemeToggle />` to `AppShell` header between user chip and sign-out
   - Add light/dark global decorator to `.storybook/preview.tsx` so existing stories test both themes
 
-- [ ] **Session 1.5B** — Admin shell (WordPress-style)
-  - `src/components/admin/AdminShell.tsx` (NEW) — two-column layout: collapsible left sidebar + stacked top-bar/content; compound `AdminShell.Title` / `AdminShell.Actions` slots for per-page title + primary action
-  - `src/components/admin/AdminSidebar.tsx` (NEW) — Phosphor icon + label nav driven by `nav-items.ts`; active state from `useRouterState`; collapse to icon-only rail; collapse state persisted via `src/lib/admin-shell-state.ts` (Zustand)
-  - `src/components/admin/AdminTopBar.tsx` (NEW) — breadcrumb + user chip + `<ThemeToggle />` + sign-out
-  - `src/components/admin/nav-items.ts` (NEW) — typed `readonly AdminNavItem[]`: Dashboard, Schools, Employees; Projects/Contractors flagged `disabled: true` until their phases land
-  - Mount `<AdminShell>` in `src/routes/_authenticated/admin.tsx`; remove the "Admin" ghost-link from `AppShell` (nav lives in the sidebar now)
+- [x] **Session 1.5B** — Admin shell (WordPress-style)
+  - `src/pages/admin/components/AdminShell.tsx` (NEW) — two-column layout: collapsible left sidebar + stacked top-bar/content; compound `AdminShell.Title` / `AdminShell.Actions` slots for per-page title + primary action
+  - `src/pages/admin/components/AdminSidebar.tsx` (NEW) — Phosphor icon + label nav driven by `nav-items.ts`; active state from `useRouterState`; collapse to icon-only rail; collapse state persisted via `src/lib/admin-shell-state.ts` (Zustand)
+  - `src/pages/admin/components/AdminTopBar.tsx` (NEW) — breadcrumb + user chip + `<ThemeToggle />` + sign-out
+  - `src/pages/admin/components/nav-items.ts` (NEW) — typed `readonly AdminNavItem[]`: Dashboard, Schools, Employees; Projects/Contractors flagged `disabled: true` until their phases land
+  - `src/pages/admin/layout.tsx` (NEW) — exports `AdminLayout`; wraps `<Outlet />` in `<AdminShell>`; imported by the route file only
+  - `src/routes/_authenticated/admin.tsx` — thin route file: `beforeLoad` admin/superadmin guard + `component: AdminLayout`; no inline layout, no direct component imports
   - Rewrite `src/pages/admin/index.tsx` as WP-style card-grid dashboard (one card per entity with stat + "Manage" link — verifies the legibility fix end-to-end)
-  - `src/components/admin/AdminShell.stories.tsx` — Default / Collapsed / WithSamplePage stories
+  - `src/pages/admin/components/AdminShell.stories.tsx` — Default / Collapsed / WithSamplePage stories
 
-- [ ] **Session 1.5C** — Storybook primitive stories + UI showcase
+- [x] **Session 1.5C** — Storybook primitive stories + UI showcase
   - One `*.stories.tsx` per shadcn primitive in `src/components/ui/` (Button all variants × all sizes; Card; Input, InputGroup, Textarea; Select; Checkbox, Label, Field; Dialog; Tabs; Table; Badge; Separator; Skeleton; Sonner; Popover; Command)
   - `src/stories/Showcase.stories.tsx` (NEW) — `UI/Showcase` story composing every primitive plus a sample admin page (AdminShell + card grid + form + table); light + dark variants via Storybook theme toolbar
   - Update `src/PATTERNS.md` Storybook section: shadcn primitives are now covered; new primitives must ship a story the same session

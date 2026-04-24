@@ -10,9 +10,9 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, and 1.5B complete.** Employees feature is fully implemented. Admin shell is live: WordPress-style sidebar layout with collapsible nav, AdminTopBar with page title/actions slots, and WP-style dashboard.
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, and 1.5C complete.** All shadcn primitives now have Storybook stories. Admin shell is live with WordPress-style sidebar, AdminTopBar, and WP-style dashboard.
 
-**Next is Phase 1.5C — Storybook primitive stories + UI showcase.**
+**Next is Session 2.2 — Extract generics + retrofit (Schools + Employees → `EntityListPage`/`EntityFormDialog`).**
 
 **Collateral pickups from other backend work:**
 
@@ -23,6 +23,45 @@
 
 - commit to file structure decision: explain why entity fields like employee and school combobox are in src/fields instead of src/[entity]/components/
 - discuss testing strategy. is it not in roadmap or is there a reason why the code we've written so far doesn't need unit/regression/integration tests?
+
+---
+
+## What Was Done This Session (Session 1.5C — Storybook primitive stories + UI showcase)
+
+**Done:**
+
+- Created `src/components/ui/Button.stories.tsx` — all 6 variants (Default, Outline, Secondary, Ghost, Destructive, Link), disabled state, all-variants grid, all-sizes grid, with-icon story
+- Created `src/components/ui/Card.stories.tsx` — Default (with footer), WithAction (CardAction slot), SmallSize
+- Created `src/components/ui/Inputs.stories.tsx` — Input (default/disabled/invalid), Textarea, Select, Checkbox, FieldGroup (with FieldError), InputGroup (search, prefix/suffix, button addon)
+- Created `src/components/ui/Dialog.stories.tsx` — Default (edit form), Destructive (confirm delete); both use trigger button, not forced-open
+- Created `src/components/ui/Tabs.stories.tsx` — Default (pill variant), LineVariant
+- Created `src/components/ui/Table.stories.tsx` — Default (rows with Badge status), Empty (colspan message)
+- Created `src/components/ui/Misc.stories.tsx` — Badge all variants, Separator (horizontal + vertical), Skeleton (text lines + avatar row)
+- Created `src/components/ui/Overlay.stories.tsx` — Popover (with header/description), Command (search + group + empty state)
+- Created `src/stories/Showcase.stories.tsx` — composite `UI/Showcase / Admin page` story combining all primitives: top bar + sidebar + stat cards + tabs (list/loading) + dialog + form + table; `layout: "fullscreen"`
+- Updated `src/PATTERNS.md` Storybook section — added note on shadcn primitive coverage + requirement to ship stories with new primitives
+- `pnpm tsc --noEmit`, `pnpm check` — all clean
+
+**Next:** Session 2.2 — Extract generics + retrofit (Schools + Employees → `EntityListPage`/`EntityFormDialog`)
+
+**Blockers:** none
+
+---
+
+## What Was Done This Session (Admin shell import refactor)
+
+**Done:**
+
+- Deleted `src/components/admin/` — admin shell components were misplaced in the global shared layer; they are admin-section-specific, not domain-free primitives
+- Created `src/pages/admin/components/` — moved all five files (`AdminShell.tsx`, `AdminSidebar.tsx`, `AdminTopBar.tsx`, `nav-items.ts`, `AdminShell.stories.tsx`); internal relative imports unchanged
+- Created `src/pages/admin/layout.tsx` — exports `AdminLayout`; renders `<AdminShell><Outlet /></AdminShell>`; the only consumer of the shell components outside their own directory
+- Trimmed `src/routes/_authenticated/admin.tsx` — removed inline `AdminLayout` function and direct `AdminShell` import; now a thin route file: `beforeLoad` guard + `component: AdminLayout` from `@/pages/admin/layout`
+- Updated `src/pages/admin/index.tsx` — import path changed from `@/components/admin/AdminShell` to `./components/AdminShell`
+- `pnpm check` — clean
+
+**Next:** Session 1.5C — Storybook primitive stories + UI showcase
+
+**Blockers:** none
 
 ---
 
