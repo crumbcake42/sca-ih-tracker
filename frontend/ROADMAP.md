@@ -276,7 +276,7 @@ src/
   - `src/hooks/useUrlPagination.ts` — `useUrlPagination(defaultPageSize?)` syncs `PaginationState` ↔ `page`/`pageSize` URL params; `useSearch({ strict: false })` for route-agnostic reads
   - `src/hooks/useUrlSearch.ts` — `useUrlSearch(param?)` returns `[value, setValue]`; setValue resets `page` to prevent stale offsets
   - Projects list migrated to use `<DataTable>` + `useUrlSearch` + `useUrlPagination`; `pageCount={1}` until backend wraps list responses with a total
-  - `DataTable` lives in `src/shared/components/` (roadmap folder diagram updated to match)
+  - `DataTable` lives in `src/components/` (roadmap folder diagram updated to match)
 
 - [x] **Session 1.4** — Schools admin _(generics deferred; build concrete first)_
   - **Why deferred:** no consumer existed for generics; principle #10 says wait for the third duplicate. Schools + Employees will reveal the real shape.
@@ -382,7 +382,7 @@ Shared references for all three sub-sessions:
 
 - [ ] **Session 2.2** — Extract generics + retrofit _(DRY when two concrete entities exist)_
   - Extract `EntityListPage`, `EntityFormPage`, `EntityFormDialog` from Schools + Employees patterns
-  - These live in `src/shared/components/` (pass the shared/ rubric — no entity imports, generic over `TData`)
+  - These live in `src/components/` (pass the shared/ rubric — no entity imports, generic over `TData`)
   - Retrofit Schools and Employees to use the extracted components
   - Create `src/PATTERNS.md` now that the shapes are stable
   - Test: retrofitted pages render identically; PATTERNS.md documents the column config shape, form field patterns, query invalidation
