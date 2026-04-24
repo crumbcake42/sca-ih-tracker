@@ -10,7 +10,7 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, and backend-pickup migration complete.**
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, and auth fix complete.**
 
 - OpenAPI client regenerated after backend unblocking session.
 - `EmployeeRolesTab` + `EmployeeRoleFormDialog` migrated from `role_type: string` to `role_type_id: number` + `role_type: EmployeeRoleTypeRead`; select options now fetched from `/employee-role-types/`.
@@ -18,6 +18,21 @@
 - `EmployeeRoleFormDialog.test.tsx` updated to match new shape.
 
 **Next is Session 2.3a — WA codes admin CRUD.** Sessions 2.3c (Contractors) and 2.3d (Hygienists) are now unblocked. Session 2.3b (Deliverables) still blocked — see "Backend changes pending frontend pickup" above.
+
+---
+
+## What Was Done This Session (Auth fix — 401 interceptor redirect)
+
+**Done:**
+
+- Diagnosed two bugs causing a stuck/broken state on `/admin/employees` when the session token expired:
+  1. `queryClient` has `staleTime: 30_000`, so `ensureQueryData` in `_authenticated.tsx` `beforeLoad` returns cached `/users/me` data, allowing the route guard to pass even with an expired token.
+  2. The 401 interceptor in `store.ts` called `clearAuth()` but never redirected, leaving the user on the page with a blank top bar and a failed data table.
+- Updated `src/auth/store.ts`: the 401 interceptor now also calls `queryClient.removeQueries({ queryKey: currentUserQueryKey() })` (clears stale user cache) and `window.location.href = "/login"` (hard redirect); imported `queryClient` from `@/api/queryClient` and `currentUserQueryKey` from `@/auth/api`.
+
+**Next:** Session 2.3a — WA codes admin CRUD.
+
+**Blockers:** Session 2.3b (Deliverables admin) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`.
 
 ---
 

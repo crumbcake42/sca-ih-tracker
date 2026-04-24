@@ -49,6 +49,12 @@ After applying the migration, run the codegen command from `frontend/CLAUDE.md`.
 - `role_type: EmployeeRoleType` (string union) → `role_type_id: int` + `role_type: EmployeeRoleTypeRead` (object with `id`, `name`, `description?`)
 - New endpoints: `GET/POST/PATCH/DELETE /employee-role-types/`
 
+### Add response model to `GET /wa-codes/{id}/connections`
+
+The frontend (`WaCodeFormDialog`) calls this endpoint to determine whether a WA code's `level` field should be locked. The current FastAPI handler returns the connections dict without a declared `response_model`, so the generated OpenAPI schema types the response as `unknown`. Add a `WaCodeConnections` Pydantic schema (e.g. `{ work_auths: int, rfa_codes: int, sample_types: int }`) and wire it as the `response_model`. Regenerate the frontend OpenAPI client afterward — this unblocks removing the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx`.
+
+---
+
 ### After that: Phase 6.5
 
 Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented.
