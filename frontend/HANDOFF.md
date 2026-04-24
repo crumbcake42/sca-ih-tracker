@@ -10,7 +10,9 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, and 2.1c complete.** Employees feature is fully implemented: list page, create/edit dialog, detail page with Details tab and Roles tab (add/edit/delete roles, 409 inline banner, 422 field errors). Next is Session 2.2 (extract generics).
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, and 2.1c complete.** Employees feature is fully implemented: list page, create/edit dialog, detail page with Details tab and Roles tab (add/edit/delete roles, 409 inline banner, 422 field errors). **Phase 1.5 (UI skeleton) is inserted before Session 2.2** — see ROADMAP.md Phase 1.5 for full scope.
+
+**Next is Phase 1.5A — Theme consolidation + dark/light toggle.** Key changes: delete the island/sea palette from `src/styles.css`, fix the global `a { color }` legibility bug, add `src/lib/theme.ts` + `src/components/ThemeToggle.tsx`, wire toggle into `AppShell`, add Storybook theme decorator.
 
 **Collateral pickups from other backend work:**
 

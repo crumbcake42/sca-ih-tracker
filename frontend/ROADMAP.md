@@ -295,6 +295,36 @@ src/
 
 ---
 
+## Phase 1.5 — UI skeleton
+
+Inserted before Session 2.2 to establish a legible, coherent, themeable UI baseline. The default Vite + TanStack Router template installed a custom "island/sea" colour palette that fights shadcn's neutral token layer — the most visible symptom is teal-on-white link text (e.g. "Manage Schools" on the admin overview) caused by a global `a { color }` rule. This phase fixes that root cause, adds a WP-style admin shell, and fills in Storybook coverage for shadcn primitives.
+
+- [ ] **Session 1.5A** — Theme consolidation + dark/light toggle
+  - Delete the island/sea palette from `src/styles.css` entirely (all `--sea-*`, `--lagoon*`, `--palm`, `--sand`, `--foam`, `--surface*`, and associated dark-mode overrides); shadcn neutral tokens become the sole palette
+  - Remove the global `a { color: var(--lagoon-deep) }` rule — fixes Button-as-Link legibility everywhere
+  - Switch default font from mono to sans (`html { @apply font-sans }`)
+  - Simplify `THEME_INIT_SCRIPT` in `__root.tsx` to only toggle `.dark` class (drop `data-theme`; island tokens no longer need it)
+  - `src/lib/theme.ts` (NEW) — `getResolvedTheme()`, `setTheme(value: "light"|"dark"|"auto")`, `useTheme()` hook via `useSyncExternalStore`; no Zustand slice
+  - `src/components/ThemeToggle.tsx` (NEW) — three-state cycle button (light → dark → auto) using Phosphor `SunIcon` / `MoonIcon` / `MonitorIcon`
+  - Add `<ThemeToggle />` to `AppShell` header between user chip and sign-out
+  - Add light/dark global decorator to `.storybook/preview.tsx` so existing stories test both themes
+
+- [ ] **Session 1.5B** — Admin shell (WordPress-style)
+  - `src/components/admin/AdminShell.tsx` (NEW) — two-column layout: collapsible left sidebar + stacked top-bar/content; compound `AdminShell.Title` / `AdminShell.Actions` slots for per-page title + primary action
+  - `src/components/admin/AdminSidebar.tsx` (NEW) — Phosphor icon + label nav driven by `nav-items.ts`; active state from `useRouterState`; collapse to icon-only rail; collapse state persisted via `src/lib/admin-shell-state.ts` (Zustand)
+  - `src/components/admin/AdminTopBar.tsx` (NEW) — breadcrumb + user chip + `<ThemeToggle />` + sign-out
+  - `src/components/admin/nav-items.ts` (NEW) — typed `readonly AdminNavItem[]`: Dashboard, Schools, Employees; Projects/Contractors flagged `disabled: true` until their phases land
+  - Mount `<AdminShell>` in `src/routes/_authenticated/admin.tsx`; remove the "Admin" ghost-link from `AppShell` (nav lives in the sidebar now)
+  - Rewrite `src/pages/admin/index.tsx` as WP-style card-grid dashboard (one card per entity with stat + "Manage" link — verifies the legibility fix end-to-end)
+  - `src/components/admin/AdminShell.stories.tsx` — Default / Collapsed / WithSamplePage stories
+
+- [ ] **Session 1.5C** — Storybook primitive stories + UI showcase
+  - One `*.stories.tsx` per shadcn primitive in `src/components/ui/` (Button all variants × all sizes; Card; Input, InputGroup, Textarea; Select; Checkbox, Label, Field; Dialog; Tabs; Table; Badge; Separator; Skeleton; Sonner; Popover; Command)
+  - `src/stories/Showcase.stories.tsx` (NEW) — `UI/Showcase` story composing every primitive plus a sample admin page (AdminShell + card grid + form + table); light + dark variants via Storybook theme toolbar
+  - Update `src/PATTERNS.md` Storybook section: shadcn primitives are now covered; new primitives must ship a story the same session
+
+---
+
 ## Phase 2 — Admin CRUD (simple entities)
 
 **Session 2.1 — Employees** _(second concrete entity; validates generics shape)_
@@ -465,6 +495,7 @@ Shared references for all three sub-sessions:
 
 - Regenerate the API client after every backend change (`pnpm dlx @hey-api/openapi-ts` with backend running)
 - Storybook — configured (Session 1.6); add a story in the same session any new shared component is built
+- Theme token discipline — components must reference only shadcn token names (`bg-background`, `text-foreground`, `bg-primary`, etc.), never Tailwind palette utilities or hardcoded colors. Theming works on two axes: **mode** (`.dark` class toggles light/dark) and **palette** (a `.theme-*` class remaps the token values — e.g. `.theme-ocean { --primary: oklch(...) }`). Because components never reference specific colors, adding a new palette or mode requires only a CSS class in `styles.css` and a localStorage entry — no component changes. `src/lib/theme.ts` is the single manager for both axes.
 - Error monitoring — Sentry or equivalent before first non-dev deploy
 
 ---
