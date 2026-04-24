@@ -218,6 +218,36 @@ Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str
 
 ---
 
+### Phase 1.8 — Factor `/connections` + guarded DELETE into shared factory
+
+> Cross-cutting infrastructure. The six entities that implement `GET /{id}/connections` + guarded `DELETE /{id}` today all do so with ~40 lines of hand-rolled, per-entity code (`_get_*_references` helper, untyped dict return, `assert_deletable` call). Every `/connections` endpoint in OpenAPI is typed as `unknown`, blocking the frontend from removing casts. Replace with a `create_guarded_delete_router` factory (alongside `create_readonly_router` in `app/common/factories.py`) that generates a named `*Connections` Pydantic schema per entity via `pydantic.create_model` and emits both endpoints with strict typing.
+
+Full design detail (factory signature, per-entity ref inventory, line numbers for all six modules) is in the plan file:
+`C:\Users\msilberstein\.claude\plans\reference-the-2-fe-lucky-sketch.md` (Appendix section).
+
+**Session A — Factory primitive + tests + PATTERNS.md update:**
+
+- [ ] `app/common/factories.py` — `create_guarded_delete_router(*, model, not_found_detail, refs, path_param_name)` factory; `refs` is `list[tuple[FromClause, ColumnElement[int], str]]` (selectable, FK column, label); builds `{Model.__name__}Connections` via `pydantic.create_model`; emits typed `GET /{id}/connections` + `DELETE /{id}` with `assert_deletable` guard. No callers changed yet.
+- [ ] `app/common/tests/test_guarded_delete_factory.py` — 404/409/204 coverage + OpenAPI schema name check via `contractors` entity.
+- [ ] `app/PATTERNS.md` section 14 — rewrite to reference `create_guarded_delete_router`; remove hand-rolled example.
+
+**Session B — Migrate six router modules:**
+
+- [ ] `app/contractors/router/base.py` — delete `_get_contractor_references` + both handlers; `include_router(create_guarded_delete_router(...))`
+- [ ] `app/hygienists/router/base.py` — same
+- [ ] `app/schools/router/base.py` — same; uses `Table` selectable (`project_school_links.c.school_id`)
+- [ ] `app/employees/router/base.py` — same; two refs (`time_entries`, `sample_batch_inspectors`)
+- [ ] `app/deliverables/router/base.py` — same; three refs
+- [ ] `app/wa_codes/router/base.py` — same; six refs; place `include_router` call *after* `GET /{identifier}` to preserve route-matching order
+- [ ] Full test suite passes unchanged (response shapes preserved — labels verbatim, including `project_contractors_links` stray "s")
+
+**Session C — Docs + cross-side FE handoff:**
+
+- [ ] HANDOFF.md + ROADMAP.md checkmarks
+- [ ] `frontend/HANDOFF.md` note: regen OpenAPI client — six new `*Connections` schemas now typed; `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed
+
+---
+
 ### Phase 2 — Projects Core + Relationships ✓ COMPLETE
 
 - [x] `projects` table — model, migrations, full CRUD (`GET/POST/PATCH/DELETE /projects/`) with name search + pagination; `project_number` field with regex validation
