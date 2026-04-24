@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckIcon, CaretUpDownIcon } from "@phosphor-icons/react";
-import { listEmployeesEmployeesGetOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { listEmployeesOptions } from "@/features/employees/api/employees";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/useDebounce";
 
 type Props = {
   value: number | null;
@@ -27,17 +28,15 @@ type Props = {
 export function EmployeeCombobox({ value, onChange, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
 
-  const { data: employees = [] } = useQuery(listEmployeesEmployeesGetOptions());
+  const { data } = useQuery(
+    listEmployeesOptions({
+      query: { search: debouncedSearch || undefined },
+    }),
+  );
 
-  const filtered = search
-    ? employees.filter((e) =>
-        `${e.first_name} ${e.last_name}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      )
-    : employees;
-
+  const employees = data?.items ?? [];
   const selected = employees.find((e) => e.id === value) ?? null;
 
   function handleSelect(id: number) {
@@ -71,7 +70,7 @@ export function EmployeeCombobox({ value, onChange, disabled }: Props) {
           <CommandList>
             <CommandEmpty>No employees found.</CommandEmpty>
             <CommandGroup>
-              {filtered.map((employee) => (
+              {employees.map((employee) => (
                 <CommandItem
                   key={employee.id}
                   value={String(employee.id)}

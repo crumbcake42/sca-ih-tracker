@@ -1,4 +1,16 @@
 export {
-  listEmployeesEmployeesGetOptions as listEmployeesOptions,
-  listEmployeesEmployeesGetQueryKey as listEmployeesQueryKey,
+  listEntriesEmployeesGetOptions as listEmployeesOptions,
+  listEntriesEmployeesGetQueryKey as listEmployeesQueryKey,
+  getEmployeeEmployeesEmployeeIdGetOptions as getEmployeeOptions,
+  getEmployeeEmployeesEmployeeIdGetQueryKey as getEmployeeQueryKey,
+  createEmployeeEmployeesPostMutation as createEmployeeMutation,
+  updateEmployeeEmployeesEmployeeIdPatchMutation as updateEmployeeMutation,
+  deleteEmployeeEmployeesEmployeeIdDeleteMutation as deleteEmployeeMutation,
+  getEmployeeConnectionsEmployeesEmployeeIdConnectionsGetOptions as getEmployeeConnectionsOptions,
+  getEmployeeConnectionsEmployeesEmployeeIdConnectionsGetQueryKey as getEmployeeConnectionsQueryKey,
+  listEmployeeRolesEmployeesEmployeeIdRolesGetOptions as listEmployeeRolesOptions,
+  listEmployeeRolesEmployeesEmployeeIdRolesGetQueryKey as listEmployeeRolesQueryKey,
+  createEmployeeRoleEmployeesEmployeeIdRolesPostMutation as createEmployeeRoleMutation,
+  updateEmployeeRoleEmployeesRolesRoleIdPatchMutation as updateEmployeeRoleMutation,
+  deleteEmployeeRoleEmployeesRolesRoleIdDeleteMutation as deleteEmployeeRoleMutation,
 } from "@/api/generated/@tanstack/react-query.gen";

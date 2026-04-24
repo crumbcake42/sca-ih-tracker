@@ -314,7 +314,7 @@ Shared references for all three sub-sessions:
 - Admin guard: `src/routes/_authenticated/admin.tsx` — inherited, no changes
 - API-wrapper naming: drop the generated suffix noise (`updateEmployeeMutation`, not `updateEmployeeEmployeesEmployeeIdPatchMutation`)
 
-- [ ] **Session 2.1a** — Employees list + combobox fix _(unblock the paginated breaking change)_
+- [x] **Session 2.1a** — Employees list + combobox fix _(unblock the paginated breaking change)_
   - Extend `src/features/employees/api/employees.ts` with domain-named wrappers for get/create/update/delete/role mutations and `listEmployeeRoles*` — add all of them in this session so 2.1b and 2.1c don't need to touch the barrel
   - **Fix `src/fields/EmployeeCombobox.tsx`**: re-import via the feature barrel (not `@/api/generated/`); read `data?.items ?? []` (response is now `PaginatedResponseEmployee`, not `Employee[]` — current code crashes); push `search` server-side with `useDebounce` like `SchoolCombobox` does; keep `shouldFilter={false}`
   - Update `src/fields/EmployeeCombobox.stories.tsx` cache seed to the paginated envelope `{items, total, skip, limit}`
@@ -324,7 +324,7 @@ Shared references for all three sub-sessions:
   - Test: `EmployeesList.test.tsx` — rows render from mocked paginated response; empty state; search debounces and passes `search` query param
   - **Blocker:** this session is the one that picks up the regenerated client; verify `EmployeeCombobox` fix before committing
 
-- [ ] **Session 2.1b** — Create/edit form + detail page
+- [x] **Session 2.1b** — Create/edit form + detail page
   - `src/features/employees/components/EmployeeFormDialog.tsx` — one dialog for both modes; `employee?: Employee` prop, absence = create. Zod schema mirroring `EmployeeCreate` (required: `first_name`, `last_name`; optional: `display_name`, `title`, `email`, `phone`, `adp_id`). Title dropdown from `TitleEnum`. `onError` → `applyServerErrors`; fall back to toast if it returns `false`. `onSuccess` → invalidate `listEmployeesQueryKey()` (and `getEmployeeQueryKey` on edit) + toast + close + reset
   - `src/features/employees/components/EmployeeDetail.tsx` — `useQuery(getEmployeeOptions(...))`; shadcn `Tabs` with **Details** tab only in this session (Roles tab added in 2.1c — stub the tab trigger with a "coming in 2.1c" placeholder panel, or gate it behind a `<TabsTrigger disabled>`). Details tab: `<DetailRow>` list + Edit + Delete buttons
   - Delete: `AlertDialog` confirm → `deleteEmployeeMutation` → invalidate + navigate to `/admin/employees`. **409 on delete renders inline in the AlertDialog, not a toast** (mirror the Schools 409-on-unlink convention from 3.3). Optional: pre-check via `getEmployeeConnectionsOptions` to show linked-record counts in the confirm dialog before the user clicks Delete
@@ -333,7 +333,7 @@ Shared references for all three sub-sessions:
   - Wire the "Add employee" button from 2.1a's page to open `EmployeeFormDialog` in create mode
   - Tests: `EmployeeFormDialog.test.tsx` (required-field validation; 422 maps to the offending field via `applyServerErrors`; success invalidates list cache); `EmployeeDetail.test.tsx` (tabs render; delete confirm calls mutation; 409 renders inline in dialog)
 
-- [ ] **Session 2.1c** — Roles tab _(nested CRUD with complex error UX)_
+- [x] **Session 2.1c** — Roles tab _(nested CRUD with complex error UX)_
   - `src/features/employees/components/EmployeeRolesTab.tsx` — table of roles (role_type, start_date, end_date, hourly_rate, actions); "Add role" button; row-menu Edit/Delete
   - `src/features/employees/components/EmployeeRoleFormDialog.tsx` — RHF + zod. In edit mode, `role_type` and `start_date` are **immutable** per `EmployeeRoleUpdate` — disable those fields
   - **Error surfaces (backend already returns these):**

@@ -10,40 +10,65 @@
 
 ## Current State
 
-**Sessions 0.5 and 1.1–1.7 complete.** Three-tier layout is live, dead code deleted, `src/shared/` flattened, feature api/ wrappers created, pages layer introduced, auth guard upgraded to async token validation, role-router at `/` added. Polymorphic `<NotesPanel>` primitive built. Testing infrastructure wired (`vitest` + jsdom + RTL + jest-dom + user-event). Storybook 10 configured and stories written for all shared components. Line-ending policy and format-on-save toolchain fixed.
-
-## Session 2.1 — UNBLOCKED, planned, split into 2.1a / 2.1b / 2.1c
-
-All three original backend blockers verified resolved in the regenerated client:
-
-- [x] `types.gen.ts` has `EmployeeCreate` (L426), `EmployeeUpdate` (L522), `PaginatedResponseEmployee` (L835 — note: flat name, no underscores)
-- [x] SDK has `createEmployeeEmployeesPost`, `updateEmployeeEmployeesEmployeeIdPatch`, `deleteEmployeeEmployeesEmployeeIdDelete`, plus the full role-mutation set
-- [x] `ListEntriesEmployeesGetData.query` is `{ skip?, limit?, search? }`; response is `PaginatedResponseEmployee`
-
-See `ROADMAP.md` Session 2.1 for the split into three sub-sessions: **2.1a** (list + broken-combobox fix + full api/ barrel), **2.1b** (create/edit dialog + detail page with Details tab), **2.1c** (Roles tab with 409/422 error UX).
-
-**⚠️ 2.1a must land first** — `src/fields/EmployeeCombobox.tsx` currently reads `listEmployees` as `Employee[]`, but the regenerated response is `{items, total, skip, limit}`. The combobox will crash the moment the new client is pulled in. 2.1a fixes it in the same session that adds the list page.
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, and 2.1c complete.** Employees feature is fully implemented: list page, create/edit dialog, detail page with Details tab and Roles tab (add/edit/delete roles, 409 inline banner, 422 field errors). Next is Session 2.2 (extract generics).
 
 **Collateral pickups from other backend work:**
 
 - **`GET /work-auths/` is now paginated** — previously returned a single `WorkAuth` or 404; now returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
 - **New contractors endpoints** (`GET/POST/PATCH /contractors/`) — regenerated client exposes them. Not needed until Session 2.3.
 
+**Priority after completing phase 2.1** - issues and patterns to resolve (written by me, the user, not Claude)
+
+- commit to file structure decision: explain why entity fields like employee and school combobox are in src/fields instead of src/[entity]/components/
+- discuss testing strategy. is it not in roadmap or is there a reason why the code we've written so far doesn't need unit/regression/integration tests?
+
 ---
 
-## What Was Done This Session (Session 2.1 prep — planning + docs)
+## What Was Done This Session (Session 2.1c — Roles tab)
 
 **Done:**
 
-- Verified all three Session 2.1 backend blockers resolved in the regenerated client: `EmployeeCreate` (L426), `EmployeeUpdate` (L522), `PaginatedResponseEmployee` (L835), full CRUD + role mutation set in `sdk.gen.ts`, `GET /employees/` query params `{ skip?, limit?, search? }`
-- Identified that `src/fields/EmployeeCombobox.tsx` will crash on the new paginated response — flagged as must-fix in 2.1a
-- Split Session 2.1 into three focused sub-sessions in `ROADMAP.md` (2.1a: list + combobox fix + api barrel; 2.1b: create/edit form + detail/delete; 2.1c: Roles tab with 409/422 UX)
-- Added shared-references preamble to the Session 2.1 block in `ROADMAP.md` (template files, form primitives, resolver, error mapping, hooks, test harness, types policy, naming rules) — enough to start any sub-session cold from a fresh machine
-- Noted collateral pickups: `work_auths` paginated migration (audit in Session 3.4) and new contractors endpoints (Session 2.3)
+- Created `src/features/employees/components/EmployeeRoleFormDialog.tsx` — single dialog for create and edit; `role?: EmployeeRole` prop; Zod schema with required `role_type`/`start_date`/`hourly_rate`, optional `end_date`; in edit mode `role_type` + `start_date` are disabled per `EmployeeRoleUpdate` immutability; 409 (date-range overlap) → `setError("root.serverError")` → inline `role="alert"` banner, no toast; 422 (`end_date <= start_date`) → `applyServerErrors` lands on `end_date`; `handleError` checks 409 first then 422; `ROLE_TYPE_OPTIONS` typed as `readonly EmployeeRoleType[]` (anchored, not hand-rolled)
+- Created `src/features/employees/components/EmployeeRolesTab.tsx` — fetches `listEmployeeRolesOptions`; shadcn `Table` (no pagination — endpoint returns `Array<EmployeeRole>`); "Add role" button; inline Edit/Delete buttons per row; `DeleteRoleDialog` internal component (simple confirm, error via toast); all mutations invalidate `listEmployeeRolesQueryKey`
+- Updated `src/features/employees/components/EmployeeDetail.tsx` — replaced disabled "Roles" tab stub with live `<EmployeeRolesTab employeeId={employeeId} />`
+- Created `src/features/employees/components/EmployeeRoleFormDialog.test.tsx` — 3 tests: 409 renders inline banner + asserts no toast; 422 attaches to `end_date` field; `role_type` + `start_date` disabled in edit mode
+- `pnpm tsc --noEmit`, `pnpm test` (5/5 green), `pnpm check` — all clean
 
-**Next:** Session 2.1a — Employees list + broken-combobox fix + full api/ barrel
+**Next:** Session 2.2 — Extract generics + retrofit (Schools + Employees → `EntityListPage`/`EntityFormDialog`)
 
-**Blockers:** none; client is regenerated, blockers cleared
+**Blockers:** none
+
+---
+
+## What Was Done Previously (Session 2.1b — EmployeeFormDialog + EmployeeDetail + delete 409)
+
+**Done:**
+
+- Created `src/features/employees/components/EmployeeFormDialog.tsx` — single dialog for create and edit; `employee?: Employee` prop; Zod schema with required `first_name`/`last_name`, optional rest; `TitleEnum`-typed options array (not a hand-rolled literal — follows Types policy); `applyServerErrors` on 422, fall back to toast; invalidates list + detail on success
+- Created `src/features/employees/components/EmployeeDetail.tsx` — `getEmployeeOptions` query; shadcn `Tabs` with Details tab (DetailRow list + Edit/Delete buttons) and disabled Roles tab (placeholder content for 2.1c); `DeleteConfirmDialog` keeps dialog open and renders backend `detail` string inline on 409; navigates to `/admin/employees` on successful delete
+- Created `src/pages/admin/employees/detail.tsx` — `getRouteApi` page wrapper
+- Created `src/pages/admin/employees/loader.ts` — `prefetchEmployee` via `queryClient.ensureQueryData`
+- Updated `src/routes/_authenticated/admin/employees/$employeeId.tsx` — replaced placeholder with loader + `EmployeeDetailPage`
+- Updated `src/pages/admin/employees/index.tsx` — wired "Add employee" button to open `EmployeeFormDialog` in create mode
+- Extended `frontend/CLAUDE.md` Types policy: do not redeclare values derivable from a generated type (covers runtime arrays seeded from union literals)
+- `pnpm tsc --noEmit`, `pnpm test` (2/2 green), `pnpm check` — all clean
+
+**Next:** Session 2.1c — Roles tab (`EmployeeRolesTab` + `EmployeeRoleFormDialog` with 409 inline banner + 422 on `end_date`)
+
+**Blockers:** none
+
+---
+
+## What Was Done Previously (Session 2.1a — Employees list + combobox fix + api barrel)
+
+**Done:**
+
+- Expanded `src/features/employees/api/employees.ts` to full barrel: `listEmployeesOptions/QueryKey`, `getEmployeeOptions/QueryKey`, `createEmployeeMutation`, `updateEmployeeMutation`, `deleteEmployeeMutation`, `getEmployeeConnectionsOptions/QueryKey`, `listEmployeeRolesOptions/QueryKey`, `createEmployeeRoleMutation`, `updateEmployeeRoleMutation`, `deleteEmployeeRoleMutation`
+- Fixed `src/fields/EmployeeCombobox.tsx`: switched import to feature barrel, reads `data?.items ?? []` (was crashing on `PaginatedResponseEmployee`), server-side search debounced 250ms via `useDebounce`
+- Updated `src/fields/EmployeeCombobox.stories.tsx`: cache seed updated to `{items, total, skip, limit}` paginated envelope
+- Created `src/features/employees/components/EmployeesList.tsx` — prop-driven; module-scope columns (Name, Title, Email, ADP ID); `pageCount = Math.ceil(total/limit)`
+- Created `src/pages/admin/employees/index.tsx`, `src/routes/_authenticated/admin/employees/index.tsx` (with `validateSearch`), and `$employeeId.tsx` placeholder
+- Ran `pnpm exec tsr generate` to pick up new routes; fixed `eslint-plugin-prettier` missing package
 
 ---
 
@@ -62,6 +87,7 @@ See `ROADMAP.md` Session 2.1 for the split into three sub-sessions: **2.1a** (li
 - `pnpm tsc --noEmit`, `pnpm test` (2/2 green), `pnpm check` — all pass; format-on-save working via ESLint extension
 
 **Pending before next session:**
+
 - Visual Storybook smoke test (`pnpm storybook`) — confirm each story renders; commit `7e08157` still says "not tested yet"
 - Two commits (Commit A: `.gitattributes` + prettier config + vscode settings; Commit B: storybook style + renormalized files)
 

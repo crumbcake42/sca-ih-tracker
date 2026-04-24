@@ -12,11 +12,16 @@ const fakeEmployees: Employee[] = [
   { id: 3, first_name: "Carol", last_name: "Coordinator" },
 ];
 
-/** Pre-seeds the QueryClient cache with fake employee data so no network call is made. */
+/** Pre-seeds the QueryClient cache with a paginated envelope so no network call is made. */
 const withEmployeesSeeded: Decorator = (Story) => {
   const queryClient = useQueryClient();
   useEffect(() => {
-    queryClient.setQueryData(listEmployeesQueryKey(), fakeEmployees);
+    queryClient.setQueryData(listEmployeesQueryKey(), {
+      items: fakeEmployees,
+      total: fakeEmployees.length,
+      skip: 0,
+      limit: 100,
+    });
   }, [queryClient]);
   return <Story />;
 };

@@ -90,7 +90,12 @@ export default [
     },
   },
   {
-    ignores: ["eslint.config.js", "prettier.config.js", "src/api/generated/**", "src/routeTree.gen.ts"],
+    ignores: [
+      "eslint.config.js",
+      "prettier.config.js",
+      "src/api/generated/**",
+      "src/routeTree.gen.ts",
+    ],
   },
   ...storybook.configs["flat/recommended"],
   eslintPluginPrettier,

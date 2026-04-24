@@ -55,6 +55,8 @@ Feature components and pages import `*Options`/`*Mutation`/`*QueryKey` helpers f
 
 Any interface representing a backend payload must be imported from `@/api/generated/types.gen.ts`. If a type is missing or a generated function returns `unknown`, that is a backend bug — fix the FastAPI response model and regenerate. Do not hand-roll the type.
 
+This extends to runtime values derived from generated types: do not redeclare union literals as standalone arrays or constants. Import the generated type and derive from it (e.g. type the array as `readonly TitleEnum[]` rather than restating `["Mr.", "Ms.", "Mrs."]` without a type anchor).
+
 ### Other
 
 - Zustand (`src/auth/store.ts`) for client state only — not for server data
