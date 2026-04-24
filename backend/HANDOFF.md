@@ -6,7 +6,7 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Work-auths `GET /` migrated to factory. Employee router dead code removed.**
+**Work-auths migration and employee router cleanup are done. Two FE-blocking tasks pending: (1) promote `EmployeeRoleType` to admin-managed DB table (blocks FE Session 2.3); (2) paginate `GET /contractors/` and `GET /hygienists/` (blocks FE Sessions 2.3c–d).**
 
 ---
 
@@ -37,26 +37,24 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Next Step
 
-The next major phase is **Phase 2 work** or **Phase 6.5**, depending on priority.
+### Priority: Promote `EmployeeRoleType` to Admin-Managed Table (blocks FE Session 2.3)
 
-Note: Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented.
+`EmployeeRoleType` is currently a `StrEnum` baked into the backend code. The frontend admin employee roles form (Session 2.3) needs to hit a dynamic endpoint for role types rather than use a static enum. An admin must be able to add a new role type (e.g. "Environmental Scientist") without a code change.
 
----
-
-## Frontend Design Request: Promote `EmployeeRoleType` to Admin-Managed Table
-
-**Raised during frontend Session 1.5B / admin overview planning.**
-
-`EmployeeRoleType` is currently a `StrEnum` baked into the backend code. The frontend admin overview was being planned and the question arose: can an admin add a new role type (e.g. "Environmental Scientist") without a code change?
-
-**Answer today: No.** The type is a fixed enum; adding a value requires a backend change + migration.
-
-**Requested change:** Promote `EmployeeRoleType` from a `StrEnum` to an admin-managed DB table (similar to the `SampleType` pattern from Session 2.5). This would require:
+**Concrete subtasks:**
 
 1. New `EmployeeRoleType` model (`id`, `name`, `description?`) + CRUD endpoints
 2. Migrate `EmployeeRole.role_type` from `SQLEnum(EmployeeRoleType)` to a FK on the new table
 3. Migration to seed the existing 10 enum values as rows
 4. Update `EmployeeRoleCreate` / `EmployeeRoleRead` schemas to reference the FK
-5. Regenerate the frontend client after — `EmployeeRoleType` union literal becomes a numeric ID or `EmployeeRoleTypeRead` object
+5. Regenerate the frontend OpenAPI client after — `EmployeeRoleType` union literal becomes a numeric ID or `EmployeeRoleTypeRead` object (FE pickup required)
 
-**Priority:** Needed before Session 2.3 frontend work touches the employee roles form, since the form's role-type dropdown would need to hit the new endpoint rather than use a static enum.
+Pattern reference: similar to the `SampleType` admin-managed table from Session 2.5.
+
+### Also needed: Paginate `GET /contractors/` and `GET /hygienists/` (blocks FE Sessions 2.3c–d)
+
+Both endpoints currently return bare arrays with no `search`/`skip`/`limit` query params. They need to match the `PaginatedResponse<T>` envelope (`{items, total, skip, limit}`) and accept `search`/`skip`/`limit` — same pattern as employees and schools. Migrate both onto `create_readonly_router` (same approach as work-auths in this session). Regenerate the frontend OpenAPI client after both land.
+
+### After these: Phase 2 or Phase 6.5
+
+Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see roadmap). That must be revisited before any placeholder promotion logic is implemented.

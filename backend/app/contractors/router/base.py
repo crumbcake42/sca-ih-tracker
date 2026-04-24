@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.factories import create_readonly_router
 from app.common.guards import assert_deletable
 from app.contractors.models import Contractor as ContractorModel
 from app.contractors.schemas import Contractor, ContractorCreate, ContractorUpdate
@@ -12,13 +13,14 @@ from app.users.models import User
 
 router = APIRouter()
 
-
-@router.get("/", response_model=list[Contractor])
-async def list_contractors(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(ContractorModel).order_by(ContractorModel.name)
+router.include_router(
+    create_readonly_router(
+        model=ContractorModel,
+        read_schema=Contractor,
+        default_sort=ContractorModel.name.asc(),
+        search_attr=ContractorModel.name,
     )
-    return result.scalars().all()
+)
 
 
 @router.get("/{contractor_id}", response_model=Contractor)

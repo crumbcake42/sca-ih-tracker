@@ -34,7 +34,9 @@ class TestListContractors:
     async def test_empty_db_returns_empty_list(self, auth_client: AsyncClient):
         response = await auth_client.get("/contractors/")
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
 
     async def test_returns_seeded_contractor(
         self, auth_client: AsyncClient, db_session: AsyncSession
@@ -43,8 +45,8 @@ class TestListContractors:
         response = await auth_client.get("/contractors/")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["name"] == "Acme Abatement"
+        assert data["total"] == 1
+        assert data["items"][0]["name"] == "Acme Abatement"
 
     async def test_ordered_by_name(
         self, auth_client: AsyncClient, db_session: AsyncSession
@@ -56,8 +58,8 @@ class TestListContractors:
         )
         response = await auth_client.get("/contractors/")
         data = response.json()
-        assert data[0]["name"] == "Alpha Inc"
-        assert data[1]["name"] == "Zebra Corp"
+        assert data["items"][0]["name"] == "Alpha Inc"
+        assert data["items"][1]["name"] == "Zebra Corp"
 
     async def test_unauthenticated_returns_401(self, client: AsyncClient):
         response = await client.get("/contractors/")
