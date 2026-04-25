@@ -58,9 +58,9 @@ const ENTITY_CARDS: readonly EntityCard[] = [
   },
   {
     label: "Hygienists",
-    description: "Manage certified hygienist records. Coming in Phase 2.3.",
+    description: "Manage certified hygienist records.",
     Icon: UserCheckIcon,
-    disabled: true,
+    to: "/admin/hygienists",
   },
   {
     label: "WA Codes",

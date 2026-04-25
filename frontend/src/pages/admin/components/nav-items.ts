@@ -34,7 +34,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { label: "Employees", to: "/admin/employees", Icon: UsersIcon },
   { label: "Projects", Icon: FolderOpenIcon, disabled: true },
   { label: "Contractors", to: "/admin/contractors", Icon: HardHatIcon },
-  { label: "Hygienists", Icon: UserCheckIcon, disabled: true },
+  { label: "Hygienists", to: "/admin/hygienists", Icon: UserCheckIcon },
   { label: "WA Codes", to: "/admin/wa-codes", Icon: TagIcon },
   { label: "Deliverables", Icon: PackageIcon, disabled: true },
   { label: "Users", Icon: UserCircleIcon, disabled: true },

@@ -18,10 +18,12 @@ import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminWaCodesIndexRouteImport } from './routes/_authenticated/admin/wa-codes/index'
 import { Route as AuthenticatedAdminSchoolsIndexRouteImport } from './routes/_authenticated/admin/schools/index'
+import { Route as AuthenticatedAdminHygienistsIndexRouteImport } from './routes/_authenticated/admin/hygienists/index'
 import { Route as AuthenticatedAdminEmployeesIndexRouteImport } from './routes/_authenticated/admin/employees/index'
 import { Route as AuthenticatedAdminContractorsIndexRouteImport } from './routes/_authenticated/admin/contractors/index'
 import { Route as AuthenticatedAdminWaCodesWaCodeIdRouteImport } from './routes/_authenticated/admin/wa-codes/$waCodeId'
 import { Route as AuthenticatedAdminSchoolsSchoolIdRouteImport } from './routes/_authenticated/admin/schools/$schoolId'
+import { Route as AuthenticatedAdminHygienistsHygienistIdRouteImport } from './routes/_authenticated/admin/hygienists/$hygienistId'
 import { Route as AuthenticatedAdminEmployeesEmployeeIdRouteImport } from './routes/_authenticated/admin/employees/$employeeId'
 import { Route as AuthenticatedAdminContractorsContractorIdRouteImport } from './routes/_authenticated/admin/contractors/$contractorId'
 
@@ -72,6 +74,12 @@ const AuthenticatedAdminSchoolsIndexRoute =
     path: '/schools/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminHygienistsIndexRoute =
+  AuthenticatedAdminHygienistsIndexRouteImport.update({
+    id: '/hygienists/',
+    path: '/hygienists/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminEmployeesIndexRoute =
   AuthenticatedAdminEmployeesIndexRouteImport.update({
     id: '/employees/',
@@ -96,6 +104,12 @@ const AuthenticatedAdminSchoolsSchoolIdRoute =
     path: '/schools/$schoolId',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminHygienistsHygienistIdRoute =
+  AuthenticatedAdminHygienistsHygienistIdRouteImport.update({
+    id: '/hygienists/$hygienistId',
+    path: '/hygienists/$hygienistId',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminEmployeesEmployeeIdRoute =
   AuthenticatedAdminEmployeesEmployeeIdRouteImport.update({
     id: '/employees/$employeeId',
@@ -118,10 +132,12 @@ export interface FileRoutesByFullPath {
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
   '/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
+  '/admin/hygienists/$hygienistId': typeof AuthenticatedAdminHygienistsHygienistIdRoute
   '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   '/admin/contractors/': typeof AuthenticatedAdminContractorsIndexRoute
   '/admin/employees/': typeof AuthenticatedAdminEmployeesIndexRoute
+  '/admin/hygienists/': typeof AuthenticatedAdminHygienistsIndexRoute
   '/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
   '/admin/wa-codes/': typeof AuthenticatedAdminWaCodesIndexRoute
 }
@@ -133,10 +149,12 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
   '/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
+  '/admin/hygienists/$hygienistId': typeof AuthenticatedAdminHygienistsHygienistIdRoute
   '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   '/admin/contractors': typeof AuthenticatedAdminContractorsIndexRoute
   '/admin/employees': typeof AuthenticatedAdminEmployeesIndexRoute
+  '/admin/hygienists': typeof AuthenticatedAdminHygienistsIndexRoute
   '/admin/schools': typeof AuthenticatedAdminSchoolsIndexRoute
   '/admin/wa-codes': typeof AuthenticatedAdminWaCodesIndexRoute
 }
@@ -151,10 +169,12 @@ export interface FileRoutesById {
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
   '/_authenticated/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
+  '/_authenticated/admin/hygienists/$hygienistId': typeof AuthenticatedAdminHygienistsHygienistIdRoute
   '/_authenticated/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/_authenticated/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   '/_authenticated/admin/contractors/': typeof AuthenticatedAdminContractorsIndexRoute
   '/_authenticated/admin/employees/': typeof AuthenticatedAdminEmployeesIndexRoute
+  '/_authenticated/admin/hygienists/': typeof AuthenticatedAdminHygienistsIndexRoute
   '/_authenticated/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
   '/_authenticated/admin/wa-codes/': typeof AuthenticatedAdminWaCodesIndexRoute
 }
@@ -169,10 +189,12 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/admin/contractors/$contractorId'
     | '/admin/employees/$employeeId'
+    | '/admin/hygienists/$hygienistId'
     | '/admin/schools/$schoolId'
     | '/admin/wa-codes/$waCodeId'
     | '/admin/contractors/'
     | '/admin/employees/'
+    | '/admin/hygienists/'
     | '/admin/schools/'
     | '/admin/wa-codes/'
   fileRoutesByTo: FileRoutesByTo
@@ -184,10 +206,12 @@ export interface FileRouteTypes {
     | '/projects'
     | '/admin/contractors/$contractorId'
     | '/admin/employees/$employeeId'
+    | '/admin/hygienists/$hygienistId'
     | '/admin/schools/$schoolId'
     | '/admin/wa-codes/$waCodeId'
     | '/admin/contractors'
     | '/admin/employees'
+    | '/admin/hygienists'
     | '/admin/schools'
     | '/admin/wa-codes'
   id:
@@ -201,10 +225,12 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/'
     | '/_authenticated/admin/contractors/$contractorId'
     | '/_authenticated/admin/employees/$employeeId'
+    | '/_authenticated/admin/hygienists/$hygienistId'
     | '/_authenticated/admin/schools/$schoolId'
     | '/_authenticated/admin/wa-codes/$waCodeId'
     | '/_authenticated/admin/contractors/'
     | '/_authenticated/admin/employees/'
+    | '/_authenticated/admin/hygienists/'
     | '/_authenticated/admin/schools/'
     | '/_authenticated/admin/wa-codes/'
   fileRoutesById: FileRoutesById
@@ -279,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSchoolsIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/hygienists/': {
+      id: '/_authenticated/admin/hygienists/'
+      path: '/hygienists'
+      fullPath: '/admin/hygienists/'
+      preLoaderRoute: typeof AuthenticatedAdminHygienistsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/employees/': {
       id: '/_authenticated/admin/employees/'
       path: '/employees'
@@ -307,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSchoolsSchoolIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/hygienists/$hygienistId': {
+      id: '/_authenticated/admin/hygienists/$hygienistId'
+      path: '/hygienists/$hygienistId'
+      fullPath: '/admin/hygienists/$hygienistId'
+      preLoaderRoute: typeof AuthenticatedAdminHygienistsHygienistIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/employees/$employeeId': {
       id: '/_authenticated/admin/employees/$employeeId'
       path: '/employees/$employeeId'
@@ -328,10 +368,12 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminContractorsContractorIdRoute: typeof AuthenticatedAdminContractorsContractorIdRoute
   AuthenticatedAdminEmployeesEmployeeIdRoute: typeof AuthenticatedAdminEmployeesEmployeeIdRoute
+  AuthenticatedAdminHygienistsHygienistIdRoute: typeof AuthenticatedAdminHygienistsHygienistIdRoute
   AuthenticatedAdminSchoolsSchoolIdRoute: typeof AuthenticatedAdminSchoolsSchoolIdRoute
   AuthenticatedAdminWaCodesWaCodeIdRoute: typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   AuthenticatedAdminContractorsIndexRoute: typeof AuthenticatedAdminContractorsIndexRoute
   AuthenticatedAdminEmployeesIndexRoute: typeof AuthenticatedAdminEmployeesIndexRoute
+  AuthenticatedAdminHygienistsIndexRoute: typeof AuthenticatedAdminHygienistsIndexRoute
   AuthenticatedAdminSchoolsIndexRoute: typeof AuthenticatedAdminSchoolsIndexRoute
   AuthenticatedAdminWaCodesIndexRoute: typeof AuthenticatedAdminWaCodesIndexRoute
 }
@@ -342,6 +384,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminContractorsContractorIdRoute,
   AuthenticatedAdminEmployeesEmployeeIdRoute:
     AuthenticatedAdminEmployeesEmployeeIdRoute,
+  AuthenticatedAdminHygienistsHygienistIdRoute:
+    AuthenticatedAdminHygienistsHygienistIdRoute,
   AuthenticatedAdminSchoolsSchoolIdRoute:
     AuthenticatedAdminSchoolsSchoolIdRoute,
   AuthenticatedAdminWaCodesWaCodeIdRoute:
@@ -349,6 +393,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminContractorsIndexRoute:
     AuthenticatedAdminContractorsIndexRoute,
   AuthenticatedAdminEmployeesIndexRoute: AuthenticatedAdminEmployeesIndexRoute,
+  AuthenticatedAdminHygienistsIndexRoute:
+    AuthenticatedAdminHygienistsIndexRoute,
   AuthenticatedAdminSchoolsIndexRoute: AuthenticatedAdminSchoolsIndexRoute,
   AuthenticatedAdminWaCodesIndexRoute: AuthenticatedAdminWaCodesIndexRoute,
 }
