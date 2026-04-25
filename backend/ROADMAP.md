@@ -241,10 +241,10 @@ Full design detail (factory signature, per-entity ref inventory, line numbers fo
 - [x] `app/wa_codes/router/base.py` — same; six refs
 - [x] Full test suite passes unchanged (532 tests; response shapes preserved — labels verbatim)
 
-**Session C — Docs + cross-side FE handoff:**
+**Session C — Docs + cross-side FE handoff:** ✓ COMPLETE
 
-- [ ] HANDOFF.md + ROADMAP.md checkmarks
-- [ ] `frontend/HANDOFF.md` note: regen OpenAPI client — six new `*Connections` schemas now typed; `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed
+- [x] HANDOFF.md + ROADMAP.md checkmarks
+- [x] `frontend/HANDOFF.md` note: regen OpenAPI client — six new `*Connections` schemas now typed; `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed
 
 ---
 

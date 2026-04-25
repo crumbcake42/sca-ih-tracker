@@ -2,9 +2,7 @@
 
 ## Backend changes pending frontend pickup
 
-**`*Connections` schemas now typed — regen the OpenAPI client.** Six reference entities (`Contractor`, `Hygienist`, `School`, `Employee`, `Deliverable`, `WACode`) previously returned `unknown` from their `/connections` endpoints. The backend now emits named Pydantic schemas (`ContractorConnections`, `HygienistConnections`, `SchoolConnections`, `EmployeeConnections`, `DeliverableConnections`, `WACodeConnections`) with typed integer counts. After regenerating the client, the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed.
-
-**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
+**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3e (Deliverables admin). Regenerate the OpenAPI client after backend ships.
 
 **`GET /work-auths/` is now paginated** — returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
 
@@ -12,15 +10,27 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, 2.3b, 2.3c, and 2.3d complete.**
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, 2.3b, 2.3c, 2.3d, and connections-pickup audit complete.**
 
-- OpenAPI client regenerated after backend unblocking session.
-- `EmployeeRolesTab` + `EmployeeRoleFormDialog` migrated from `role_type: string` to `role_type_id: number` + `role_type: EmployeeRoleTypeRead`; select options now fetched from `/employee-role-types/`.
-- `src/features/employees/api/employees.ts` barrel extended with `listEmployeeRoleTypesOptions/QueryKey`, `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`.
-- `EmployeeRoleFormDialog.test.tsx` updated to match new shape.
-- WA codes admin CRUD pages built and wired to dashboard (Session 2.3a). `GET /wa-codes/{id}/connections` returns `unknown` in generated client — backend needs `WaCodeConnections` response model before the `hasConnections` cast in `WaCodeFormDialog.tsx` can be removed.
+- All 2.3a–2.3d admin CRUD slices complete.
+- OpenAPI client regenerated from latest backend; all six `*Connections` endpoints now return typed schemas — `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` is removable (quick warm-up task).
 
-**Next: Session 2.3e (Deliverables) — still blocked.** See "Backend changes pending frontend pickup" above. All 2.3a–2.3d admin CRUD slices are complete.
+**Next: Session 2.3e (Deliverables) — still blocked.** See "Backend changes pending frontend pickup" above.
+
+---
+
+## What Was Done This Session (Connections pickup audit — OpenAPI regen)
+
+**Done:**
+
+- Audited newly regenerated OpenAPI client (`types.gen.ts`, `sdk.gen.ts`) against outstanding pickup items in HANDOFF.
+- Confirmed resolved: all six connections endpoints now return typed schemas — `WaCodeConnections`, `DeliverableConnections`, `ContractorConnections`, `HygienistConnections`, `EmployeeConnections`, `SchoolConnections` all typed at `200`. The `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` is now removable.
+- Confirmed still blocked: no standalone `POST /deliverables/` or `PATCH /deliverables/{id}`; `DeliverableCreate`/`DeliverableUpdate` types absent from generated client. Session 2.3e remains blocked.
+- Updated HANDOFF: removed resolved connections pickup item, fixed deliverables blocker label (was "2.3b", now correctly "2.3e"), refreshed Current State and 2.3d blockers line.
+
+**Next:** Session 2.3e (Deliverables) — blocked. Can start next session with the `WaCodeFormDialog.tsx` cast cleanup as a warm-up.
+
+**Blockers:** Session 2.3e — backend needs `POST /deliverables/` + `PATCH /deliverables/{id}`.
 
 ---
 
@@ -41,7 +51,7 @@
 
 **Next:** Session 2.3e (Deliverables) — still blocked by backend.
 
-**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup is now unblocked (connections typed).
 
 ---
 
