@@ -17,6 +17,9 @@ vi.mock("@/features/employees/api/employees", () => ({
   createEmployeeRoleMutation: () => ({ mutationFn: mockCreate }),
   updateEmployeeRoleMutation: () => ({ mutationFn: mockUpdate }),
   listEmployeeRolesQueryKey: () => ["employee-roles"],
+}));
+
+vi.mock("@/features/employee-role-types/api/employeeRoleTypes", () => ({
   listEmployeeRoleTypesOptions: () => ({
     queryKey: ["role-types"],
     queryFn: async () => [{ id: 5, name: "Mold Field Technician" }],

@@ -402,14 +402,12 @@ Shared references for all three sub-sessions:
   - Employees pattern: list + detail + form dialog + delete-with-409 inline.
   - `src/features/contractors/api/contractors.ts` barrel; `EntityListPage<Contractor>` with module-scope columns.
 
-- [ ] **Session 2.3c** — Hygienists _(unblocked: `GET /hygienists/` returns `PaginatedResponseHygienist` with `search`/`skip`/`limit`)_
+- [x] **Session 2.3c** — Hygienists _(unblocked: `GET /hygienists/` returns `PaginatedResponseHygienist` with `search`/`skip`/`limit`)_
   - List + detail + form dialog; surface `getHygienistConnectionsOptions` on detail (linked projects).
 
-- [ ] **Session 2.3d** — Employee Role Types admin _(unblocked: `GET/POST/PATCH/DELETE /employee-role-types/` now live)_
+- [x] **Session 2.3d** — Employee Role Types admin _(unblocked: `GET/POST/PATCH/DELETE /employee-role-types/` now live)_
   - Admin CRUD for the role-type lookup table. `EmployeeRoleFormDialog` already fetches from this endpoint; this session adds the management surface.
-  - `src/features/employees/api/employees.ts` barrel already has all five wrappers (`listEmployeeRoleTypesOptions/QueryKey`, `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`).
-  - `EntityListPage<EmployeeRoleTypeRead>` — columns: Name, Description. Add/Edit via simple dialog (name required, description optional). Delete: 409 if any `EmployeeRole` rows reference it — render inline.
-  - Enable a "Role Types" nav item in `nav-items.ts` under Employees.
+  - New canonical barrel `src/features/employee-role-types/api/employeeRoleTypes.ts`; role-type exports removed from `employees.ts`. Endpoint returns plain array (not paginated) — list page uses inline table rather than `EntityListPage`. `IdentificationCardIcon` in nav and dashboard.
 
 - [ ] **Session 2.3e** — Deliverables + triggers _(BLOCKED: needs `POST /deliverables/` + `PATCH /deliverables/{id}`)_
   - When unblocked: list + detail page. Detail includes a **Triggers** sub-panel — checklist of `WaCode` rows with inline add (`addTriggerMutation`) / remove (`removeTriggerMutation`); invalidates `listTriggersQueryKey({path:{deliverable_id}})` on each.

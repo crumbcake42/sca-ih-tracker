@@ -20,11 +20,13 @@ import { Route as AuthenticatedAdminWaCodesIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminSchoolsIndexRouteImport } from './routes/_authenticated/admin/schools/index'
 import { Route as AuthenticatedAdminHygienistsIndexRouteImport } from './routes/_authenticated/admin/hygienists/index'
 import { Route as AuthenticatedAdminEmployeesIndexRouteImport } from './routes/_authenticated/admin/employees/index'
+import { Route as AuthenticatedAdminEmployeeRoleTypesIndexRouteImport } from './routes/_authenticated/admin/employee-role-types/index'
 import { Route as AuthenticatedAdminContractorsIndexRouteImport } from './routes/_authenticated/admin/contractors/index'
 import { Route as AuthenticatedAdminWaCodesWaCodeIdRouteImport } from './routes/_authenticated/admin/wa-codes/$waCodeId'
 import { Route as AuthenticatedAdminSchoolsSchoolIdRouteImport } from './routes/_authenticated/admin/schools/$schoolId'
 import { Route as AuthenticatedAdminHygienistsHygienistIdRouteImport } from './routes/_authenticated/admin/hygienists/$hygienistId'
 import { Route as AuthenticatedAdminEmployeesEmployeeIdRouteImport } from './routes/_authenticated/admin/employees/$employeeId'
+import { Route as AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRouteImport } from './routes/_authenticated/admin/employee-role-types/$roleTypeId'
 import { Route as AuthenticatedAdminContractorsContractorIdRouteImport } from './routes/_authenticated/admin/contractors/$contractorId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -86,6 +88,12 @@ const AuthenticatedAdminEmployeesIndexRoute =
     path: '/employees/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminEmployeeRoleTypesIndexRoute =
+  AuthenticatedAdminEmployeeRoleTypesIndexRouteImport.update({
+    id: '/employee-role-types/',
+    path: '/employee-role-types/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminContractorsIndexRoute =
   AuthenticatedAdminContractorsIndexRouteImport.update({
     id: '/contractors/',
@@ -116,6 +124,12 @@ const AuthenticatedAdminEmployeesEmployeeIdRoute =
     path: '/employees/$employeeId',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute =
+  AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRouteImport.update({
+    id: '/employee-role-types/$roleTypeId',
+    path: '/employee-role-types/$roleTypeId',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminContractorsContractorIdRoute =
   AuthenticatedAdminContractorsContractorIdRouteImport.update({
     id: '/contractors/$contractorId',
@@ -131,11 +145,13 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
+  '/admin/employee-role-types/$roleTypeId': typeof AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute
   '/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   '/admin/hygienists/$hygienistId': typeof AuthenticatedAdminHygienistsHygienistIdRoute
   '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   '/admin/contractors/': typeof AuthenticatedAdminContractorsIndexRoute
+  '/admin/employee-role-types/': typeof AuthenticatedAdminEmployeeRoleTypesIndexRoute
   '/admin/employees/': typeof AuthenticatedAdminEmployeesIndexRoute
   '/admin/hygienists/': typeof AuthenticatedAdminHygienistsIndexRoute
   '/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
@@ -148,11 +164,13 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
+  '/admin/employee-role-types/$roleTypeId': typeof AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute
   '/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   '/admin/hygienists/$hygienistId': typeof AuthenticatedAdminHygienistsHygienistIdRoute
   '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   '/admin/contractors': typeof AuthenticatedAdminContractorsIndexRoute
+  '/admin/employee-role-types': typeof AuthenticatedAdminEmployeeRoleTypesIndexRoute
   '/admin/employees': typeof AuthenticatedAdminEmployeesIndexRoute
   '/admin/hygienists': typeof AuthenticatedAdminHygienistsIndexRoute
   '/admin/schools': typeof AuthenticatedAdminSchoolsIndexRoute
@@ -168,11 +186,13 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
+  '/_authenticated/admin/employee-role-types/$roleTypeId': typeof AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute
   '/_authenticated/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   '/_authenticated/admin/hygienists/$hygienistId': typeof AuthenticatedAdminHygienistsHygienistIdRoute
   '/_authenticated/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/_authenticated/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   '/_authenticated/admin/contractors/': typeof AuthenticatedAdminContractorsIndexRoute
+  '/_authenticated/admin/employee-role-types/': typeof AuthenticatedAdminEmployeeRoleTypesIndexRoute
   '/_authenticated/admin/employees/': typeof AuthenticatedAdminEmployeesIndexRoute
   '/_authenticated/admin/hygienists/': typeof AuthenticatedAdminHygienistsIndexRoute
   '/_authenticated/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
@@ -188,11 +208,13 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/projects/'
     | '/admin/contractors/$contractorId'
+    | '/admin/employee-role-types/$roleTypeId'
     | '/admin/employees/$employeeId'
     | '/admin/hygienists/$hygienistId'
     | '/admin/schools/$schoolId'
     | '/admin/wa-codes/$waCodeId'
     | '/admin/contractors/'
+    | '/admin/employee-role-types/'
     | '/admin/employees/'
     | '/admin/hygienists/'
     | '/admin/schools/'
@@ -205,11 +227,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/projects'
     | '/admin/contractors/$contractorId'
+    | '/admin/employee-role-types/$roleTypeId'
     | '/admin/employees/$employeeId'
     | '/admin/hygienists/$hygienistId'
     | '/admin/schools/$schoolId'
     | '/admin/wa-codes/$waCodeId'
     | '/admin/contractors'
+    | '/admin/employee-role-types'
     | '/admin/employees'
     | '/admin/hygienists'
     | '/admin/schools'
@@ -224,11 +248,13 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/projects/'
     | '/_authenticated/admin/contractors/$contractorId'
+    | '/_authenticated/admin/employee-role-types/$roleTypeId'
     | '/_authenticated/admin/employees/$employeeId'
     | '/_authenticated/admin/hygienists/$hygienistId'
     | '/_authenticated/admin/schools/$schoolId'
     | '/_authenticated/admin/wa-codes/$waCodeId'
     | '/_authenticated/admin/contractors/'
+    | '/_authenticated/admin/employee-role-types/'
     | '/_authenticated/admin/employees/'
     | '/_authenticated/admin/hygienists/'
     | '/_authenticated/admin/schools/'
@@ -319,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEmployeesIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/employee-role-types/': {
+      id: '/_authenticated/admin/employee-role-types/'
+      path: '/employee-role-types'
+      fullPath: '/admin/employee-role-types/'
+      preLoaderRoute: typeof AuthenticatedAdminEmployeeRoleTypesIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/contractors/': {
       id: '/_authenticated/admin/contractors/'
       path: '/contractors'
@@ -354,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEmployeesEmployeeIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/employee-role-types/$roleTypeId': {
+      id: '/_authenticated/admin/employee-role-types/$roleTypeId'
+      path: '/employee-role-types/$roleTypeId'
+      fullPath: '/admin/employee-role-types/$roleTypeId'
+      preLoaderRoute: typeof AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/contractors/$contractorId': {
       id: '/_authenticated/admin/contractors/$contractorId'
       path: '/contractors/$contractorId'
@@ -367,11 +407,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminContractorsContractorIdRoute: typeof AuthenticatedAdminContractorsContractorIdRoute
+  AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute: typeof AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute
   AuthenticatedAdminEmployeesEmployeeIdRoute: typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   AuthenticatedAdminHygienistsHygienistIdRoute: typeof AuthenticatedAdminHygienistsHygienistIdRoute
   AuthenticatedAdminSchoolsSchoolIdRoute: typeof AuthenticatedAdminSchoolsSchoolIdRoute
   AuthenticatedAdminWaCodesWaCodeIdRoute: typeof AuthenticatedAdminWaCodesWaCodeIdRoute
   AuthenticatedAdminContractorsIndexRoute: typeof AuthenticatedAdminContractorsIndexRoute
+  AuthenticatedAdminEmployeeRoleTypesIndexRoute: typeof AuthenticatedAdminEmployeeRoleTypesIndexRoute
   AuthenticatedAdminEmployeesIndexRoute: typeof AuthenticatedAdminEmployeesIndexRoute
   AuthenticatedAdminHygienistsIndexRoute: typeof AuthenticatedAdminHygienistsIndexRoute
   AuthenticatedAdminSchoolsIndexRoute: typeof AuthenticatedAdminSchoolsIndexRoute
@@ -382,6 +424,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminContractorsContractorIdRoute:
     AuthenticatedAdminContractorsContractorIdRoute,
+  AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute:
+    AuthenticatedAdminEmployeeRoleTypesRoleTypeIdRoute,
   AuthenticatedAdminEmployeesEmployeeIdRoute:
     AuthenticatedAdminEmployeesEmployeeIdRoute,
   AuthenticatedAdminHygienistsHygienistIdRoute:
@@ -392,6 +436,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminWaCodesWaCodeIdRoute,
   AuthenticatedAdminContractorsIndexRoute:
     AuthenticatedAdminContractorsIndexRoute,
+  AuthenticatedAdminEmployeeRoleTypesIndexRoute:
+    AuthenticatedAdminEmployeeRoleTypesIndexRoute,
   AuthenticatedAdminEmployeesIndexRoute: AuthenticatedAdminEmployeesIndexRoute,
   AuthenticatedAdminHygienistsIndexRoute:
     AuthenticatedAdminHygienistsIndexRoute,

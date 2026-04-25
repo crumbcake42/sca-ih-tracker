@@ -10,7 +10,7 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, 2.3b, and 2.3c complete.**
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, 2.3b, 2.3c, and 2.3d complete.**
 
 - OpenAPI client regenerated after backend unblocking session.
 - `EmployeeRolesTab` + `EmployeeRoleFormDialog` migrated from `role_type: string` to `role_type_id: number` + `role_type: EmployeeRoleTypeRead`; select options now fetched from `/employee-role-types/`.
@@ -18,7 +18,28 @@
 - `EmployeeRoleFormDialog.test.tsx` updated to match new shape.
 - WA codes admin CRUD pages built and wired to dashboard (Session 2.3a). `GET /wa-codes/{id}/connections` returns `unknown` in generated client — backend needs `WaCodeConnections` response model before the `hasConnections` cast in `WaCodeFormDialog.tsx` can be removed.
 
-**Next: Session 2.3d (Employee Role Types) — unblocked.** Session 2.3e (Deliverables) still blocked — see "Backend changes pending frontend pickup" above.
+**Next: Session 2.3e (Deliverables) — still blocked.** See "Backend changes pending frontend pickup" above. All 2.3a–2.3d admin CRUD slices are complete.
+
+---
+
+## What Was Done This Session (Session 2.3d — Employee Role Types admin CRUD)
+
+**Done:**
+
+- Built Employee Role Types admin CRUD wired to the admin dashboard and sidebar.
+- Created `src/features/employee-role-types/api/employeeRoleTypes.ts` — new canonical barrel for all role-type endpoint wrappers: `listEmployeeRoleTypesOptions/QueryKey`, `getEmployeeRoleTypeOptions/QueryKey` (NEW — was missing), `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`.
+- Migrated `EmployeeRoleFormDialog.tsx` and its test to import `listEmployeeRoleTypesOptions` from the new barrel; removed the five role-type re-exports from `src/features/employees/api/employees.ts`.
+- `EmployeeRoleTypeFormDialog.tsx` — `useEntityForm`-based add/edit dialog; schema has `name` required, `description` optional nullable; empty string → `null` on submit.
+- `EmployeeRoleTypeDetail.tsx` — detail card with two `DetailRow`s (name, description); edit/delete buttons; `DeleteConfirmDialog` renders 409 `detail` inline, no toast.
+- `src/pages/admin/employee-role-types/{index,detail,loader}.tsx` — custom inline table list page (endpoint returns plain array, not paginated — can't use `EntityListPage`), detail page wrapper, loader.
+- `src/routes/_authenticated/admin/employee-role-types/{index,$roleTypeId}.tsx` — file routes. Route tree regenerated via `pnpm exec tsr generate`.
+- Enabled Employee Role Types in `nav-items.ts` (new entry with `IdentificationCardIcon`) and `src/pages/admin/index.tsx` dashboard card.
+- Tests: `EmployeeRoleTypeFormDialog.test.tsx` (4 tests: create, required-field validation, 422→applyServerErrors, edit prefill); `EmployeeRoleTypeDetail.test.tsx` (1 test: 409 inline, no toast).
+- All 37 tests pass; `pnpm tsc --noEmit` and `pnpm check` clean.
+
+**Next:** Session 2.3e (Deliverables) — still blocked by backend.
+
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
 
 ---
 

@@ -11,6 +11,7 @@ import {
   UserCircleIcon,
   ShieldIcon,
   FlaskIcon,
+  IdentificationCardIcon,
 } from "@phosphor-icons/react";
 
 export type EnabledAdminNavItem = {
@@ -36,6 +37,11 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { label: "Contractors", to: "/admin/contractors", Icon: HardHatIcon },
   { label: "Hygienists", to: "/admin/hygienists", Icon: UserCheckIcon },
   { label: "WA Codes", to: "/admin/wa-codes", Icon: TagIcon },
+  {
+    label: "Employee Role Types",
+    to: "/admin/employee-role-types",
+    Icon: IdentificationCardIcon,
+  },
   { label: "Deliverables", Icon: PackageIcon, disabled: true },
   { label: "Users", Icon: UserCircleIcon, disabled: true },
   { label: "User Roles", Icon: ShieldIcon, disabled: true },

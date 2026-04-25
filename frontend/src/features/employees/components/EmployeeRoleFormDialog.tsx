@@ -27,8 +27,8 @@ import {
   createEmployeeRoleMutation,
   updateEmployeeRoleMutation,
   listEmployeeRolesQueryKey,
-  listEmployeeRoleTypesOptions,
 } from "@/features/employees/api/employees";
+import { listEmployeeRoleTypesOptions } from "@/features/employee-role-types/api/employeeRoleTypes";
 
 const schema = z.object({
   role_type_id: z.coerce.number().min(1, "Role type is required."),

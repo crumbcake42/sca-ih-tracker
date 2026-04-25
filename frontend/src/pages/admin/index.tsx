@@ -10,6 +10,7 @@ import {
   UserCircleIcon,
   ShieldIcon,
   FlaskIcon,
+  IdentificationCardIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +69,13 @@ const ENTITY_CARDS: readonly EntityCard[] = [
       "Manage work authorization code categories used on project WAs.",
     Icon: TagIcon,
     to: "/admin/wa-codes",
+  },
+  {
+    label: "Employee Role Types",
+    description:
+      "Manage employee role type definitions used in role assignments.",
+    Icon: IdentificationCardIcon,
+    to: "/admin/employee-role-types",
   },
   {
     label: "Deliverables",
