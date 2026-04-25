@@ -225,11 +225,11 @@ Both handlers call a shared `_get_{entity}_references(db, entity_id) -> dict[str
 Full design detail (factory signature, per-entity ref inventory, line numbers for all six modules) is in the plan file:
 `C:\Users\msilberstein\.claude\plans\reference-the-2-fe-lucky-sketch.md` (Appendix section).
 
-**Session A — Factory primitive + tests + PATTERNS.md update:**
+**Session A — Factory primitive + tests + PATTERNS.md update:** ✓ COMPLETE
 
-- [ ] `app/common/factories.py` — `create_guarded_delete_router(*, model, not_found_detail, refs, path_param_name)` factory; `refs` is `list[tuple[FromClause, ColumnElement[int], str]]` (selectable, FK column, label); builds `{Model.__name__}Connections` via `pydantic.create_model`; emits typed `GET /{id}/connections` + `DELETE /{id}` with `assert_deletable` guard. No callers changed yet.
-- [ ] `app/common/tests/test_guarded_delete_factory.py` — 404/409/204 coverage + OpenAPI schema name check via `contractors` entity.
-- [ ] `app/PATTERNS.md` section 14 — rewrite to reference `create_guarded_delete_router`; remove hand-rolled example.
+- [x] `app/common/factories.py` — `create_guarded_delete_router(*, model, not_found_detail, refs, path_param_name)` factory; `refs` is `list[tuple[FromClause, ColumnElement[int], str]]` (selectable, FK column, label); builds `{Model.__name__}Connections` via `pydantic.create_model`; emits typed `GET /{id}/connections` + `DELETE /{id}` with `assert_deletable` guard. No callers changed yet.
+- [x] `app/common/tests/test_guarded_delete_factory.py` — 404/409/204 coverage + OpenAPI schema name check via `contractors` entity.
+- [x] `app/PATTERNS.md` section 14 — rewrite to reference `create_guarded_delete_router`; remove hand-rolled example.
 
 **Session B — Migrate six router modules:**
 

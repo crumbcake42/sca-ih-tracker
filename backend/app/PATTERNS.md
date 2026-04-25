@@ -313,42 +313,31 @@ Every `create_readonly_router`-backed `GET /` endpoint accepts column-filter que
 
 ## 14. Guarded DELETE
 
-Every deletable reference entity gets two endpoints and a shared helper:
-
-**The helper** — `_get_{entity}_references(db, entity_id) -> dict[str, int]` — lives next to the router. It fires one `COUNT` query per referencing table and returns `{label: count}`. Use `select(func.count()).select_from(...)` rather than fetching rows — one round-trip regardless of match count.
-
-**`GET /{entity_id}/connections`** — calls the helper and returns the dict as-is. Powers the delete-confirmation dialog in the UI.
-
-**`DELETE /{entity_id}`** — calls the helper independently, then passes the result to `assert_deletable(refs)` from `app/common/guards.py`. If any count is nonzero, raises `HTTPException(409, {"blocked_by": [label, ...]})` listing **all** blocking reasons at once (not fail-fast). Returns 204 on success.
+Use `create_guarded_delete_router` from `app/common/factories.py` for any reference entity that needs a guarded DELETE plus a typed `/connections` view. The factory generates a named `{ModelName}Connections` Pydantic schema (typed in OpenAPI) and emits `GET /{id}/connections` + `DELETE /{id}`.
 
 ```python
-from sqlalchemy import func, select
-from app.common.guards import assert_deletable
+from app.common.factories import create_guarded_delete_router
+from app.contractors.models import Contractor
+from app.projects.models.links import ProjectContractorLink
 
-async def _get_school_references(db: AsyncSession, school_id: int) -> dict[str, int]:
-    link_count = await db.scalar(
-        select(func.count()).select_from(ProjectSchoolLink)
-        .where(ProjectSchoolLink.school_id == school_id)
+router.include_router(
+    create_guarded_delete_router(
+        model=Contractor,
+        not_found_detail="Contractor not found",
+        path_param_name="contractor_id",
+        refs=[
+            (ProjectContractorLink, ProjectContractorLink.contractor_id, "project_contractors_links"),
+        ],
     )
-    return {"projects": link_count}
-
-@router.get("/{school_id}/connections")
-async def get_school_connections(school_id: int, db: AsyncSession = Depends(get_db)):
-    school = await db.get(School, school_id)
-    if not school:
-        raise HTTPException(status_code=404, detail="School not found")
-    return await _get_school_references(db, school_id)
-
-@router.delete("/{school_id}", status_code=204)
-async def delete_school(school_id: int, db: AsyncSession = Depends(get_db)):
-    school = await db.get(School, school_id)
-    if not school:
-        raise HTTPException(status_code=404, detail="School not found")
-    assert_deletable(await _get_school_references(db, school_id))
-    await db.delete(school)
-    await db.commit()
+)
 ```
 
-**TOCTOU note:** The connections endpoint result is stale by the time DELETE fires. The DELETE handler always re-runs the reference checks regardless of what the connections endpoint returned. They share code via the helper, not via HTTP calls.
+`refs` is a list of `(selectable, fk_column, label)` tuples — one per referencing table. `selectable` is the ORM model class or `Table` used as the `select_from` target. `label` is the public response key; **preserve it verbatim** when migrating from hand-rolled handlers — it is part of the API contract.
+
+**`GET /{id}/connections`** — returns `{label: count}` for every ref. Response is typed as `{ModelName}Connections` in OpenAPI (no more `unknown` in the generated client).
+
+**`DELETE /{id}`** — re-runs all reference counts independently, then calls `assert_deletable` from `app/common/guards.py`. Returns 409 `{"blocked_by": [...labels...]}` if any count is nonzero — all blockers listed at once, not fail-fast. Returns 204 on success.
+
+**TOCTOU note:** The connections endpoint result is stale by the time DELETE fires. The DELETE handler always re-runs the reference checks regardless of what the connections endpoint returned.
 
 **Guard even when CASCADE is set:** If a FK has `ondelete=CASCADE`, the guard still checks it. Silently wiping related rows on delete is destructive; the guard forces an explicit unlink first.
