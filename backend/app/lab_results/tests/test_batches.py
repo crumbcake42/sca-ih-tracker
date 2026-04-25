@@ -27,7 +27,7 @@ from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
 
-from tests.seeds import seed_employee
+from tests.seeds import seed_employee, seed_school
 
 BASE = "/lab-results/batches"
 
@@ -44,20 +44,6 @@ _school_counter = iter(range(1, 9999))
 
 def _next_school_code() -> str:
     return f"B{next(_school_counter):03d}"
-
-
-async def _seed_school(db: AsyncSession, code: str | None = None) -> School:
-    school = School(
-        code=code or _next_school_code(),
-        name=f"School {code or _next_school_code()}",
-        address="1 Test Ave",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
 
 
 async def _seed_project(db: AsyncSession, school: School) -> Project:
@@ -198,7 +184,7 @@ async def _make_context(
     sample_type_name: str = "Asbestos Air",
     allows_multiple: bool = True,
 ) -> _BatchContext:
-    school = await _seed_school(db)
+    school = await seed_school(db)
     project = await _seed_project(db, school)
     emp = await seed_employee(db)
     role = await _seed_role(db, emp, role_type=role_type)

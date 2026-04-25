@@ -168,7 +168,7 @@ class TestCreateTimeEntry:
         project = await seed_project(db_session, school)
         emp = await seed_employee(db_session)
         # Role starts 2026-01-01, entry is Nov 2025
-        role = await seed_employee_role(db_session, emp, start=date(2026, 1, 1))
+        role = await seed_employee_role(db_session, emp, start_date=date(2026, 1, 1))
 
         response = await auth_client.post(
             "/time-entries/",
@@ -189,7 +189,7 @@ class TestCreateTimeEntry:
         project = await seed_project(db_session, school)
         emp = await seed_employee(db_session)
         # Role ended 2025-06-30, entry is Nov 2025
-        role = await seed_employee_role(db_session, emp, end=date(2025, 6, 30))
+        role = await seed_employee_role(db_session, emp, end_date=date(2025, 6, 30))
 
         response = await auth_client.post(
             "/time-entries/",
@@ -330,7 +330,7 @@ class TestUpdateTimeEntry:
         project = await seed_project(db_session, school)
         emp = await seed_employee(db_session)
         # Role started 2025-01-01
-        role = await seed_employee_role(db_session, emp, start=date(2025, 1, 1))
+        role = await seed_employee_role(db_session, emp, start_date=date(2025, 1, 1))
         entry = await seed_time_entry(db_session, emp, role, project, school)
 
         # Move start_datetime to 2024 — role wasn't active yet

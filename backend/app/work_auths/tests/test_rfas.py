@@ -22,26 +22,16 @@ from app.work_auths.models import (
     WorkAuthProjectCode,
 )
 
+from tests.seeds import seed_school
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-async def _seed_school(db: AsyncSession, code: str = "K001") -> School:
-    school = School(
-        code=code,
-        name=f"School {code}",
-        address="123 Main St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
-
-
-async def _seed_project(db: AsyncSession, school: School, number: str = "26-111-01") -> Project:
+async def _seed_project(
+    db: AsyncSession, school: School, number: str = "26-111-01"
+) -> Project:
     project = Project(name="Test Project", project_number=number)
     project.schools = [school]
     db.add(project)
@@ -135,7 +125,7 @@ class TestCreateRFA:
     async def test_create_returns_201(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
 
@@ -153,7 +143,7 @@ class TestCreateRFA:
     async def test_create_with_project_codes(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
@@ -170,7 +160,7 @@ class TestCreateRFA:
     async def test_create_with_building_codes(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
@@ -196,11 +186,13 @@ class TestCreateRFA:
     async def test_create_marks_project_code_rfa_pending(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
-        wapc = await _seed_project_code(db_session, wa, wac, status=WACodeStatus.RFA_NEEDED)
+        wapc = await _seed_project_code(
+            db_session, wa, wac, status=WACodeStatus.RFA_NEEDED
+        )
 
         await auth_client.post(
             f"/work-auths/{wa.id}/rfas",
@@ -213,7 +205,7 @@ class TestCreateRFA:
     async def test_create_marks_building_code_rfa_pending(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
@@ -234,7 +226,7 @@ class TestCreateRFA:
     async def test_second_pending_rfa_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         await _seed_rfa(db_session, wa, status=RFAStatus.PENDING)
@@ -249,7 +241,7 @@ class TestCreateRFA:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         """A resolved RFA does not block a new one."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         await _seed_rfa(db_session, wa, status=RFAStatus.APPROVED)
@@ -271,7 +263,7 @@ class TestListRFAs:
     async def test_list_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         await _seed_rfa(db_session, wa, status=RFAStatus.APPROVED)
@@ -281,10 +273,8 @@ class TestListRFAs:
         assert response.status_code == 200
         assert len(response.json()) == 2
 
-    async def test_list_empty(
-        self, auth_client: AsyncClient, db_session: AsyncSession
-    ):
-        school = await _seed_school(db_session)
+    async def test_list_empty(self, auth_client: AsyncClient, db_session: AsyncSession):
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
 
@@ -299,14 +289,22 @@ class TestListRFAs:
     async def test_only_returns_rfas_for_that_wa(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project_a = await _seed_project(db_session, school, number="26-111-01")
         project_b = await _seed_project(db_session, school, number="26-111-02")
         wa_a = await _seed_work_auth(
-            db_session, project_a, wa_num="WA-001", service_id="SVC-001", project_num="PN-001"
+            db_session,
+            project_a,
+            wa_num="WA-001",
+            service_id="SVC-001",
+            project_num="PN-001",
         )
         wa_b = await _seed_work_auth(
-            db_session, project_b, wa_num="WA-002", service_id="SVC-002", project_num="PN-002"
+            db_session,
+            project_b,
+            wa_num="WA-002",
+            service_id="SVC-002",
+            project_num="PN-002",
         )
         await _seed_rfa(db_session, wa_a)
         await _seed_rfa(db_session, wa_b)
@@ -326,7 +324,7 @@ class TestResolveRFA:
     async def test_approve_sets_resolved_at(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         rfa = await _seed_rfa(db_session, wa)
@@ -343,14 +341,19 @@ class TestResolveRFA:
     async def test_approve_add_sets_project_code_added_by_rfa(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
-        wapc = await _seed_project_code(db_session, wa, wac, status=WACodeStatus.RFA_PENDING)
+        wapc = await _seed_project_code(
+            db_session, wa, wac, status=WACodeStatus.RFA_PENDING
+        )
         rfa = await _seed_rfa(db_session, wa)
         from app.work_auths.models import RFAProjectCode
-        db_session.add(RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.ADD))
+
+        db_session.add(
+            RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.ADD)
+        )
         await db_session.flush()
 
         await auth_client.patch(
@@ -364,14 +367,19 @@ class TestResolveRFA:
     async def test_approve_remove_sets_project_code_removed(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
-        wapc = await _seed_project_code(db_session, wa, wac, status=WACodeStatus.RFA_PENDING)
+        wapc = await _seed_project_code(
+            db_session, wa, wac, status=WACodeStatus.RFA_PENDING
+        )
         rfa = await _seed_rfa(db_session, wa)
         from app.work_auths.models import RFAProjectCode
-        db_session.add(RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.REMOVE))
+
+        db_session.add(
+            RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.REMOVE)
+        )
         await db_session.flush()
 
         await auth_client.patch(
@@ -385,7 +393,7 @@ class TestResolveRFA:
     async def test_approve_add_sets_building_code_added_by_rfa(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
@@ -394,13 +402,16 @@ class TestResolveRFA:
         )
         rfa = await _seed_rfa(db_session, wa)
         from app.work_auths.models import RFABuildingCode
-        db_session.add(RFABuildingCode(
-            rfa_id=rfa.id,
-            wa_code_id=wac.id,
-            project_id=project.id,
-            school_id=school.id,
-            action=RFAAction.ADD,
-        ))
+
+        db_session.add(
+            RFABuildingCode(
+                rfa_id=rfa.id,
+                wa_code_id=wac.id,
+                project_id=project.id,
+                school_id=school.id,
+                action=RFAAction.ADD,
+            )
+        )
         await db_session.flush()
 
         await auth_client.patch(
@@ -414,7 +425,7 @@ class TestResolveRFA:
     async def test_approve_applies_budget_adjustment(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
@@ -423,14 +434,17 @@ class TestResolveRFA:
         )
         rfa = await _seed_rfa(db_session, wa)
         from app.work_auths.models import RFABuildingCode
-        db_session.add(RFABuildingCode(
-            rfa_id=rfa.id,
-            wa_code_id=wac.id,
-            project_id=project.id,
-            school_id=school.id,
-            action=RFAAction.ADD,
-            budget_adjustment="2500.00",
-        ))
+
+        db_session.add(
+            RFABuildingCode(
+                rfa_id=rfa.id,
+                wa_code_id=wac.id,
+                project_id=project.id,
+                school_id=school.id,
+                action=RFAAction.ADD,
+                budget_adjustment="2500.00",
+            )
+        )
         await db_session.flush()
 
         await auth_client.patch(
@@ -444,14 +458,19 @@ class TestResolveRFA:
     async def test_reject_reverts_project_code_to_rfa_needed(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
-        wapc = await _seed_project_code(db_session, wa, wac, status=WACodeStatus.RFA_PENDING)
+        wapc = await _seed_project_code(
+            db_session, wa, wac, status=WACodeStatus.RFA_PENDING
+        )
         rfa = await _seed_rfa(db_session, wa)
         from app.work_auths.models import RFAProjectCode
-        db_session.add(RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.ADD))
+
+        db_session.add(
+            RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.ADD)
+        )
         await db_session.flush()
 
         await auth_client.patch(
@@ -465,7 +484,7 @@ class TestResolveRFA:
     async def test_reject_reverts_building_code_to_rfa_needed(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
@@ -474,13 +493,16 @@ class TestResolveRFA:
         )
         rfa = await _seed_rfa(db_session, wa)
         from app.work_auths.models import RFABuildingCode
-        db_session.add(RFABuildingCode(
-            rfa_id=rfa.id,
-            wa_code_id=wac.id,
-            project_id=project.id,
-            school_id=school.id,
-            action=RFAAction.ADD,
-        ))
+
+        db_session.add(
+            RFABuildingCode(
+                rfa_id=rfa.id,
+                wa_code_id=wac.id,
+                project_id=project.id,
+                school_id=school.id,
+                action=RFAAction.ADD,
+            )
+        )
         await db_session.flush()
 
         await auth_client.patch(
@@ -494,14 +516,19 @@ class TestResolveRFA:
     async def test_withdraw_reverts_codes_to_rfa_needed(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
-        wapc = await _seed_project_code(db_session, wa, wac, status=WACodeStatus.RFA_PENDING)
+        wapc = await _seed_project_code(
+            db_session, wa, wac, status=WACodeStatus.RFA_PENDING
+        )
         rfa = await _seed_rfa(db_session, wa)
         from app.work_auths.models import RFAProjectCode
-        db_session.add(RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.ADD))
+
+        db_session.add(
+            RFAProjectCode(rfa_id=rfa.id, wa_code_id=wac.id, action=RFAAction.ADD)
+        )
         await db_session.flush()
 
         await auth_client.patch(
@@ -515,7 +542,7 @@ class TestResolveRFA:
     async def test_notes_updated_on_resolve(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         rfa = await _seed_rfa(db_session, wa, notes="original notes")
@@ -529,7 +556,7 @@ class TestResolveRFA:
     async def test_resolve_already_resolved_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         rfa = await _seed_rfa(db_session, wa, status=RFAStatus.APPROVED)
@@ -543,7 +570,7 @@ class TestResolveRFA:
     async def test_resolve_to_pending_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
         rfa = await _seed_rfa(db_session, wa)
@@ -557,7 +584,7 @@ class TestResolveRFA:
     async def test_missing_rfa_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
 

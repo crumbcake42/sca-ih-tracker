@@ -44,7 +44,7 @@ from app.schools.models import School
 from app.wa_codes.models import WACode
 from app.work_auths.models import WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
 
-from tests.seeds import seed_employee
+from tests.seeds import seed_employee, seed_school
 
 if TYPE_CHECKING:
     from app.time_entries.models import TimeEntry
@@ -52,20 +52,6 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Seed helpers
 # ---------------------------------------------------------------------------
-
-
-async def _seed_school(db: AsyncSession) -> School:
-    school = School(
-        code="K099",
-        name="Test School",
-        address="1 Test St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
 
 
 async def _seed_project(
@@ -199,7 +185,7 @@ async def _seed_blocking_note(
 
 class TestGetBlockingNotesForProject:
     async def test_empty_returns_empty_list(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="00")
 
         result = await get_blocking_notes_for_project(project.id, db_session)
@@ -207,7 +193,7 @@ class TestGetBlockingNotesForProject:
         assert result == []
 
     async def test_returns_project_level_note(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="02")
 
         await _seed_blocking_note(
@@ -223,7 +209,7 @@ class TestGetBlockingNotesForProject:
         assert result[0].link == f"/projects/{project.id}"
 
     async def test_returns_time_entry_note(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="03")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -239,7 +225,7 @@ class TestGetBlockingNotesForProject:
         assert result[0].link == f"/time-entries/{entry.id}"
 
     async def test_returns_sample_batch_note(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="04")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -257,7 +243,7 @@ class TestGetBlockingNotesForProject:
         assert result[0].link == f"/lab-results/batches/{batch.id}"
 
     async def test_returns_deliverable_note(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="05")
         deliv = await _seed_deliverable(db_session)
         await _seed_project_deliverable(db_session, project, deliv)
@@ -272,7 +258,7 @@ class TestGetBlockingNotesForProject:
         assert result[0].link == f"/deliverables/{deliv.id}"
 
     async def test_excludes_resolved_notes(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="06")
 
         await _seed_blocking_note(
@@ -284,7 +270,7 @@ class TestGetBlockingNotesForProject:
         assert result == []
 
     async def test_excludes_other_projects_time_entry(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project_a = await _seed_project(db_session, school, suffix="07")
         project_b = await _seed_project(db_session, school, suffix="08")
         emp = await seed_employee(db_session)
@@ -300,7 +286,7 @@ class TestGetBlockingNotesForProject:
 
     async def test_ordered_by_created_at(self, db_session: AsyncSession):
         """Notes are returned in ascending created_at order."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="09")
 
         # Insert three notes on the project; DB will assign ascending created_at
@@ -317,7 +303,7 @@ class TestGetBlockingNotesForProject:
         assert result[2].body == "Third"
 
     async def test_entity_label_format(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="10")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -483,7 +469,7 @@ class TestRecalculateDeliverableSCAStatus:
     async def test_no_wa_sets_all_derivable_to_pending_wa(
         self, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="20")
         wa_code = await _seed_wa_code(
             db_session, code="A-20", level=WACodeLevel.PROJECT
@@ -502,7 +488,7 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd.sca_status == SCADeliverableStatus.PENDING_WA
 
     async def test_active_code_sets_outstanding(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="21")
         wa_code = await _seed_wa_code(
             db_session, code="A-21", level=WACodeLevel.PROJECT
@@ -520,7 +506,7 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd.sca_status == SCADeliverableStatus.OUTSTANDING
 
     async def test_added_by_rfa_code_sets_outstanding(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="22")
         wa_code = await _seed_wa_code(
             db_session, code="A-22", level=WACodeLevel.PROJECT
@@ -538,7 +524,7 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd.sca_status == SCADeliverableStatus.OUTSTANDING
 
     async def test_rfa_needed_code_sets_pending_rfa(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="23")
         wa_code = await _seed_wa_code(
             db_session, code="A-23", level=WACodeLevel.PROJECT
@@ -556,7 +542,7 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd.sca_status == SCADeliverableStatus.PENDING_RFA
 
     async def test_rfa_pending_code_sets_pending_rfa(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="24")
         wa_code = await _seed_wa_code(
             db_session, code="A-24", level=WACodeLevel.PROJECT
@@ -574,7 +560,7 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd.sca_status == SCADeliverableStatus.PENDING_RFA
 
     async def test_removed_code_treated_as_absent(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="25")
         wa_code = await _seed_wa_code(
             db_session, code="A-25", level=WACodeLevel.PROJECT
@@ -594,7 +580,7 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd.sca_status == SCADeliverableStatus.PENDING_WA
 
     async def test_manual_statuses_untouched(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="26")
         wa_code = await _seed_wa_code(
             db_session, code="A-26", level=WACodeLevel.PROJECT
@@ -631,7 +617,7 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd_app.sca_status == SCADeliverableStatus.APPROVED
 
     async def test_building_level_deliverable_updated(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="27")
         wa_code = await _seed_wa_code(
             db_session, code="B-27", level=WACodeLevel.BUILDING
@@ -656,7 +642,7 @@ class TestRecalculateDeliverableSCAStatus:
     async def test_building_level_rfa_needed_sets_pending_rfa(
         self, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="28")
         wa_code = await _seed_wa_code(
             db_session, code="B-28", level=WACodeLevel.BUILDING
@@ -680,7 +666,7 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_status_promotion_chain(self, db_session: AsyncSession):
         """Verify pending_wa → pending_rfa → outstanding promotion sequence."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="29")
         wa_code = await _seed_wa_code(
             db_session, code="A-29", level=WACodeLevel.PROJECT
@@ -719,7 +705,7 @@ class TestRecalculateDeliverableSCAStatus:
 
 class TestEnsureDeliverablesExist:
     async def test_no_wa_creates_nothing(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="30")
         wa_code = await _seed_wa_code(
             db_session, code="A-30", level=WACodeLevel.PROJECT
@@ -746,7 +732,7 @@ class TestEnsureDeliverablesExist:
         assert result == []
 
     async def test_creates_project_level_deliverable(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="31")
         wa_code = await _seed_wa_code(
             db_session, code="A-31", level=WACodeLevel.PROJECT
@@ -776,7 +762,7 @@ class TestEnsureDeliverablesExist:
         assert rows[0].deliverable_id == deliv.id
 
     async def test_creates_building_level_deliverable(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="32")
         wa_code = await _seed_wa_code(
             db_session, code="B-32", level=WACodeLevel.BUILDING
@@ -810,7 +796,7 @@ class TestEnsureDeliverablesExist:
         assert rows[0].school_id == school.id
 
     async def test_idempotent(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="33")
         wa_code = await _seed_wa_code(
             db_session, code="A-33", level=WACodeLevel.PROJECT
@@ -843,7 +829,7 @@ class TestEnsureDeliverablesExist:
         self, db_session: AsyncSession
     ):
         """A building-level code should not produce a project-level deliverable."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="34")
         bldg_code = await _seed_wa_code(
             db_session, code="B-34", level=WACodeLevel.BUILDING
@@ -876,7 +862,7 @@ class TestEnsureDeliverablesExist:
 
     async def test_no_trigger_creates_nothing(self, db_session: AsyncSession):
         """A WA code with no deliverable trigger produces no rows."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="35")
         wa_code = await _seed_wa_code(
             db_session, code="A-35", level=WACodeLevel.PROJECT
@@ -904,7 +890,7 @@ class TestEnsureDeliverablesExist:
 
     async def test_building_deliv_created_per_school(self, db_session: AsyncSession):
         """Building-level deliverable creates one row per linked school."""
-        school_a = await _seed_school(db_session)
+        school_a = await seed_school(db_session)
         project = await _seed_project(db_session, school_a, suffix="36")
         # Link a second school
         school_b = School(
@@ -963,7 +949,7 @@ class TestEnsureDeliverablesExist:
 class TestCheckSampleTypeGapNote:
     async def test_no_wa_returns_early(self, db_session: AsyncSession):
         """With no WA on the project, function is a no-op (no error)."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="70")
         await check_sample_type_gap_note(project.id, db_session)
         from sqlalchemy import select as _sel
@@ -977,7 +963,7 @@ class TestCheckSampleTypeGapNote:
 
     async def test_no_batches_resolves_existing_note(self, db_session: AsyncSession):
         """If a gap note exists but the project now has no batches, note auto-resolves."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="71")
         wa_code = await _seed_wa_code(
             db_session, code="P-71", level=WACodeLevel.PROJECT
@@ -1008,7 +994,7 @@ class TestCheckSampleTypeGapNote:
         self, db_session: AsyncSession
     ):
         """When the required WA code is on the WA, no gap note is created."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="72")
         employee = await seed_employee(db_session)
         role = await _seed_role(db_session, employee)
@@ -1054,7 +1040,7 @@ class TestCheckSampleTypeGapNote:
         self, db_session: AsyncSession
     ):
         """When a required WA code is absent, a blocking system note is created."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="73")
         employee = await seed_employee(db_session)
         role = await _seed_role(db_session, employee)
@@ -1098,7 +1084,7 @@ class TestCheckSampleTypeGapNote:
         self, db_session: AsyncSession
     ):
         """After the missing code is added to the WA, the gap note auto-resolves."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="74")
         employee = await seed_employee(db_session)
         role = await _seed_role(db_session, employee)
@@ -1151,7 +1137,7 @@ class TestCheckSampleTypeGapNote:
 
 class TestDeriveProjectStatus:
     async def test_no_time_entries_returns_setup(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="80")
 
         result = await derive_project_status(project.id, db_session)
@@ -1161,7 +1147,7 @@ class TestDeriveProjectStatus:
         assert result.blocking_issues == []
 
     async def test_blocking_note_returns_blocked(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="81")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -1175,7 +1161,7 @@ class TestDeriveProjectStatus:
 
     async def test_blocking_note_overrides_setup(self, db_session: AsyncSession):
         """BLOCKED takes priority even when no time entries exist."""
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="82")
         await _seed_blocking_note(db_session, NoteEntityType.PROJECT, project.id)
 
@@ -1186,7 +1172,7 @@ class TestDeriveProjectStatus:
     async def test_outstanding_deliverable_returns_in_progress(
         self, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="83")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -1215,7 +1201,7 @@ class TestDeriveProjectStatus:
         """Unconfirmed (assumed) time entries block READY_TO_CLOSE."""
         from app.common.enums import TimeEntryStatus
 
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="84")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -1229,7 +1215,7 @@ class TestDeriveProjectStatus:
         assert result.unconfirmed_time_entry_count == 1
 
     async def test_all_clear_returns_ready_to_close(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="85")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -1255,7 +1241,7 @@ class TestDeriveProjectStatus:
         assert result.pending_rfa_count == 0
 
     async def test_counts_are_accurate(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="86")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)
@@ -1293,7 +1279,7 @@ class TestDeriveProjectStatus:
         assert result2.unconfirmed_time_entry_count == 1
 
     async def test_has_work_auth_flag(self, db_session: AsyncSession):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school, suffix="87")
         emp = await seed_employee(db_session)
         role = await _seed_role(db_session, emp)

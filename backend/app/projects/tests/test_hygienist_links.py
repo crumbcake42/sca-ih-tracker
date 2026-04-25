@@ -12,44 +12,7 @@ it correctly surfaces the hygienist field via the model_validator mapping.
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.enums import Boro
-from app.hygienists.models import Hygienist
-from app.projects.models import Project
-from app.schools.models import School
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-async def _seed_school(db: AsyncSession) -> School:
-    school = School(
-        code="K001",
-        name="Test School",
-        address="123 Main St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
-
-
-async def _seed_project(db: AsyncSession, school: School) -> Project:
-    project = Project(name="Test Project", project_number="26-111-01")
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_hygienist(db: AsyncSession, **overrides) -> Hygienist:
-    defaults = dict(first_name="Alice", last_name="Smith")
-    h = Hygienist(**{**defaults, **overrides})
-    db.add(h)
-    await db.flush()
-    return h
+from tests.seeds import seed_school, seed_project, seed_hygienist
 
 
 # ---------------------------------------------------------------------------
@@ -61,9 +24,9 @@ class TestAssignHygienist:
     async def test_assign_returns_201(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        hygienist = await _seed_hygienist(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        hygienist = await seed_hygienist(db_session)
 
         response = await auth_client.post(
             f"/projects/{project.id}/hygienist",
@@ -77,7 +40,7 @@ class TestAssignHygienist:
     async def test_assign_missing_project_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        hygienist = await _seed_hygienist(db_session)
+        hygienist = await seed_hygienist(db_session)
         response = await auth_client.post(
             "/projects/9999/hygienist",
             json={"hygienist_id": hygienist.id},
@@ -87,8 +50,8 @@ class TestAssignHygienist:
     async def test_assign_missing_hygienist_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
         response = await auth_client.post(
             f"/projects/{project.id}/hygienist",
             json={"hygienist_id": 9999},
@@ -99,10 +62,10 @@ class TestAssignHygienist:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         # A second POST should update the assignment, not create a second row.
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        h1 = await _seed_hygienist(db_session, first_name="Alice")
-        h2 = await _seed_hygienist(db_session, first_name="Bob")
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        h1 = await seed_hygienist(db_session, first_name="Alice")
+        h2 = await seed_hygienist(db_session, first_name="Bob")
 
         await auth_client.post(
             f"/projects/{project.id}/hygienist", json={"hygienist_id": h1.id}
@@ -127,9 +90,9 @@ class TestGetHygienistAssignment:
     async def test_returns_assignment(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        hygienist = await _seed_hygienist(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        hygienist = await seed_hygienist(db_session)
 
         await auth_client.post(
             f"/projects/{project.id}/hygienist",
@@ -142,8 +105,8 @@ class TestGetHygienistAssignment:
     async def test_unassigned_project_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
         response = await auth_client.get(f"/projects/{project.id}/hygienist")
         assert response.status_code == 404
 
@@ -161,9 +124,9 @@ class TestRemoveHygienistAssignment:
     async def test_remove_returns_204(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        hygienist = await _seed_hygienist(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        hygienist = await seed_hygienist(db_session)
 
         await auth_client.post(
             f"/projects/{project.id}/hygienist",
@@ -179,8 +142,8 @@ class TestRemoveHygienistAssignment:
     async def test_remove_unassigned_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
         response = await auth_client.delete(f"/projects/{project.id}/hygienist")
         assert response.status_code == 404
 
@@ -194,8 +157,8 @@ class TestProjectDetailIncludesHygienist:
     async def test_hygienist_null_when_unassigned(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
         response = await auth_client.get(f"/projects/{project.id}")
         assert response.status_code == 200
         assert response.json()["hygienist"] is None
@@ -203,9 +166,9 @@ class TestProjectDetailIncludesHygienist:
     async def test_hygienist_present_when_assigned(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        hygienist = await _seed_hygienist(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        hygienist = await seed_hygienist(db_session)
 
         await auth_client.post(
             f"/projects/{project.id}/hygienist",

@@ -29,15 +29,15 @@ async def seed_employee_role(
     employee: Employee,
     *,
     role_type: EmployeeRoleType = EmployeeRoleType.ACM_AIR_TECH,
-    start: date = date(2025, 1, 1),
-    end: date | None = None,
+    start_date: date = date(2025, 1, 1),
+    end_date: date | None = None,
     hourly_rate: str = "75.00",
 ) -> EmployeeRole:
     role = EmployeeRole(
         employee_id=employee.id,
         role_type=role_type,
-        start_date=start,
-        end_date=end,
+        start_date=start_date,
+        end_date=end_date,
         hourly_rate=hourly_rate,
     )
     db.add(role)

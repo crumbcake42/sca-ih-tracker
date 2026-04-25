@@ -17,10 +17,12 @@ Key behaviours under test:
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.enums import Boro
 from app.projects.models import Project
 from app.schools.models import School
 from app.users.models import Role, User
+
+from tests.seeds import seed_school
+
 
 # ---------------------------------------------------------------------------
 # Seed helpers
@@ -50,20 +52,6 @@ async def _seed_user(db: AsyncSession, role: Role, **overrides) -> User:
     return user
 
 
-async def _seed_school(db: AsyncSession) -> School:
-    school = School(
-        code="K001",
-        name="Test School",
-        address="123 Main St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
-
-
 async def _seed_project(db: AsyncSession, school: School) -> Project:
     project = Project(name="Test Project", project_number="26-111-01")
     project.schools = [school]
@@ -83,7 +71,7 @@ class TestAssignManager:
     ):
         role = await _seed_role(db_session)
         user = await _seed_user(db_session, role)
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         response = await auth_client.post(
@@ -110,7 +98,7 @@ class TestAssignManager:
     async def test_assign_missing_user_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         response = await auth_client.post(
             f"/projects/{project.id}/manager",
@@ -124,7 +112,7 @@ class TestAssignManager:
         """Overlap prevention: assigning the already-active manager is a 409."""
         role = await _seed_role(db_session)
         user = await _seed_user(db_session, role)
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         await auth_client.post(
@@ -141,8 +129,10 @@ class TestAssignManager:
         """Reassigning to a different user closes the current assignment."""
         role = await _seed_role(db_session)
         u1 = await _seed_user(db_session, role, n=1)
-        u2 = await _seed_user(db_session, role, n=2, username="user2", email="user2@example.com")
-        school = await _seed_school(db_session)
+        u2 = await _seed_user(
+            db_session, role, n=2, username="user2", email="user2@example.com"
+        )
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         await auth_client.post(
@@ -176,7 +166,7 @@ class TestGetActiveManager:
     ):
         role = await _seed_role(db_session)
         user = await _seed_user(db_session, role)
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         await auth_client.post(
@@ -189,7 +179,7 @@ class TestGetActiveManager:
     async def test_no_manager_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         response = await auth_client.get(f"/projects/{project.id}/manager")
         assert response.status_code == 404
@@ -208,7 +198,7 @@ class TestGetManagerHistory:
     async def test_empty_history(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         response = await auth_client.get(f"/projects/{project.id}/manager/history")
         assert response.status_code == 200
@@ -219,8 +209,10 @@ class TestGetManagerHistory:
     ):
         role = await _seed_role(db_session)
         u1 = await _seed_user(db_session, role, n=1)
-        u2 = await _seed_user(db_session, role, n=2, username="user2", email="user2@example.com")
-        school = await _seed_school(db_session)
+        u2 = await _seed_user(
+            db_session, role, n=2, username="user2", email="user2@example.com"
+        )
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         await auth_client.post(
@@ -250,7 +242,7 @@ class TestUnassignManager:
     ):
         role = await _seed_role(db_session)
         user = await _seed_user(db_session, role)
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         await auth_client.post(
@@ -269,7 +261,7 @@ class TestUnassignManager:
         """DELETE closes the assignment (sets unassigned_at) — does not delete the row."""
         role = await _seed_role(db_session)
         user = await _seed_user(db_session, role)
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         await auth_client.post(
@@ -285,7 +277,7 @@ class TestUnassignManager:
     async def test_unassign_no_manager_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         response = await auth_client.delete(f"/projects/{project.id}/manager")
         assert response.status_code == 404

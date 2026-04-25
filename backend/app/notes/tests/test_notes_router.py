@@ -18,26 +18,16 @@ from app.notes.models import Note
 from app.projects.models import Project
 from app.schools.models import School
 
+from tests.seeds import seed_school
+
 # ---------------------------------------------------------------------------
 # Seed helpers
 # ---------------------------------------------------------------------------
 
 
-async def _seed_school(db: AsyncSession, code: str = "K001") -> School:
-    school = School(
-        code=code,
-        name=f"School {code}",
-        address="1 Test St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
-
-
-async def _seed_project(db: AsyncSession, school: School, number: str = "26-100-0001") -> Project:
+async def _seed_project(
+    db: AsyncSession, school: School, number: str = "26-100-0001"
+) -> Project:
     project = Project(name="Notes Test Project", project_number=number)
     project.schools = [school]
     db.add(project)
@@ -86,7 +76,7 @@ class TestListNotes:
     async def test_returns_empty_list_when_none(
         self, client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K010")
+        school = await seed_school(db_session, code="K010")
         project = await _seed_project(db_session, school, "26-100-0010")
 
         resp = await client.get(f"/notes/project/{project.id}")
@@ -97,7 +87,7 @@ class TestListNotes:
     async def test_returns_top_level_notes(
         self, client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K011")
+        school = await seed_school(db_session, code="K011")
         project = await _seed_project(db_session, school, "26-100-0011")
         await _seed_note(db_session, NoteEntityType.PROJECT, project.id, "First note")
         await _seed_note(db_session, NoteEntityType.PROJECT, project.id, "Second note")
@@ -113,11 +103,16 @@ class TestListNotes:
     async def test_replies_nested_under_parent(
         self, client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K012")
+        school = await seed_school(db_session, code="K012")
         project = await _seed_project(db_session, school, "26-100-0012")
-        parent = await _seed_note(db_session, NoteEntityType.PROJECT, project.id, "Parent")
+        parent = await _seed_note(
+            db_session, NoteEntityType.PROJECT, project.id, "Parent"
+        )
         await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id, "Reply body",
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
+            "Reply body",
             parent_note_id=parent.id,
         )
 
@@ -131,9 +126,7 @@ class TestListNotes:
         assert len(data[0]["replies"]) == 1
         assert data[0]["replies"][0]["body"] == "Reply body"
 
-    async def test_invalid_entity_type_returns_422(
-        self, client: AsyncClient
-    ):
+    async def test_invalid_entity_type_returns_422(self, client: AsyncClient):
         resp = await client.get("/notes/banana/1")
         assert resp.status_code == 422
 
@@ -147,7 +140,7 @@ class TestCreateNote:
     async def test_creates_note_on_existing_entity(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K020")
+        school = await seed_school(db_session, code="K020")
         project = await _seed_project(db_session, school, "26-100-0020")
 
         resp = await auth_client.post(
@@ -168,7 +161,7 @@ class TestCreateNote:
     async def test_creates_non_blocking_note(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K021")
+        school = await seed_school(db_session, code="K021")
         project = await _seed_project(db_session, school, "26-100-0021")
 
         resp = await auth_client.post(
@@ -179,19 +172,15 @@ class TestCreateNote:
         assert resp.status_code == 201
         assert resp.json()["is_blocking"] is False
 
-    async def test_returns_404_for_nonexistent_entity(
-        self, auth_client: AsyncClient
-    ):
+    async def test_returns_404_for_nonexistent_entity(self, auth_client: AsyncClient):
         resp = await auth_client.post(
             "/notes/project/999999",
             json={"body": "This project does not exist"},
         )
         assert resp.status_code == 404
 
-    async def test_requires_auth(
-        self, client: AsyncClient, db_session: AsyncSession
-    ):
-        school = await _seed_school(db_session, "K022")
+    async def test_requires_auth(self, client: AsyncClient, db_session: AsyncSession):
+        school = await seed_school(db_session, code="K022")
         project = await _seed_project(db_session, school, "26-100-0022")
 
         resp = await client.post(
@@ -203,7 +192,7 @@ class TestCreateNote:
     async def test_rejects_empty_body(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K023")
+        school = await seed_school(db_session, code="K023")
         project = await _seed_project(db_session, school, "26-100-0023")
 
         resp = await auth_client.post(
@@ -222,7 +211,7 @@ class TestCreateReply:
     async def test_creates_reply_on_top_level_note(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K030")
+        school = await seed_school(db_session, code="K030")
         project = await _seed_project(db_session, school, "26-100-0030")
         parent = await _seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Parent note"
@@ -244,13 +233,16 @@ class TestCreateReply:
     async def test_reply_to_reply_is_rejected(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K031")
+        school = await seed_school(db_session, code="K031")
         project = await _seed_project(db_session, school, "26-100-0031")
         parent = await _seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Parent"
         )
         reply = await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id, "Reply",
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
+            "Reply",
             parent_note_id=parent.id,
         )
 
@@ -262,19 +254,15 @@ class TestCreateReply:
         assert resp.status_code == 422
         assert "reply" in resp.json()["detail"].lower()
 
-    async def test_returns_404_for_nonexistent_note(
-        self, auth_client: AsyncClient
-    ):
+    async def test_returns_404_for_nonexistent_note(self, auth_client: AsyncClient):
         resp = await auth_client.post(
             "/notes/999999/reply",
             json={"body": "Parent doesn't exist"},
         )
         assert resp.status_code == 404
 
-    async def test_requires_auth(
-        self, client: AsyncClient, db_session: AsyncSession
-    ):
-        school = await _seed_school(db_session, "K032")
+    async def test_requires_auth(self, client: AsyncClient, db_session: AsyncSession):
+        school = await seed_school(db_session, code="K032")
         project = await _seed_project(db_session, school, "26-100-0032")
         parent = await _seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Parent"
@@ -296,11 +284,14 @@ class TestResolveNote:
     async def test_resolves_user_blocking_note(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K040")
+        school = await seed_school(db_session, code="K040")
         project = await _seed_project(db_session, school, "26-100-0040")
         note = await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id,
-            "Blocking issue", is_blocking=True,
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
+            "Blocking issue",
+            is_blocking=True,
         )
 
         resp = await auth_client.patch(
@@ -317,11 +308,14 @@ class TestResolveNote:
     async def test_resolution_note_appended_as_reply(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K041")
+        school = await seed_school(db_session, code="K041")
         project = await _seed_project(db_session, school, "26-100-0041")
         note = await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id,
-            "Blocking", is_blocking=True,
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
+            "Blocking",
+            is_blocking=True,
         )
 
         await auth_client.patch(
@@ -339,10 +333,12 @@ class TestResolveNote:
     async def test_system_note_cannot_be_resolved(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K042")
+        school = await seed_school(db_session, code="K042")
         project = await _seed_project(db_session, school, "26-100-0042")
         system_note = await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id,
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
             "System-generated conflict note",
             is_blocking=True,
             note_type=NoteType.TIME_ENTRY_CONFLICT,
@@ -359,11 +355,15 @@ class TestResolveNote:
     async def test_already_resolved_note_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K043")
+        school = await seed_school(db_session, code="K043")
         project = await _seed_project(db_session, school, "26-100-0043")
         note = await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id,
-            "Already done", is_blocking=True, resolved=True,
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
+            "Already done",
+            is_blocking=True,
+            resolved=True,
         )
 
         resp = await auth_client.patch(
@@ -374,19 +374,15 @@ class TestResolveNote:
         assert resp.status_code == 422
         assert "already resolved" in resp.json()["detail"].lower()
 
-    async def test_returns_404_for_nonexistent_note(
-        self, auth_client: AsyncClient
-    ):
+    async def test_returns_404_for_nonexistent_note(self, auth_client: AsyncClient):
         resp = await auth_client.patch(
             "/notes/999999/resolve",
             json={"resolution_note": "Note doesn't exist"},
         )
         assert resp.status_code == 404
 
-    async def test_requires_auth(
-        self, client: AsyncClient, db_session: AsyncSession
-    ):
-        school = await _seed_school(db_session, "K044")
+    async def test_requires_auth(self, client: AsyncClient, db_session: AsyncSession):
+        school = await seed_school(db_session, code="K044")
         project = await _seed_project(db_session, school, "26-100-0044")
         note = await _seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Blocking", is_blocking=True
@@ -401,7 +397,7 @@ class TestResolveNote:
     async def test_rejects_missing_resolution_note(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K045")
+        school = await seed_school(db_session, code="K045")
         project = await _seed_project(db_session, school, "26-100-0045")
         note = await _seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Blocking", is_blocking=True
@@ -423,7 +419,7 @@ class TestGetBlockingIssues:
     async def test_returns_empty_list_when_none(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K050")
+        school = await seed_school(db_session, code="K050")
         project = await _seed_project(db_session, school, "26-100-0050")
 
         resp = await auth_client.get(f"/projects/{project.id}/blocking-issues")
@@ -434,11 +430,14 @@ class TestGetBlockingIssues:
     async def test_returns_blocking_note_on_project(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K051")
+        school = await seed_school(db_session, code="K051")
         project = await _seed_project(db_session, school, "26-100-0051")
         await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id,
-            "Site access blocked", is_blocking=True,
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
+            "Site access blocked",
+            is_blocking=True,
         )
 
         resp = await auth_client.get(f"/projects/{project.id}/blocking-issues")
@@ -454,11 +453,15 @@ class TestGetBlockingIssues:
     async def test_excludes_resolved_notes(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, "K052")
+        school = await seed_school(db_session, code="K052")
         project = await _seed_project(db_session, school, "26-100-0052")
         await _seed_note(
-            db_session, NoteEntityType.PROJECT, project.id,
-            "Resolved issue", is_blocking=True, resolved=True,
+            db_session,
+            NoteEntityType.PROJECT,
+            project.id,
+            "Resolved issue",
+            is_blocking=True,
+            resolved=True,
         )
 
         resp = await auth_client.get(f"/projects/{project.id}/blocking-issues")
@@ -466,8 +469,6 @@ class TestGetBlockingIssues:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    async def test_returns_404_for_nonexistent_project(
-        self, auth_client: AsyncClient
-    ):
+    async def test_returns_404_for_nonexistent_project(self, auth_client: AsyncClient):
         resp = await auth_client.get("/projects/999999/blocking-issues")
         assert resp.status_code == 404

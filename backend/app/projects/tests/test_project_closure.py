@@ -24,24 +24,11 @@ from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
 
+from tests.seeds import seed_school
 
 # ---------------------------------------------------------------------------
 # Seed helpers
 # ---------------------------------------------------------------------------
-
-
-async def _seed_school(db: AsyncSession) -> School:
-    school = School(
-        code="K300",
-        name="Closure Test School",
-        address="300 Test St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
 
 
 async def _seed_project(db: AsyncSession, school: School) -> Project:
@@ -53,9 +40,7 @@ async def _seed_project(db: AsyncSession, school: School) -> Project:
 
 
 async def _seed_employee_with_role(db: AsyncSession) -> tuple[Employee, EmployeeRole]:
-    emp = Employee(
-        first_name="Close", last_name="Tester", display_name="Close Tester"
-    )
+    emp = Employee(first_name="Close", last_name="Tester", display_name="Close Tester")
     db.add(emp)
     await db.flush()
     role = EmployeeRole(
@@ -155,7 +140,7 @@ class TestCloseProject:
     async def test_409_when_blocking_notes_exist(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         await _seed_time_entry(db_session, project, school, emp, role)
@@ -171,7 +156,7 @@ class TestCloseProject:
     async def test_close_succeeds_and_returns_locked_status(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         await _seed_time_entry(db_session, project, school, emp, role)
@@ -184,7 +169,7 @@ class TestCloseProject:
     async def test_close_locks_time_entries(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         entry = await _seed_time_entry(
@@ -199,7 +184,7 @@ class TestCloseProject:
     async def test_close_locks_active_batches(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         entry = await _seed_time_entry(db_session, project, school, emp, role)
@@ -214,7 +199,7 @@ class TestCloseProject:
     async def test_close_does_not_change_discarded_batches(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         entry = await _seed_time_entry(db_session, project, school, emp, role)
@@ -231,7 +216,7 @@ class TestCloseProject:
     async def test_409_when_already_closed(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         await auth_client.post(f"/projects/{project.id}/close")
@@ -249,7 +234,7 @@ class TestLockedTimeEntryGuards:
     async def test_patch_locked_time_entry_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         entry = await _seed_time_entry(
@@ -264,7 +249,7 @@ class TestLockedTimeEntryGuards:
     async def test_delete_locked_time_entry_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         entry = await _seed_time_entry(
@@ -279,7 +264,7 @@ class TestLockedBatchGuards:
     async def test_patch_locked_batch_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         entry = await _seed_time_entry(db_session, project, school, emp, role)
@@ -296,7 +281,7 @@ class TestLockedBatchGuards:
     async def test_delete_locked_batch_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         emp, role = await _seed_employee_with_role(db_session)
         entry = await _seed_time_entry(db_session, project, school, emp, role)

@@ -1,22 +1,12 @@
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.employees.models import Employee
+from tests.seeds import seed_employee
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-async def _seed_employee(db: AsyncSession, **overrides) -> Employee:
-    first = overrides.get("first_name", "Jane")
-    last = overrides.get("last_name", "Doe")
-    defaults = dict(first_name=first, last_name=last, display_name=f"{first} {last}")
-    emp = Employee(**{**defaults, **overrides})
-    db.add(emp)
-    await db.flush()
-    return emp
 
 
 def _payload(**overrides) -> dict:
@@ -45,7 +35,7 @@ class TestCreateEmployee:
     async def test_auto_dedup_display_name(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, first_name="John", last_name="Smith")
+        await seed_employee(db_session, first_name="John", last_name="Smith")
         response = await auth_client.post("/employees/", json=_payload())
         assert response.status_code == 201
         assert response.json()["display_name"] == "John Smith 2"
@@ -53,9 +43,12 @@ class TestCreateEmployee:
     async def test_third_collision_gets_suffix_3(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, first_name="John", last_name="Smith")
-        await _seed_employee(
-            db_session, first_name="John", last_name="Smith", display_name="John Smith 2"
+        await seed_employee(db_session, first_name="John", last_name="Smith")
+        await seed_employee(
+            db_session,
+            first_name="John",
+            last_name="Smith",
+            display_name="John Smith 2",
         )
         response = await auth_client.post("/employees/", json=_payload())
         assert response.status_code == 201
@@ -86,7 +79,7 @@ class TestCreateEmployee:
     async def test_duplicate_adp_id_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, adp_id="ABC123456")
+        await seed_employee(db_session, adp_id="ABC123456")
         response = await auth_client.post(
             "/employees/", json=_payload(adp_id="ABC123456")
         )
@@ -95,7 +88,7 @@ class TestCreateEmployee:
     async def test_duplicate_email_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, email="dup@example.com")
+        await seed_employee(db_session, email="dup@example.com")
         response = await auth_client.post(
             "/employees/", json=_payload(email="dup@example.com")
         )
@@ -104,16 +97,14 @@ class TestCreateEmployee:
     async def test_duplicate_explicit_display_name_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, display_name="Taken Name")
+        await seed_employee(db_session, display_name="Taken Name")
         response = await auth_client.post(
             "/employees/", json=_payload(display_name="Taken Name")
         )
         assert response.status_code == 422
 
     async def test_bad_adp_id_length_returns_422(self, auth_client: AsyncClient):
-        response = await auth_client.post(
-            "/employees/", json=_payload(adp_id="SHORT")
-        )
+        response = await auth_client.post("/employees/", json=_payload(adp_id="SHORT"))
         assert response.status_code == 422
 
     async def test_missing_first_name_returns_422(self, auth_client: AsyncClient):
@@ -134,7 +125,7 @@ class TestUpdateEmployee:
     async def test_partial_update_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
         response = await auth_client.patch(
             f"/employees/{emp.id}", json={"first_name": "Janet"}
         )
@@ -147,7 +138,7 @@ class TestUpdateEmployee:
     async def test_created_by_id_unchanged_after_patch(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session, created_by_id=1)
+        emp = await seed_employee(db_session, created_by_id=1)
         response = await auth_client.patch(
             f"/employees/{emp.id}", json={"first_name": "Janet"}
         )
@@ -156,7 +147,7 @@ class TestUpdateEmployee:
     async def test_self_update_adp_id_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session, adp_id="ABC123456")
+        emp = await seed_employee(db_session, adp_id="ABC123456")
         response = await auth_client.patch(
             f"/employees/{emp.id}", json={"adp_id": "ABC123456"}
         )
@@ -165,7 +156,7 @@ class TestUpdateEmployee:
     async def test_self_update_email_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session, email="same@example.com")
+        emp = await seed_employee(db_session, email="same@example.com")
         response = await auth_client.patch(
             f"/employees/{emp.id}", json={"email": "same@example.com"}
         )
@@ -174,7 +165,7 @@ class TestUpdateEmployee:
     async def test_self_update_display_name_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session, display_name="MyName")
+        emp = await seed_employee(db_session, display_name="MyName")
         response = await auth_client.patch(
             f"/employees/{emp.id}", json={"display_name": "MyName"}
         )
@@ -183,17 +174,15 @@ class TestUpdateEmployee:
     async def test_clear_email_to_null(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session, email="clear@example.com")
-        response = await auth_client.patch(
-            f"/employees/{emp.id}", json={"email": None}
-        )
+        emp = await seed_employee(db_session, email="clear@example.com")
+        response = await auth_client.patch(f"/employees/{emp.id}", json={"email": None})
         assert response.status_code == 200
         assert response.json()["email"] is None
 
     async def test_rename_display_name_to_nickname(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
         response = await auth_client.patch(
             f"/employees/{emp.id}", json={"display_name": "JDoe"}
         )
@@ -207,8 +196,8 @@ class TestUpdateEmployee:
     async def test_duplicate_adp_id_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, adp_id="OTHER1234")
-        emp = await _seed_employee(
+        await seed_employee(db_session, adp_id="OTHER1234")
+        emp = await seed_employee(
             db_session, first_name="Bob", last_name="Jones", display_name="Bob Jones"
         )
         response = await auth_client.patch(
@@ -219,8 +208,8 @@ class TestUpdateEmployee:
     async def test_duplicate_email_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, email="taken@example.com")
-        emp = await _seed_employee(
+        await seed_employee(db_session, email="taken@example.com")
+        emp = await seed_employee(
             db_session, first_name="Bob", last_name="Jones", display_name="Bob Jones"
         )
         response = await auth_client.patch(
@@ -231,8 +220,8 @@ class TestUpdateEmployee:
     async def test_duplicate_display_name_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await _seed_employee(db_session, display_name="Taken Name")
-        emp = await _seed_employee(
+        await seed_employee(db_session, display_name="Taken Name")
+        emp = await seed_employee(
             db_session, first_name="Bob", last_name="Jones", display_name="Bob Jones"
         )
         response = await auth_client.patch(
@@ -240,11 +229,10 @@ class TestUpdateEmployee:
         )
         assert response.status_code == 422
 
-
     async def test_bad_phone_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
         response = await auth_client.patch(
             f"/employees/{emp.id}", json={"phone": "555123666"}
         )
@@ -260,7 +248,7 @@ class TestGetEmployeeConnections:
     async def test_clean_entity_returns_zero_counts(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
         response = await auth_client.get(f"/employees/{emp.id}/connections")
         assert response.status_code == 200
         data = response.json()
@@ -272,7 +260,7 @@ class TestGetEmployeeConnections:
     ):
         from app.lab_results.models import SampleBatch, SampleBatchInspector, SampleType
 
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
 
         sample_type = SampleType(name="Air Asbestos Conn")
         db_session.add(sample_type)
@@ -280,7 +268,11 @@ class TestGetEmployeeConnections:
 
         from datetime import date
 
-        batch = SampleBatch(sample_type_id=sample_type.id, batch_num="B-CONN-EMP-001", date_collected=date(2025, 1, 1))
+        batch = SampleBatch(
+            sample_type_id=sample_type.id,
+            batch_num="B-CONN-EMP-001",
+            date_collected=date(2025, 1, 1),
+        )
         db_session.add(batch)
         await db_session.flush()
 
@@ -305,7 +297,7 @@ class TestDeleteEmployee:
     async def test_clean_delete_returns_204(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
         response = await auth_client.delete(f"/employees/{emp.id}")
         assert response.status_code == 204
 
@@ -318,7 +310,7 @@ class TestDeleteEmployee:
     ):
         from app.lab_results.models import SampleBatch, SampleBatchInspector, SampleType
 
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
 
         sample_type = SampleType(name="Air Asbestos Del")
         db_session.add(sample_type)
@@ -326,7 +318,11 @@ class TestDeleteEmployee:
 
         from datetime import date
 
-        batch = SampleBatch(sample_type_id=sample_type.id, batch_num="B-DEL-EMP-001", date_collected=date(2025, 1, 1))
+        batch = SampleBatch(
+            sample_type_id=sample_type.id,
+            batch_num="B-DEL-EMP-001",
+            date_collected=date(2025, 1, 1),
+        )
         db_session.add(batch)
         await db_session.flush()
 

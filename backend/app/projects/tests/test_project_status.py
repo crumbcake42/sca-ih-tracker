@@ -5,23 +5,11 @@ Endpoint tests for GET /projects/{id}/status.
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.enums import Boro, ProjectStatus
+from app.common.enums import ProjectStatus
 from app.projects.models import Project
 from app.schools.models import School
 
-
-async def _seed_school(db: AsyncSession) -> School:
-    school = School(
-        code="K200",
-        name="Status Test School",
-        address="200 Test St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
+from tests.seeds import seed_school
 
 
 async def _seed_project(db: AsyncSession, school: School) -> Project:
@@ -40,7 +28,7 @@ class TestGetProjectStatus:
     async def test_returns_status_shape(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         response = await auth_client.get(f"/projects/{project.id}/status")

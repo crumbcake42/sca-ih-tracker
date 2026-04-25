@@ -18,23 +18,11 @@ from app.projects.models import Project
 from app.schools.models import School
 from app.work_auths.models import WorkAuth
 
+from tests.seeds import seed_school
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-async def _seed_school(db: AsyncSession) -> School:
-    school = School(
-        code="K001",
-        name="Test School",
-        address="123 Main St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
 
 
 async def _seed_project(db: AsyncSession, school: School) -> Project:
@@ -78,7 +66,7 @@ class TestCreateWorkAuth:
     async def test_create_returns_201(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         response = await auth_client.post(
@@ -98,14 +86,16 @@ class TestCreateWorkAuth:
     async def test_duplicate_project_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         await _seed_work_auth(db_session, project)
 
         response = await auth_client.post(
             "/work-auths",
             json={
-                **_wa_payload(wa_num="WA-002", service_id="SVC-002", project_num="PN-002"),
+                **_wa_payload(
+                    wa_num="WA-002", service_id="SVC-002", project_num="PN-002"
+                ),
                 "project_id": project.id,
             },
         )
@@ -121,7 +111,7 @@ class TestGetWorkAuth:
     async def test_get_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
 
@@ -143,7 +133,7 @@ class TestGetWorkAuthByProject:
     async def test_returns_paginated_list_for_project(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         await _seed_work_auth(db_session, project)
 
@@ -156,7 +146,7 @@ class TestGetWorkAuthByProject:
     async def test_no_work_auth_returns_empty_list(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         response = await auth_client.get(f"/work-auths?project_id={project.id}")
         assert response.status_code == 200
@@ -174,7 +164,7 @@ class TestUpdateWorkAuth:
     async def test_update_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
 
@@ -185,9 +175,7 @@ class TestUpdateWorkAuth:
         assert response.json()["wa_num"] == "WA-UPDATED"
 
     async def test_update_missing_returns_404(self, auth_client: AsyncClient):
-        response = await auth_client.patch(
-            "/work-auths/9999", json={"wa_num": "WA-X"}
-        )
+        response = await auth_client.patch("/work-auths/9999", json={"wa_num": "WA-X"})
         assert response.status_code == 404
 
 
@@ -200,7 +188,7 @@ class TestDeleteWorkAuth:
     async def test_delete_returns_204(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project)
 
@@ -224,24 +212,26 @@ class TestWorkAuthAuditFields:
     async def test_create_sets_created_by_id(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
 
         response = await auth_client.post(
             "/work-auths",
             json={
-                **_wa_payload(wa_num="WA-AUDIT1", service_id="SVC-A1", project_num="PN-A1"),
+                **_wa_payload(
+                    wa_num="WA-AUDIT1", service_id="SVC-A1", project_num="PN-A1"
+                ),
                 "project_id": project.id,
             },
         )
         assert response.status_code == 201
         wa = await db_session.get(WorkAuth, response.json()["id"])
-        assert wa.created_by_id == 1  # fake_user.id from auth_client fixture
+        assert wa and wa.created_by_id == 1  # fake_user.id from auth_client fixture
 
     async def test_update_sets_updated_by_id(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
+        school = await seed_school(db_session)
         project = await _seed_project(db_session, school)
         wa = await _seed_work_auth(db_session, project, wa_num="WA-AUDIT2")
 

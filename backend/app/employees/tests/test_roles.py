@@ -20,40 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.enums import EmployeeRoleType
 from app.employees.models import Employee, EmployeeRole
 
+from tests.seeds import seed_employee, seed_employee_role
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-async def _seed_employee(db: AsyncSession, **overrides) -> Employee:
-    first = overrides.get("first_name", "Jane")
-    last = overrides.get("last_name", "Doe")
-    defaults = dict(first_name=first, last_name=last, display_name=f"{first} {last}")
-    emp = Employee(**{**defaults, **overrides})
-    db.add(emp)
-    await db.flush()
-    return emp
-
-
-async def _seed_role(
-    db: AsyncSession,
-    employee_id: int,
-    role_type: EmployeeRoleType = EmployeeRoleType.ACM_AIR_TECH,
-    **overrides,
-) -> EmployeeRole:
-    defaults: dict = dict(
-        role_type=role_type,
-        start_date=date(2024, 1, 1),
-        end_date=None,
-        hourly_rate=Decimal("25.00"),
-    )
-    for field in ("start_date", "end_date"):
-        if field in overrides and isinstance(overrides[field], str):
-            overrides[field] = date.fromisoformat(overrides[field])
-    role = EmployeeRole(employee_id=employee_id, **{**defaults, **overrides})
-    db.add(role)
-    await db.flush()
-    return role
 
 
 def _role_payload(
@@ -77,7 +48,7 @@ class TestEmployeeRoleCRUD:
     async def test_create_role_returns_201(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
+        emp = await seed_employee(db_session)
         response = await auth_client.post(
             f"/employees/{emp.id}/roles", json=_role_payload()
         )
@@ -89,15 +60,15 @@ class TestEmployeeRoleCRUD:
     async def test_list_roles_returns_sorted_by_start_date(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
-        await _seed_role(
-            db_session, emp.id, start_date="2024-06-01", end_date="2024-09-01"
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
+            db_session, emp, start_date=date(2024, 6, 1), end_date=date(2024, 9, 1)
         )
-        await _seed_role(
+        await seed_employee_role(
             db_session,
-            emp.id,
-            start_date="2023-01-01",
-            end_date="2023-12-31",
+            emp,
+            start_date=date(2023, 1, 1),
+            end_date=date(2023, 12, 31),
         )
         response = await auth_client.get(f"/employees/{emp.id}/roles")
         assert response.status_code == 200
@@ -107,16 +78,14 @@ class TestEmployeeRoleCRUD:
     async def test_create_role_for_missing_employee_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        response = await auth_client.post(
-            "/employees/9999/roles", json=_role_payload()
-        )
+        response = await auth_client.post("/employees/9999/roles", json=_role_payload())
         assert response.status_code == 404
 
     async def test_delete_role(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
-        role = await _seed_role(db_session, emp.id)
+        emp = await seed_employee(db_session)
+        role = await seed_employee_role(db_session, emp)
         response = await auth_client.delete(f"/employees/roles/{role.id}")
         assert response.status_code == 204
 
@@ -144,11 +113,11 @@ class TestRoleOverlap:
     ):
         # [=======Jan–Mar=======]
         #       <--Feb-->
-        emp = await _seed_employee(db_session)
-        await _seed_role(
-            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
+            db_session, emp, start_date=date(2024, 1, 1), end_date=date(2024, 3, 31)
         )
-        payload = _role_payload(start_date="2024-02-01", end_date="2024-02-28")
+        payload = _role_payload(start_date=date(2024, 2, 1), end_date=date(2024, 2, 28))
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 409
 
@@ -157,11 +126,11 @@ class TestRoleOverlap:
     ):
         # [=====Jan–Mar=====]
         #                <--Mar–May-->
-        emp = await _seed_employee(db_session)
-        await _seed_role(
-            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
+            db_session, emp, start_date=date(2024, 1, 1), end_date=date(2024, 3, 31)
         )
-        payload = _role_payload(start_date="2024-03-01", end_date="2024-05-31")
+        payload = _role_payload(start_date=date(2024, 3, 1), end_date=date(2024, 5, 31))
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 409
 
@@ -171,11 +140,13 @@ class TestRoleOverlap:
         # [=====Jan–Mar=====]
         #                   <--Mar 31–May-->
         # The overlap condition uses >= on end_date, so Mar 31 == Mar 31 overlaps.
-        emp = await _seed_employee(db_session)
-        await _seed_role(
-            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
+            db_session, emp, start_date=date(2024, 1, 1), end_date=date(2024, 3, 31)
         )
-        payload = _role_payload(start_date="2024-03-31", end_date="2024-05-31")
+        payload = _role_payload(
+            start_date=date(2024, 3, 31), end_date=date(2024, 5, 31)
+        )
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 409
 
@@ -184,9 +155,13 @@ class TestRoleOverlap:
     ):
         # [=====Jan–∞=====]
         #             <--Jul–Dec-->
-        emp = await _seed_employee(db_session)
-        await _seed_role(db_session, emp.id, start_date="2024-01-01", end_date=None)
-        payload = _role_payload(start_date="2024-07-01", end_date="2024-12-31")
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
+            db_session, emp, start_date=date(2024, 1, 1), end_date=None
+        )
+        payload = _role_payload(
+            start_date=date(2024, 7, 1), end_date=date(2024, 12, 31)
+        )
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 409
 
@@ -195,11 +170,11 @@ class TestRoleOverlap:
     ):
         # [=====Jan–Mar=====]
         #                       <--May–Jul-->
-        emp = await _seed_employee(db_session)
-        await _seed_role(
-            db_session, emp.id, start_date="2024-01-01", end_date="2024-03-31"
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
+            db_session, emp, start_date=date(2024, 1, 1), end_date=date(2024, 3, 31)
         )
-        payload = _role_payload(start_date="2024-05-01", end_date="2024-07-31")
+        payload = _role_payload(start_date=date(2024, 5, 1), end_date=date(2024, 7, 31))
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 201
 
@@ -208,11 +183,11 @@ class TestRoleOverlap:
     ):
         #                   [=====Jul–Dec=====]
         # <--Jan–Mar-->
-        emp = await _seed_employee(db_session)
-        await _seed_role(
-            db_session, emp.id, start_date="2024-07-01", end_date="2024-12-31"
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
+            db_session, emp, start_date=date(2024, 7, 1), end_date=date(2024, 12, 31)
         )
-        payload = _role_payload(start_date="2024-01-01", end_date="2024-03-31")
+        payload = _role_payload(start_date=date(2024, 1, 1), end_date=date(2024, 3, 31))
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
         assert response.status_code == 201
 
@@ -221,17 +196,17 @@ class TestRoleOverlap:
     ):
         # Overlap check is per role_type. Two different role types
         # can cover the same date range for the same employee.
-        emp = await _seed_employee(db_session)
-        await _seed_role(
+        emp = await seed_employee(db_session)
+        await seed_employee_role(
             db_session,
-            emp.id,
+            emp,
             role_type=EmployeeRoleType.ACM_AIR_TECH,
-            start_date="2024-01-01",
+            start_date=date(2024, 1, 1),
             end_date=None,
         )
         payload = _role_payload(
             role_type=EmployeeRoleType.ACM_PROJECT_MONITOR,
-            start_date="2024-01-01",
+            start_date=date(2024, 1, 1),
             end_date=None,
         )
         response = await auth_client.post(f"/employees/{emp.id}/roles", json=payload)
@@ -247,9 +222,9 @@ class TestUpdateRole:
     async def test_patch_end_date(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
-        role = await _seed_role(
-            db_session, emp.id, start_date="2024-01-01", end_date=None
+        emp = await seed_employee(db_session)
+        role = await seed_employee_role(
+            db_session, emp, start_date=date(2024, 1, 1), end_date=None
         )
         response = await auth_client.patch(
             f"/employees/roles/{role.id}",
@@ -261,9 +236,9 @@ class TestUpdateRole:
     async def test_patch_end_date_before_start_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        emp = await _seed_employee(db_session)
-        role = await _seed_role(
-            db_session, emp.id, start_date="2024-06-01", end_date=None
+        emp = await seed_employee(db_session)
+        role = await seed_employee_role(
+            db_session, emp, start_date=date(2024, 6, 1), end_date=None
         )
         response = await auth_client.patch(
             f"/employees/roles/{role.id}",
