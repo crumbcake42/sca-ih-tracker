@@ -8,6 +8,7 @@ GET    /time-entries/{id}
 DELETE /time-entries/{id}
 """
 
+import itertools
 from datetime import date, datetime, timezone
 
 import pytest
@@ -16,10 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import Boro, EmployeeRoleType, SampleBatchStatus, TimeEntryStatus
 from app.employees.models import Employee, EmployeeRole
+from app.employees.models import EmployeeRoleType as EmployeeRoleTypeModel
 from app.lab_results.models import SampleBatch, SampleType
 from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
+
+_emp_counter = itertools.count(1)
+_role_type_counter = itertools.count(1)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -52,7 +57,8 @@ async def _seed_project(db: AsyncSession, school: School) -> Project:
 
 
 async def _seed_employee(db: AsyncSession) -> Employee:
-    emp = Employee(first_name="Jane", last_name="Doe")
+    n = next(_emp_counter)
+    emp = Employee(first_name="Jane", last_name="Doe", display_name=f"Jane Doe {n}")
     db.add(emp)
     await db.flush()
     return emp
@@ -64,9 +70,12 @@ async def _seed_role(
     start: date = date(2025, 1, 1),
     end: date | None = None,
 ) -> EmployeeRole:
+    role_type = EmployeeRoleTypeModel(name=f"{EmployeeRoleType.ACM_PROJECT_MONITOR} {next(_role_type_counter)}")
+    db.add(role_type)
+    await db.flush()
     role = EmployeeRole(
         employee_id=employee.id,
-        role_type=EmployeeRoleType.ACM_PROJECT_MONITOR,
+        role_type_id=role_type.id,
         start_date=start,
         end_date=end,
         hourly_rate="75.00",
