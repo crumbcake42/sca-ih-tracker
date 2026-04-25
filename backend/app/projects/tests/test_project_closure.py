@@ -53,7 +53,9 @@ async def _seed_project(db: AsyncSession, school: School) -> Project:
 
 
 async def _seed_employee_with_role(db: AsyncSession) -> tuple[Employee, EmployeeRole]:
-    emp = Employee(first_name="Close", last_name="Tester")
+    emp = Employee(
+        first_name="Close", last_name="Tester", display_name="Close Tester"
+    )
     db.add(emp)
     await db.flush()
     role = EmployeeRole(

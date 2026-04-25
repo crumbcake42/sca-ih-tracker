@@ -8,7 +8,6 @@ from app.common.guards import assert_deletable
 from app.database import get_db
 from app.employees.models import Employee as EmployeeModel
 from app.employees.models import EmployeeRole as EmployeeRoleModel
-from app.employees.models import EmployeeRoleType as EmployeeRoleTypeModel
 from app.employees.schemas import (
     Employee,
     EmployeeCreate,
@@ -189,9 +188,7 @@ async def list_employee_roles(employee_id: int, db: AsyncSession = Depends(get_d
     result = await db.execute(
         select(EmployeeModel)
         .where(EmployeeModel.id == employee_id)
-        .options(
-            selectinload(EmployeeModel.roles).selectinload(EmployeeRoleModel.role_type)
-        )
+        .options(selectinload(EmployeeModel.roles))
     )
     employee = result.scalar_one_or_none()
     if not employee:
@@ -213,22 +210,11 @@ async def create_employee_role(
     if not emp_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    # Verify role_type_id exists
-    role_type = (
-        await db.execute(
-            select(EmployeeRoleTypeModel).where(
-                EmployeeRoleTypeModel.id == data.role_type_id
-            )
-        )
-    ).scalar_one_or_none()
-    if not role_type:
-        raise HTTPException(status_code=422, detail="role_type_id: Role type not found.")
-
     # Overlap check: no two roles of the same type can cover the same day
     overlap_stmt = select(EmployeeRoleModel).where(
         and_(
             EmployeeRoleModel.employee_id == employee_id,
-            EmployeeRoleModel.role_type_id == data.role_type_id,
+            EmployeeRoleModel.role_type == data.role_type,
             EmployeeRoleModel.start_date
             <= (data.end_date or data.start_date.replace(year=9999)),
             (EmployeeRoleModel.end_date == None)  # noqa: E711
@@ -239,7 +225,7 @@ async def create_employee_role(
     if overlap:
         raise HTTPException(
             status_code=409,
-            detail=f"Overlapping '{role_type.name}' role already exists for this employee.",
+            detail=f"Overlapping '{data.role_type.value}' role already exists for this employee.",
         )
 
     new_role = EmployeeRoleModel(
@@ -247,10 +233,8 @@ async def create_employee_role(
     )
     db.add(new_role)
     await db.commit()
-    result = await db.execute(
-        select(EmployeeRoleModel).where(EmployeeRoleModel.id == new_role.id)
-    )
-    return result.scalar_one()
+    await db.refresh(new_role)
+    return new_role
 
 
 @router.patch("/roles/{role_id}", response_model=EmployeeRole)
@@ -275,10 +259,8 @@ async def update_employee_role(
         raise HTTPException(status_code=422, detail="end_date must be after start_date")
 
     await db.commit()
-    result = await db.execute(
-        select(EmployeeRoleModel).where(EmployeeRoleModel.id == role_id)
-    )
-    return result.scalar_one()
+    await db.refresh(role)
+    return role
 
 
 @router.delete("/roles/{role_id}", status_code=204)

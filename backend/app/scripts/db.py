@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 import app.projects.models  # noqa: F401 — registers Project/links mappers
 import app.work_auths.models  # noqa: F401
 from app.common.config import settings
-from app.common.enums import PermissionName, UserRole
+from app.common.enums import EmployeeRoleType, PermissionName, UserRole
 from app.common.security import hash_password
 from app.contractors.models import Contractor as ContractorModel
 from app.contractors.schemas import ContractorCreate as ContractorSchema
@@ -20,9 +20,7 @@ from app.deliverables.models import Deliverable as DeliverableModel
 from app.deliverables.schemas import DeliverableCreate as DeliverableSchema
 from app.employees.models import Employee as EmployeeModel
 from app.employees.models import EmployeeRole as EmployeeRoleModel
-from app.employees.models import EmployeeRoleType as EmployeeRoleTypeModel
 from app.employees.schemas import EmployeeCreate as EmployeeSchema
-from app.employees.schemas import EmployeeRoleTypeCreate
 from app.hygienists.models import Hygienist as HygienistModel
 from app.hygienists.schemas import HygienistCreate as HygienistSchema
 from app.schools.models import School as SchoolModel
@@ -106,8 +104,7 @@ async def seed_from_csv(
 
 
 async def seed_employee_roles(db: AsyncSession) -> None:
-    """Seed employee_roles from CSV, matching rows to employees via adp_id
-    and role types via name."""
+    """Seed employee_roles from CSV, matching rows to employees via adp_id."""
     filename = "employee_roles.csv"
     file_path = SEED_DATA_PATH / filename
     if not file_path.exists():
@@ -122,7 +119,7 @@ async def seed_employee_roles(db: AsyncSession) -> None:
         reader = csv.DictReader(f)
         for line_num, row in enumerate(reader, start=2):
             adp_id = row.pop("adp_id", "").strip()
-            role_type_name = row.pop("role_type", "").strip()
+            role_type_value = row.pop("role_type", "").strip()
             row.pop("name", None)  # ignore reference-only column if present
             try:
                 from datetime import date as date_type
@@ -143,16 +140,13 @@ async def seed_employee_roles(db: AsyncSession) -> None:
                     error_count += 1
                     continue
 
-                # Resolve role type by name
-                role_type = (
-                    await db.execute(
-                        select(EmployeeRoleTypeModel).where(
-                            EmployeeRoleTypeModel.name == role_type_name
-                        )
+                # Coerce role_type to enum
+                try:
+                    role_type = EmployeeRoleType(role_type_value)
+                except ValueError:
+                    print(
+                        f"  [ERROR] Line {line_num}: Unknown role_type={role_type_value!r}"
                     )
-                ).scalar_one_or_none()
-                if not role_type:
-                    print(f"  [ERROR] Line {line_num}: No role type with name={role_type_name!r}")
                     error_count += 1
                     continue
 
@@ -161,7 +155,7 @@ async def seed_employee_roles(db: AsyncSession) -> None:
                     await db.execute(
                         select(EmployeeRoleModel).where(
                             EmployeeRoleModel.employee_id == employee.id,
-                            EmployeeRoleModel.role_type_id == role_type.id,
+                            EmployeeRoleModel.role_type == role_type,
                             EmployeeRoleModel.start_date == start_date,
                         )
                     )
@@ -172,7 +166,7 @@ async def seed_employee_roles(db: AsyncSession) -> None:
                 db.add(
                     EmployeeRoleModel(
                         employee_id=employee.id,
-                        role_type_id=role_type.id,
+                        role_type=role_type,
                         start_date=start_date,
                         end_date=end_date,
                         hourly_rate=hourly_rate,
@@ -307,7 +301,6 @@ async def initialize():
             seed_files = [
                 (db, SchoolModel, SchoolSchema, "schools.csv", "code"),
                 (db, ContractorModel, ContractorSchema, "contractors.csv", "name"),
-                (db, EmployeeRoleTypeModel, EmployeeRoleTypeCreate, "employee_role_types.csv", "name"),
                 (db, EmployeeModel, EmployeeSchema, "employees.csv", "adp_id"),
                 (db, HygienistModel, HygienistSchema, "hygienists.csv", "email"),
                 (db, WACodeModel, WACodeSchema, "wa_codes.csv", "code"),

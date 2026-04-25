@@ -4,7 +4,7 @@ from .deliverables import (
     seed_project_building_deliverable,
     seed_project_deliverable,
 )
-from .employees import seed_employee, seed_employee_role, seed_role_type
+from .employees import seed_employee, seed_employee_role
 from .hygienist import seed_hygienist
 from .lab_results import (
     seed_sample_batch,
@@ -36,7 +36,6 @@ __all__ = [
     # employees
     "seed_employee",
     "seed_employee_role",
-    "seed_role_type",
     # hygienists
     "seed_hygienist",
     # lab results

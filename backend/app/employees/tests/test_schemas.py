@@ -16,6 +16,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
+from app.common.enums import EmployeeRoleType
 from app.employees.schemas import EmployeeBase, EmployeeRoleCreate
 
 # ---------------------------------------------------------------------------
@@ -84,7 +85,7 @@ class TestEmployeeBaseEmail:
 
 def _make_role(start: str, end: str | None, rate: str = "25.00") -> EmployeeRoleCreate:
     return EmployeeRoleCreate(
-        role_type_id=1,  # FK not validated at schema layer
+        role_type=EmployeeRoleType.ACM_AIR_TECH,
         start_date=date.fromisoformat(start),
         end_date=date.fromisoformat(end) if end else None,
         hourly_rate=Decimal(rate),

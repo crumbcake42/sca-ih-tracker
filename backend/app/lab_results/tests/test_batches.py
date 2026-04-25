@@ -10,7 +10,6 @@ DELETE /lab-results/batches/{batch_id}
 
 from datetime import date, datetime
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,8 +17,6 @@ from app.common.enums import Boro, EmployeeRoleType
 from app.employees.models import Employee, EmployeeRole
 from app.lab_results.models import (
     SampleBatch,
-    SampleBatchInspector,
-    SampleBatchUnit,
     SampleSubtype,
     SampleType,
     SampleTypeRequiredRole,
@@ -29,6 +26,8 @@ from app.lab_results.models import (
 from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
+
+from tests.seeds import seed_employee
 
 BASE = "/lab-results/batches"
 
@@ -67,13 +66,6 @@ async def _seed_project(db: AsyncSession, school: School) -> Project:
     db.add(project)
     await db.flush()
     return project
-
-
-async def _seed_employee(db: AsyncSession) -> Employee:
-    emp = Employee(first_name="Jane", last_name="Doe")
-    db.add(emp)
-    await db.flush()
-    return emp
 
 
 async def _seed_role(
@@ -158,9 +150,7 @@ async def _seed_required_role(
     sample_type: SampleType,
     role_type: EmployeeRoleType = EmployeeRoleType.ACM_AIR_TECH,
 ) -> SampleTypeRequiredRole:
-    rr = SampleTypeRequiredRole(
-        sample_type_id=sample_type.id, role_type=role_type
-    )
+    rr = SampleTypeRequiredRole(sample_type_id=sample_type.id, role_type=role_type)
     db.add(rr)
     await db.flush()
     return rr
@@ -210,7 +200,7 @@ async def _make_context(
 ) -> _BatchContext:
     school = await _seed_school(db)
     project = await _seed_project(db, school)
-    emp = await _seed_employee(db)
+    emp = await seed_employee(db)
     role = await _seed_role(db, emp, role_type=role_type)
     entry = await _seed_entry(db, emp, role, project, school)
     sample_type = await _seed_sample_type(db, sample_type_name, allows_multiple)
@@ -268,7 +258,9 @@ class TestCreateBatch:
     ):
         ctx = await _make_context(db_session, sample_type_name="Dupe Batch Num")
         await auth_client.post(BASE + "/", json=ctx.batch_payload("DUPE-001"))
-        response = await auth_client.post(BASE + "/", json=ctx.batch_payload("DUPE-001"))
+        response = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("DUPE-001")
+        )
         assert response.status_code == 409
 
     async def test_missing_sample_type_returns_404(
@@ -424,7 +416,7 @@ class TestCreateBatchValidation:
             sample_type_name="Multi Inspector OK",
             allows_multiple=True,
         )
-        emp2 = await _seed_employee(db_session)
+        emp2 = await seed_employee(db_session)
 
         payload = ctx.batch_payload("BATCH-MI1")
         payload["inspector_ids"] = [ctx.emp.id, emp2.id]
@@ -440,7 +432,7 @@ class TestCreateBatchValidation:
             sample_type_name="Single Inspector Only",
             allows_multiple=False,
         )
-        emp2 = await _seed_employee(db_session)
+        emp2 = await seed_employee(db_session)
 
         payload = ctx.batch_payload("BATCH-SI1")
         payload["inspector_ids"] = [ctx.emp.id, emp2.id]
@@ -454,7 +446,9 @@ class TestCreateBatchValidation:
 
 
 class TestListBatches:
-    async def test_returns_200(self, auth_client: AsyncClient, db_session: AsyncSession):
+    async def test_returns_200(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
         ctx = await _make_context(db_session, sample_type_name="List Test Type")
         await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-L001"))
 
@@ -495,9 +489,13 @@ class TestListBatches:
 
 
 class TestGetBatch:
-    async def test_returns_200(self, auth_client: AsyncClient, db_session: AsyncSession):
+    async def test_returns_200(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
         ctx = await _make_context(db_session, sample_type_name="Get Single Type")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-G001"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-G001")
+        )
         batch_id = create.json()["id"]
 
         response = await auth_client.get(f"{BASE}/{batch_id}")
@@ -531,7 +529,9 @@ class TestUpdateBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Patch is_report Type")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-P001"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-P001")
+        )
         batch_id = create.json()["id"]
 
         response = await auth_client.patch(
@@ -544,7 +544,9 @@ class TestUpdateBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Patch Date Type")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-P002"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-P002")
+        )
         batch_id = create.json()["id"]
 
         new_date = date(2025, 12, 1).isoformat()
@@ -558,7 +560,9 @@ class TestUpdateBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Patch Notes Type")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-P003"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-P003")
+        )
         batch_id = create.json()["id"]
 
         response = await auth_client.patch(
@@ -568,9 +572,7 @@ class TestUpdateBatch:
         assert response.json()["notes"] == "Updated field note"
 
     async def test_patch_missing_returns_404(self, auth_client: AsyncClient):
-        response = await auth_client.patch(
-            f"{BASE}/9999", json={"is_report": True}
-        )
+        response = await auth_client.patch(f"{BASE}/9999", json={"is_report": True})
         assert response.status_code == 404
 
 
@@ -584,7 +586,9 @@ class TestDeleteBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Delete Batch Type")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-D001"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-D001")
+        )
         batch_id = create.json()["id"]
 
         response = await auth_client.delete(f"{BASE}/{batch_id}")
@@ -622,10 +626,14 @@ class TestBatchAuditFields:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Audit Create Type")
-        response = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-AU1"))
+        response = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-AU1")
+        )
         assert response.status_code == 201
         batch = await db_session.get(SampleBatch, response.json()["id"])
-        assert batch.created_by_id == 1  # fake_user.id from auth_client fixture
+        assert (
+            batch and batch.created_by_id == 1
+        )  # fake_user.id from auth_client fixture
 
     async def test_update_sets_updated_by_id(
         self, auth_client: AsyncClient, db_session: AsyncSession
@@ -639,7 +647,9 @@ class TestBatchAuditFields:
         )
         assert response.status_code == 200
         batch = await db_session.get(SampleBatch, batch_id)
-        assert batch.updated_by_id == 1  # fake_user.id from auth_client fixture
+        assert (
+            batch and batch.updated_by_id == 1
+        )  # fake_user.id from auth_client fixture
 
 
 # ---------------------------------------------------------------------------
@@ -652,7 +662,9 @@ class TestBatchStatusDefault:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Status Default Type")
-        response = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-ST1"))
+        response = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-ST1")
+        )
         assert response.status_code == 201
         assert response.json()["status"] == "active"
 
@@ -667,7 +679,9 @@ class TestDiscardBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Discard Type 1")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-DIS1"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-DIS1")
+        )
         batch_id = create.json()["id"]
 
         response = await auth_client.post(f"{BASE}/{batch_id}/discard")
@@ -678,7 +692,9 @@ class TestDiscardBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Discard Type 2")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-DIS2"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-DIS2")
+        )
         batch_id = create.json()["id"]
 
         await auth_client.post(f"{BASE}/{batch_id}/discard")
@@ -693,12 +709,16 @@ class TestDiscardBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Discard Type 3")
-        create = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-DIS3"))
+        create = await auth_client.post(
+            BASE + "/", json=ctx.batch_payload("BATCH-DIS3")
+        )
         batch_id = create.json()["id"]
 
         await auth_client.post(f"{BASE}/{batch_id}/discard")
         batch = await db_session.get(SampleBatch, batch_id)
-        assert batch.updated_by_id == 1  # fake_user.id from auth_client fixture
+        assert (
+            batch and batch.updated_by_id == 1
+        )  # fake_user.id from auth_client fixture
 
 
 # ---------------------------------------------------------------------------
