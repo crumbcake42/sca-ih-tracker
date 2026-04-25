@@ -455,7 +455,10 @@ export type EmployeeCreate = {
  * EmployeeRole
  */
 export type EmployeeRole = {
-    role_type: EmployeeRoleType;
+    /**
+     * Role Type Id
+     */
+    role_type_id: number;
     /**
      * Start Date
      */
@@ -476,13 +479,17 @@ export type EmployeeRole = {
      * Employee Id
      */
     employee_id: number;
+    role_type: EmployeeRoleTypeRead;
 };
 
 /**
  * EmployeeRoleCreate
  */
 export type EmployeeRoleCreate = {
-    role_type: EmployeeRoleType;
+    /**
+     * Role Type Id
+     */
+    role_type_id: number;
     /**
      * Start Date
      */
@@ -501,6 +508,52 @@ export type EmployeeRoleCreate = {
  * EmployeeRoleType
  */
 export type EmployeeRoleType = 'Asbestos On Site Technical Air Testing' | 'Asbestos Project Monitor' | 'Asbestos Inspector Level A' | 'Asbestos Investigator Level A' | 'Asbestos Project Manager Level A' | 'Certified Lead Inspector / Risk Assessor Level A' | 'Certified Lead Inspector / Risk Assessor Level B' | 'Mold Field Technician' | 'Mold Project Manager Level A' | 'Mold Project Manager Level B';
+
+/**
+ * EmployeeRoleTypeCreate
+ */
+export type EmployeeRoleTypeCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+};
+
+/**
+ * EmployeeRoleTypeRead
+ */
+export type EmployeeRoleTypeRead = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+};
+
+/**
+ * EmployeeRoleTypeUpdate
+ */
+export type EmployeeRoleTypeUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+};
 
 /**
  * EmployeeRoleUpdate
@@ -3871,6 +3924,139 @@ export type ImportBatchEmployeesBatchImportPostResponses = {
 };
 
 export type ImportBatchEmployeesBatchImportPostResponse = ImportBatchEmployeesBatchImportPostResponses[keyof ImportBatchEmployeesBatchImportPostResponses];
+
+export type ListEmployeeRoleTypesEmployeeRoleTypesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/employee-role-types/';
+};
+
+export type ListEmployeeRoleTypesEmployeeRoleTypesGetResponses = {
+    /**
+     * Response List Employee Role Types Employee Role Types  Get
+     *
+     * Successful Response
+     */
+    200: Array<EmployeeRoleTypeRead>;
+};
+
+export type ListEmployeeRoleTypesEmployeeRoleTypesGetResponse = ListEmployeeRoleTypesEmployeeRoleTypesGetResponses[keyof ListEmployeeRoleTypesEmployeeRoleTypesGetResponses];
+
+export type CreateEmployeeRoleTypeEmployeeRoleTypesPostData = {
+    body: EmployeeRoleTypeCreate;
+    path?: never;
+    query?: never;
+    url: '/employee-role-types/';
+};
+
+export type CreateEmployeeRoleTypeEmployeeRoleTypesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateEmployeeRoleTypeEmployeeRoleTypesPostError = CreateEmployeeRoleTypeEmployeeRoleTypesPostErrors[keyof CreateEmployeeRoleTypeEmployeeRoleTypesPostErrors];
+
+export type CreateEmployeeRoleTypeEmployeeRoleTypesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: EmployeeRoleTypeRead;
+};
+
+export type CreateEmployeeRoleTypeEmployeeRoleTypesPostResponse = CreateEmployeeRoleTypeEmployeeRoleTypesPostResponses[keyof CreateEmployeeRoleTypeEmployeeRoleTypesPostResponses];
+
+export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Role Type Id
+         */
+        role_type_id: number;
+    };
+    query?: never;
+    url: '/employee-role-types/{role_type_id}';
+};
+
+export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteError = DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteErrors[keyof DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteErrors];
+
+export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponse = DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponses[keyof DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponses];
+
+export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Role Type Id
+         */
+        role_type_id: number;
+    };
+    query?: never;
+    url: '/employee-role-types/{role_type_id}';
+};
+
+export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetError = GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetErrors[keyof GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetErrors];
+
+export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EmployeeRoleTypeRead;
+};
+
+export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponse = GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponses[keyof GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponses];
+
+export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchData = {
+    body: EmployeeRoleTypeUpdate;
+    path: {
+        /**
+         * Role Type Id
+         */
+        role_type_id: number;
+    };
+    query?: never;
+    url: '/employee-role-types/{role_type_id}';
+};
+
+export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchError = UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchErrors[keyof UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchErrors];
+
+export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: EmployeeRoleTypeRead;
+};
+
+export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponse = UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponses[keyof UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponses];
 
 export type ListEntriesHygienistsGetData = {
     body?: never;

@@ -19,6 +19,13 @@ vi.mock("@/features/employees/api/employees", () => ({
   listEmployeeRolesQueryKey: () => ["employee-roles"],
 }));
 
+vi.mock("@/features/employee-role-types/api/employeeRoleTypes", () => ({
+  listEmployeeRoleTypesOptions: () => ({
+    queryKey: ["role-types"],
+    queryFn: async () => [{ id: 5, name: "Mold Field Technician" }],
+  }),
+}));
+
 vi.mock("sonner", () => ({
   toast: { error: mockToastError, success: vi.fn() },
 }));
@@ -26,7 +33,8 @@ vi.mock("sonner", () => ({
 const SAMPLE_ROLE: EmployeeRole = {
   id: 42,
   employee_id: 1,
-  role_type: "Mold Field Technician",
+  role_type_id: 5,
+  role_type: { id: 5, name: "Mold Field Technician" },
   start_date: "2024-01-01",
   end_date: null,
   hourly_rate: "35.00",
@@ -67,8 +75,19 @@ describe("EmployeeRoleFormDialog", () => {
 
     renderDialog();
 
-    // Fill required fields
-    const user = userEvent.setup();
+    // pointerEventsCheck: 0 skips the pointer-events CSS check — Radix Dialog
+    // sets pointer-events:none on <body> for scroll-lock, which jsdom treats as
+    // blocking all clicks even though elements inside the dialog are auto.
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+    // Wait for role types to load, then select one
+    const trigger = await screen.findByRole("combobox", { name: /role type/i });
+    await user.click(trigger);
+    const option = await screen.findByRole("option", {
+      name: "Mold Field Technician",
+    });
+    await user.click(option);
+
     await user.clear(screen.getByLabelText(/start date/i));
     await user.type(screen.getByLabelText(/start date/i), "2024-03-01");
     await user.clear(screen.getByLabelText(/hourly rate/i));

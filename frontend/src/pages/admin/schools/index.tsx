@@ -1,28 +1,64 @@
 import { useNavigate } from "@tanstack/react-router";
+import { UploadSimpleIcon } from "@phosphor-icons/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { School } from "@/api/generated/types.gen";
-import { SchoolsList } from "@/features/schools/components/SchoolsList";
-import { useUrlSearch } from "@/hooks/useUrlSearch";
-import { useUrlPagination } from "@/hooks/useUrlPagination";
+import { listSchoolsOptions } from "@/features/schools/api/schools";
+import { SchoolImportDialog } from "@/features/schools/components/SchoolImportDialog";
+import { EntityListPage } from "@/components/EntityListPage";
+import { Button } from "@/components/ui/button";
+import { useFormDialog } from "@/hooks/useFormDialog";
+
+const columns: ColumnDef<School>[] = [
+  {
+    accessorKey: "code",
+    header: "Code",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs">{getValue<string>()}</span>
+    ),
+  },
+  {
+    accessorKey: "name",
+    header: "Name",
+  },
+  {
+    accessorKey: "city",
+    header: "Borough",
+  },
+  {
+    accessorKey: "address",
+    header: "Address",
+  },
+];
 
 export function SchoolsListPage() {
   const navigate = useNavigate();
-  const [search, setSearch] = useUrlSearch("search");
-  const { pagination, onPaginationChange } = useUrlPagination();
-
-  function handleRowClick(school: School) {
-    void navigate({
-      to: "/admin/schools/$schoolId",
-      params: { schoolId: String(school.id) },
-    });
-  }
+  const importDialog = useFormDialog();
 
   return (
-    <SchoolsList
-      search={search}
-      onSearchChange={setSearch}
-      pagination={pagination}
-      onPaginationChange={onPaginationChange}
-      onRowClick={handleRowClick}
-    />
+    <>
+      <EntityListPage<School>
+        title="Schools"
+        columns={columns}
+        queryOptions={listSchoolsOptions}
+        searchPlaceholder="Search schools…"
+        emptyMessage="No schools found."
+        actions={
+          <Button size="sm" onClick={() => importDialog.setOpen(true)}>
+            <UploadSimpleIcon size={15} />
+            Import CSV
+          </Button>
+        }
+        onRowClick={(school) =>
+          void navigate({
+            to: "/admin/schools/$schoolId",
+            params: { schoolId: String(school.id) },
+          })
+        }
+      />
+      <SchoolImportDialog
+        open={importDialog.open}
+        onOpenChange={importDialog.onOpenChange}
+      />
+    </>
   );
 }

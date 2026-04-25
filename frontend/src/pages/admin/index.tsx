@@ -10,6 +10,7 @@ import {
   UserCircleIcon,
   ShieldIcon,
   FlaskIcon,
+  IdentificationCardIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,22 +53,29 @@ const ENTITY_CARDS: readonly EntityCard[] = [
   },
   {
     label: "Contractors",
-    description: "Manage contractor records. Coming in Phase 2.3.",
+    description: "Manage contractor company records.",
     Icon: HardHatIcon,
-    disabled: true,
+    to: "/admin/contractors",
   },
   {
     label: "Hygienists",
-    description: "Manage certified hygienist records. Coming in Phase 2.3.",
+    description: "Manage certified hygienist records.",
     Icon: UserCheckIcon,
-    disabled: true,
+    to: "/admin/hygienists",
   },
   {
     label: "WA Codes",
     description:
-      "Manage work authorization code categories used on project WAs. Coming in Phase 2.3.",
+      "Manage work authorization code categories used on project WAs.",
     Icon: TagIcon,
-    disabled: true,
+    to: "/admin/wa-codes",
+  },
+  {
+    label: "Employee Role Types",
+    description:
+      "Manage employee role type definitions used in role assignments.",
+    Icon: IdentificationCardIcon,
+    to: "/admin/employee-role-types",
   },
   {
     label: "Deliverables",
@@ -78,7 +86,8 @@ const ENTITY_CARDS: readonly EntityCard[] = [
   },
   {
     label: "Users",
-    description: "Manage system user accounts and password resets. Coming in Phase 2.4.",
+    description:
+      "Manage system user accounts and password resets. Coming in Phase 2.4.",
     Icon: UserCircleIcon,
     disabled: true,
   },

@@ -2,31 +2,167 @@
 
 ## Backend changes pending frontend pickup
 
-**Regenerate the OpenAPI client** — multiple backend endpoints changed shape. Run the codegen command from `frontend/CLAUDE.md` after the backend is running.
+**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
 
-**Breaking change: `GET /work-auths/` now returns a paginated list.** Previously, `GET /work-auths/?project_id=X` returned a single `WorkAuth` object and raised 404 when no work auth existed for that project. It now returns a `PaginatedResponse<WorkAuth>` envelope (`{ items, total, skip, limit }`). When the project has no work auth, `total` is 0 and `items` is `[]` — there is no 404. Any frontend code that reads `response.project_id` directly must be updated to `response.items[0]?.project_id` (and guard for the empty case).
-
-**Breaking change: `GET /contractors/` and `GET /hygienists/` now return paginated envelopes.** Both previously returned bare arrays. They now return `PaginatedResponse<Contractor>` and `PaginatedResponse<Hygienist>` respectively (`{ items, total, skip, limit }`). Both also accept `search`, `skip`, and `limit` query params. Any frontend code reading these as arrays must migrate to `.items`. The contractors endpoint also gained `search_attr` on `name`; hygienists on `last_name`.
-
-**Breaking change: `EmployeeRole.role_type` field removed — replaced by `role_type_id` + `role_type` object.** `EmployeeRole` now returns `{ role_type_id: number, role_type: { id: number, name: string, description?: string }, ... }` instead of `{ role_type: string, ... }`. Any code reading `role.role_type` as a string must migrate to `role.role_type.name`; any code writing `role_type` to the create endpoint must switch to `role_type_id: number`. New endpoints `GET/POST/PATCH/DELETE /employee-role-types/` expose the admin-managed list. Session 2.3 (Roles admin) will consume this. If `EmployeeRolesTab` or `EmployeeRoleFormDialog` are found using the old field, update them during Session 2.2 or before.
+**`GET /work-auths/` is now paginated** — returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
 
 ---
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, and 1.5C complete.** All shadcn primitives now have Storybook stories. Admin shell is live with WordPress-style sidebar, AdminTopBar, and WP-style dashboard.
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, 2.3b, 2.3c, and 2.3d complete.**
 
-**Next is Session 2.2 — Extract generics + retrofit (Schools + Employees → `EntityListPage`/`EntityFormDialog`).**
+- OpenAPI client regenerated after backend unblocking session.
+- `EmployeeRolesTab` + `EmployeeRoleFormDialog` migrated from `role_type: string` to `role_type_id: number` + `role_type: EmployeeRoleTypeRead`; select options now fetched from `/employee-role-types/`.
+- `src/features/employees/api/employees.ts` barrel extended with `listEmployeeRoleTypesOptions/QueryKey`, `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`.
+- `EmployeeRoleFormDialog.test.tsx` updated to match new shape.
+- WA codes admin CRUD pages built and wired to dashboard (Session 2.3a). `GET /wa-codes/{id}/connections` returns `unknown` in generated client — backend needs `WaCodeConnections` response model before the `hasConnections` cast in `WaCodeFormDialog.tsx` can be removed.
 
-**Collateral pickups from other backend work:**
+**Next: Session 2.3e (Deliverables) — still blocked.** See "Backend changes pending frontend pickup" above. All 2.3a–2.3d admin CRUD slices are complete.
 
-- **`GET /work-auths/` is now paginated** — previously returned a single `WorkAuth` or 404; now returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
-- **New contractors endpoints** (`GET/POST/PATCH /contractors/`) — regenerated client exposes them. Not needed until Session 2.3.
+---
 
-**Priority after completing phase 2.1** - issues and patterns to resolve (written by me, the user, not Claude)
+## What Was Done This Session (Session 2.3d — Employee Role Types admin CRUD)
 
-- commit to file structure decision: explain why entity fields like employee and school combobox are in src/fields instead of src/[entity]/components/
-- discuss testing strategy. is it not in roadmap or is there a reason why the code we've written so far doesn't need unit/regression/integration tests?
+**Done:**
+
+- Built Employee Role Types admin CRUD wired to the admin dashboard and sidebar.
+- Created `src/features/employee-role-types/api/employeeRoleTypes.ts` — new canonical barrel for all role-type endpoint wrappers: `listEmployeeRoleTypesOptions/QueryKey`, `getEmployeeRoleTypeOptions/QueryKey` (NEW — was missing), `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`.
+- Migrated `EmployeeRoleFormDialog.tsx` and its test to import `listEmployeeRoleTypesOptions` from the new barrel; removed the five role-type re-exports from `src/features/employees/api/employees.ts`.
+- `EmployeeRoleTypeFormDialog.tsx` — `useEntityForm`-based add/edit dialog; schema has `name` required, `description` optional nullable; empty string → `null` on submit.
+- `EmployeeRoleTypeDetail.tsx` — detail card with two `DetailRow`s (name, description); edit/delete buttons; `DeleteConfirmDialog` renders 409 `detail` inline, no toast.
+- `src/pages/admin/employee-role-types/{index,detail,loader}.tsx` — custom inline table list page (endpoint returns plain array, not paginated — can't use `EntityListPage`), detail page wrapper, loader.
+- `src/routes/_authenticated/admin/employee-role-types/{index,$roleTypeId}.tsx` — file routes. Route tree regenerated via `pnpm exec tsr generate`.
+- Enabled Employee Role Types in `nav-items.ts` (new entry with `IdentificationCardIcon`) and `src/pages/admin/index.tsx` dashboard card.
+- Tests: `EmployeeRoleTypeFormDialog.test.tsx` (4 tests: create, required-field validation, 422→applyServerErrors, edit prefill); `EmployeeRoleTypeDetail.test.tsx` (1 test: 409 inline, no toast).
+- All 37 tests pass; `pnpm tsc --noEmit` and `pnpm check` clean.
+
+**Next:** Session 2.3e (Deliverables) — still blocked by backend.
+
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
+
+---
+
+## What Was Done This Session (Session 2.3c — Hygienists admin CRUD)
+
+**Done:**
+
+- Built Hygienists admin CRUD wired to the admin dashboard and sidebar.
+- `src/features/hygienists/api/hygienists.ts` — full barrel: `listHygienists*`, `getHygienist*`, `createHygienistMutation`, `updateHygienistMutation`, `deleteHygienistMutation`, `getHygienistConnections*`.
+- `HygienistFormDialog.tsx` — `useEntityForm`-based add/edit dialog; schema has `first_name`/`last_name` required, `email`/`phone` optional nullable; email coerces empty string to `null` on submit.
+- `HygienistDetail.tsx` — detail card with four `DetailRow`s (first name, last name, email, phone); edit/delete buttons; `DeleteConfirmDialog` renders 409 `detail` inline, no toast.
+- `src/pages/admin/hygienists/{index,detail,loader}.tsx` — `EntityListPage<Hygienist>` list (Name via `accessorFn`, Email, Phone columns), detail page wrapper, loader.
+- `src/routes/_authenticated/admin/hygienists/{index,$hygienistId}.tsx` — file routes with `validateSearch` and loader. Route tree regenerated.
+- Enabled Hygienists in `nav-items.ts` and `src/pages/admin/index.tsx` dashboard card.
+- Tests: `HygienistFormDialog.test.tsx` (4 tests: create, required-field validation, 422→applyServerErrors, edit prefill); `HygienistDetail.test.tsx` (1 test: 409 inline, no toast).
+- All 32 tests pass; `pnpm tsc --noEmit` and `pnpm check` clean.
+
+**Next:** Session 2.3d (Employee Role Types) — unblocked.
+
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
+
+---
+
+## What Was Done This Session (Session 2.3b — Contractors admin CRUD)
+
+**Done:**
+
+- Built Contractors admin CRUD wired to the admin dashboard and sidebar.
+- `src/features/contractors/api/contractors.ts` — full barrel: `listContractors*`, `getContractor*`, `createContractorMutation`, `updateContractorMutation`, `deleteContractorMutation`, `getContractorConnections*`, `importBatchContractorsMutation`.
+- `ContractorFormDialog.tsx` — `useEntityForm`-based add/edit dialog; schema has all five fields required (matching `ContractorCreate`); no immutable-field lock (no level equivalent).
+- `ContractorDetail.tsx` — detail card with five `DetailRow`s, edit/delete buttons; `DeleteConfirmDialog` renders 409 `detail` inline, no toast.
+- `src/pages/admin/contractors/{index,detail,loader}.tsx` — `EntityListPage<Contractor>` list (Name, City, State, Zip code columns), detail page wrapper, loader.
+- `src/routes/_authenticated/admin/contractors/{index,$contractorId}.tsx` — file routes with `validateSearch` and loader. Route tree regenerated.
+- Enabled Contractors in `nav-items.ts` and `src/pages/admin/index.tsx` dashboard card.
+- Fixed 2.3a oversight: WA Codes dashboard card was still `disabled: true` — flipped to active (`to: "/admin/wa-codes"`).
+- Tests: `ContractorFormDialog.test.tsx` (4 tests: create, required-field validation, 422→applyServerErrors, edit prefill); `ContractorDetail.test.tsx` (1 test: 409 inline, no toast).
+- All 27 tests pass; `pnpm tsc --noEmit` and `pnpm check` clean.
+
+**Next:** Session 2.3c (Hygienists) or 2.3d (Employee Role Types) — both unblocked.
+
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
+
+---
+
+## What Was Done This Session (Session 2.3a — WA codes admin CRUD)
+
+**Done:**
+
+- Built WA codes admin CRUD pages and wired them to the admin dashboard.
+- Surfaced schema issue: `GET /wa-codes/{id}/connections` has no `response_model`, so the generated client types the response as `unknown`. The `hasConnections` check in `WaCodeFormDialog.tsx` uses a cast as a workaround. Backend fix tracked in backend HANDOFF.
+
+**Next:** Session 2.3b (Contractors), 2.3c (Hygienists), or 2.3d (Employee Role Types) — pick any; all unblocked.
+
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
+
+---
+
+## What Was Done This Session (Auth fix — 401 interceptor redirect)
+
+**Done:**
+
+- Diagnosed two bugs causing a stuck/broken state on `/admin/employees` when the session token expired:
+  1. `queryClient` has `staleTime: 30_000`, so `ensureQueryData` in `_authenticated.tsx` `beforeLoad` returns cached `/users/me` data, allowing the route guard to pass even with an expired token.
+  2. The 401 interceptor in `store.ts` called `clearAuth()` but never redirected, leaving the user on the page with a blank top bar and a failed data table.
+- Updated `src/auth/store.ts`: the 401 interceptor now also calls `queryClient.removeQueries({ queryKey: currentUserQueryKey() })` (clears stale user cache) and `window.location.href = "/login"` (hard redirect); imported `queryClient` from `@/api/queryClient` and `currentUserQueryKey` from `@/auth/api`.
+
+**Next:** Session 2.3a — WA codes admin CRUD.
+
+**Blockers:** Session 2.3b (Deliverables admin) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`.
+
+---
+
+## What Was Done This Session (Backend pickup migration — regenerated client + role-type shape)
+
+**Done:**
+
+- Audited the regenerated OpenAPI client against all outstanding backend pickup items from HANDOFF.md.
+- Confirmed: contractors paginated ✅, hygienists paginated ✅, `EmployeeRole` shape changed to `role_type_id + role_type: EmployeeRoleTypeRead` ✅, new `/employee-role-types/` CRUD endpoints ✅.
+- Confirmed still missing: `POST /deliverables/` and `PATCH /deliverables/{id}` — Session 2.3b remains blocked.
+- Migrated `EmployeeRolesTab.tsx` — `role.role_type` → `role.role_type.name` (two sites).
+- Migrated `EmployeeRoleFormDialog.tsx` — schema uses `role_type_id: z.coerce.number().min(1)`, select options fetched from `listEmployeeRoleTypesOptions()`, create body passes `role_type_id`.
+- Extended `src/features/employees/api/employees.ts` with five new role-type wrappers.
+- Updated `EmployeeRoleFormDialog.test.tsx` — `SAMPLE_ROLE` has `role_type_id` + `role_type` object, mock includes `listEmployeeRoleTypesOptions`, 409 test adds select step.
+- Updated HANDOFF.md — removed resolved pickup items, kept deliverables blocker and work-auth pagination note.
+
+**Next:** Session 2.3a — WA codes admin CRUD.
+
+**Blockers:** Session 2.3b (Deliverables admin) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`.
+
+---
+
+## What Was Done This Session (Planning session — Session 2.3 split + backend pickups)
+
+**Done:**
+
+- Audited generated client (`types.gen.ts`, `sdk.gen.ts`, `@tanstack/react-query.gen.ts`) against Session 2.3 scope; found three backend gaps: contractors + hygienists are not paginated, and deliverables have no single-item create/update.
+- Split Session 2.3 into four sub-sessions (2.3a–2.3d) in ROADMAP.md; 2.3b/c/d marked blocked with notes.
+- Marked Session 2.2 complete in ROADMAP.md (was `[ ]` despite HANDOFF already reporting it done).
+- Added backend pickup items to "Backend changes pending frontend pickup" (paginate contractors/hygienists list; add POST/PATCH deliverables).
+
+**Next:** Session 2.3a — WA codes admin CRUD.
+
+**Blockers:** Sessions 2.3b/c/d await backend pagination (contractors, hygienists) and deliverables create/update endpoints.
+
+---
+
+## What Was Done This Session (Session 2.2 — Extract generics + retrofit)
+
+**Done:**
+
+- Created `src/hooks/useEntityForm.ts` — 4-generic hook encapsulating RHF setup, reset-on-open effect, create/update mutation pair, per-key cache invalidation, `applyServerErrors` → toast fallback. Hook owns `onSuccess`/`onError`; callers supply mutation options, `buildCreateVars`/`buildUpdateVars` adapters, `invalidateKeys`, and `entityLabel`.
+- Created `src/components/EntityListPage.tsx` — generic `<EntityListPage<T>>` owning `useUrlSearch` + `useUrlPagination`, running the list query, rendering Card-wrapped `DataTable` with header/search/`actions` slot.
+- Deleted `src/features/schools/components/SchoolsList.tsx` and `src/features/employees/components/EmployeesList.tsx`.
+- Rewrote `src/pages/admin/schools/index.tsx` and `src/pages/admin/employees/index.tsx` as thin compositions over `EntityListPage`; `actions` slot supplies the Import CSV / Add Employee buttons; `useFormDialog` used for dialog state (normalized Schools and Employees).
+- Rewrote `src/features/employees/components/EmployeeFormDialog.tsx` to consume `useEntityForm`; public prop signature unchanged; fields JSX unchanged.
+- Created `src/components/EntityListPage.test.tsx` (6 tests: heading, rows, empty state, actions slot, onRowClick, search navigate).
+- Created `src/hooks/useEntityForm.test.ts` (6 tests: isEdit flag, reset-on-open, create path, update path, 422 → field error / no toast, generic error → toast).
+- Created `src/components/EntityListPage.stories.tsx` — Default, WithActions, Loading, Empty, Error.
+- Appended to `src/PATTERNS.md`: Entity admin list pattern, Entity form pattern, `src/fields/` rationale, Testing strategy (closes both HANDOFF open items from Session 2.1).
+
+**Next:** Session 2.3 — Contractors, hygienists, WA codes, deliverables.
+
+**Blockers:** none
 
 ---
 

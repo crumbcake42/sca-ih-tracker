@@ -1,35 +1,71 @@
-import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { PlusIcon } from "@phosphor-icons/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { Employee } from "@/api/generated/types.gen";
-import { EmployeesList } from "@/features/employees/components/EmployeesList";
+import { listEmployeesOptions } from "@/features/employees/api/employees";
 import { EmployeeFormDialog } from "@/features/employees/components/EmployeeFormDialog";
-import { useUrlSearch } from "@/hooks/useUrlSearch";
-import { useUrlPagination } from "@/hooks/useUrlPagination";
+import { EntityListPage } from "@/components/EntityListPage";
+import { Button } from "@/components/ui/button";
+import { useFormDialog } from "@/hooks/useFormDialog";
+
+const columns: ColumnDef<Employee>[] = [
+  {
+    id: "name",
+    header: "Name",
+    cell: ({ row }) => {
+      const { first_name, last_name, display_name } = row.original;
+      return display_name ?? `${first_name} ${last_name}`;
+    },
+  },
+  {
+    accessorKey: "title",
+    header: "Title",
+    cell: ({ getValue }) => getValue<string | null>() ?? "—",
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ getValue }) => getValue<string | null>() ?? "—",
+  },
+  {
+    accessorKey: "adp_id",
+    header: "ADP ID",
+    cell: ({ getValue }) => {
+      const v = getValue<string | null>();
+      return v ? <span className="font-mono text-xs">{v}</span> : "—";
+    },
+  },
+];
 
 export function EmployeesListPage() {
   const navigate = useNavigate();
-  const [search, setSearch] = useUrlSearch("search");
-  const { pagination, onPaginationChange } = useUrlPagination();
-  const [addOpen, setAddOpen] = useState(false);
-
-  function handleRowClick(employee: Employee) {
-    void navigate({
-      to: "/admin/employees/$employeeId",
-      params: { employeeId: String(employee.id) },
-    });
-  }
+  const addDialog = useFormDialog();
 
   return (
     <>
-      <EmployeesList
-        search={search}
-        onSearchChange={setSearch}
-        pagination={pagination}
-        onPaginationChange={onPaginationChange}
-        onRowClick={handleRowClick}
-        onAddClick={() => setAddOpen(true)}
+      <EntityListPage<Employee>
+        title="Employees"
+        columns={columns}
+        queryOptions={listEmployeesOptions}
+        searchPlaceholder="Search employees…"
+        emptyMessage="No employees found."
+        actions={
+          <Button size="sm" onClick={() => addDialog.setOpen(true)}>
+            <PlusIcon size={15} />
+            Add employee
+          </Button>
+        }
+        onRowClick={(employee) =>
+          void navigate({
+            to: "/admin/employees/$employeeId",
+            params: { employeeId: String(employee.id) },
+          })
+        }
       />
-      <EmployeeFormDialog open={addOpen} onOpenChange={setAddOpen} />
+      <EmployeeFormDialog
+        open={addDialog.open}
+        onOpenChange={addDialog.onOpenChange}
+      />
     </>
   );
 }

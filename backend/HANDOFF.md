@@ -7,6 +7,8 @@ This file captures decisions made and work completed in the most recent session.
 ## Where Things Stand
 
 **Role-type promotion is done. All FE-blocking tasks from the previous handoff are resolved. Next backend work is Session A of the `/connections` factory refactor (see plan file and Phase 1.8 in ROADMAP.md).**
+**Work-auths migration and employee router cleanup are done. Two FE-blocking tasks pending: (1) promote `EmployeeRoleType` to admin-managed DB table (blocks FE Session 2.3); (2) paginate `GET /contractors/` and `GET /hygienists/` (blocks FE Sessions 2.3c–d).**
+**`EmployeeRoleType` is now an admin-managed DB table. `EmployeeRole.role_type` is a FK (`role_type_id`) into it. Migration written but not yet applied — user runs it.**
 
 ---
 
@@ -61,6 +63,18 @@ Open the plan file Appendix and implement:
 1. `create_guarded_delete_router` in `app/common/factories.py` — factory only, no callers changed.
 2. `app/common/tests/test_guarded_delete_factory.py` — 404 / 409 / 204 / OpenAPI-schema tests using `contractors` entity.
 3. Rewrite `app/PATTERNS.md` section 14 to reference the factory instead of the hand-rolled example.
+   After applying the migration, run the codegen command from `frontend/CLAUDE.md`. The `EmployeeRole` response shape changed significantly:
+
+- `role_type: EmployeeRoleType` (string union) → `role_type_id: int` + `role_type: EmployeeRoleTypeRead` (object with `id`, `name`, `description?`)
+- New endpoints: `GET/POST/PATCH/DELETE /employee-role-types/`
+
+### Add response model to `GET /wa-codes/{id}/connections`
+
+The frontend (`WaCodeFormDialog`) calls this endpoint to determine whether a WA code's `level` field should be locked. The current FastAPI handler returns the connections dict without a declared `response_model`, so the generated OpenAPI schema types the response as `unknown`. Add a `WaCodeConnections` Pydantic schema (e.g. `{ work_auths: int, rfa_codes: int, sample_types: int }`) and wire it as the `response_model`. Regenerate the frontend OpenAPI client afterward — this unblocks removing the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx`.
+
+---
+
+### After that: Phase 6.5
 
 Run: `.venv/Scripts/python.exe -m pytest app/common/tests/test_guarded_delete_factory.py -v`
 
