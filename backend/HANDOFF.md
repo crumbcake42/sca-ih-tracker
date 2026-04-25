@@ -6,11 +6,7 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-Two things landed this session:
-
-1. **`EmployeeRoleType` table promotion was reverted** — back to `StrEnum` in `app/common/enums.py:113`. All table-backed model, FK column, schemas, router, and tests for the promotion are gone.
-
-2. **Phase 1.8 Session A is done.** `create_guarded_delete_router` factory is live in `app/common/factories/`. Next: Session B — migrate all six router modules to use the factory.
+**Phase 1.8 Sessions A + B are done.** `create_guarded_delete_router` factory is live and all six router modules have been migrated. Six new `*Connections` schemas now appear in OpenAPI with full typing. Next: Session C — docs + FE handoff note.
 
 13 test files still need migration to `tests/seeds/` (see Next Steps).
 
@@ -18,7 +14,25 @@ Two things landed this session:
 
 ## What Was Done This Session
 
-### Reverted EmployeeRoleType table → StrEnum
+### Phase 1.8 Session B — Migrated six router modules to use `create_guarded_delete_router`
+
+For each of the six modules, deleted the hand-rolled `_get_*_references` helper and both `GET /{id}/connections` + `DELETE /{id}` endpoints, then replaced them with `router.include_router(create_guarded_delete_router(...))`. All 532 tests pass unchanged.
+
+Files modified:
+- `app/contractors/router/base.py`
+- `app/hygienists/router/base.py`
+- `app/schools/router/base.py`
+- `app/employees/router/base.py`
+- `app/deliverables/router/base.py`
+- `app/wa_codes/router/base.py`
+
+Stale imports cleaned up per file (`func`, `assert_deletable`, and in `deliverables/base.py` also `Depends`, `HTTPException`, `AsyncSession`, `get_db`, `select` — that file had no remaining direct endpoint code).
+
+Non-obvious: `deliverables/router/base.py` is now purely factory composition — no `Depends`/`HTTPException`/`AsyncSession`/`get_db` needed in that file at all.
+
+---
+
+### From prior session — Reverted EmployeeRoleType table → StrEnum
 
 Files reverted:
 - `app/employees/models.py` — dropped `EmployeeRoleType` class; restored `EmployeeRole.role_type` as `SQLEnum(EmployeeRoleType)`.
@@ -85,22 +99,10 @@ Replace local `_seed_*` helpers with imports from `tests.seeds`. The default `se
 git commit -m "Migrate test files to use shared tests/seeds package"
 ```
 
-### Session B — Migrate six router modules to use the factory
+### Session C — Docs + cross-side FE handoff (next)
 
-For each module below, delete the hand-rolled `_get_*_references` helper and both endpoints, then add `router.include_router(create_guarded_delete_router(...))`. Preserve every `label` string verbatim — they are part of the API contract.
-
-```
-app/contractors/router/base.py    refs: [(ProjectContractorLink, ProjectContractorLink.contractor_id, "project_contractors_links")]
-app/hygienists/router/base.py     refs: [(ProjectHygienistLink, ProjectHygienistLink.hygienist_id, "project_hygienist_links")]
-app/schools/router/base.py        refs: [(project_school_links table, school_id col, "projects")]
-app/employees/router/base.py      refs: two entries — time_entries.employee_id + sample_batch_inspectors.employee_id
-app/deliverables/router/base.py   refs: three entries
-app/wa_codes/router/base.py       refs: six entries; place include_router AFTER the GET /{identifier} route to avoid shadowing
-```
-
-Full per-entity label inventory: `ROADMAP.md` §Phase 1.8 Session B checklist (the existing test assertions in each entity's test file are the ground truth for labels).
-
-**Verify:** full test suite still green after migration.
+- HANDOFF.md + ROADMAP.md checkmarks (this session handles HANDOFF; update ROADMAP Session B boxes too)
+- `frontend/HANDOFF.md` note: regen OpenAPI client — six new `*Connections` schemas are now typed; the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed
 
 ---
 

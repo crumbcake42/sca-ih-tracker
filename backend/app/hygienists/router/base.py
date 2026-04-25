@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.factories import create_readonly_router
-from app.common.guards import assert_deletable
+from app.common.factories import create_guarded_delete_router, create_readonly_router
 from app.database import get_db
 from app.hygienists.models import Hygienist as HygienistModel
 from app.hygienists.schemas import Hygienist, HygienistCreate, HygienistUpdate
@@ -70,28 +69,11 @@ async def update_hygienist(
     return hygienist
 
 
-async def _get_hygienist_references(db: AsyncSession, hygienist_id: int) -> dict[str, int]:
-    link_count = await db.scalar(
-        select(func.count())
-        .select_from(ProjectHygienistLink)
-        .where(ProjectHygienistLink.hygienist_id == hygienist_id)
+router.include_router(
+    create_guarded_delete_router(
+        model=HygienistModel,
+        not_found_detail="Hygienist not found",
+        refs=[(ProjectHygienistLink, ProjectHygienistLink.hygienist_id, "project_hygienist_links")],
+        path_param_name="hygienist_id",
     )
-    return {"project_hygienist_links": link_count or 0}
-
-
-@router.get("/{hygienist_id}/connections")
-async def get_hygienist_connections(hygienist_id: int, db: AsyncSession = Depends(get_db)):
-    hygienist = await db.get(HygienistModel, hygienist_id)
-    if not hygienist:
-        raise HTTPException(status_code=404, detail="Hygienist not found")
-    return await _get_hygienist_references(db, hygienist_id)
-
-
-@router.delete("/{hygienist_id}", status_code=204)
-async def delete_hygienist(hygienist_id: int, db: AsyncSession = Depends(get_db)):
-    hygienist = await db.get(HygienistModel, hygienist_id)
-    if not hygienist:
-        raise HTTPException(status_code=404, detail="Hygienist not found")
-    assert_deletable(await _get_hygienist_references(db, hygienist_id))
-    await db.delete(hygienist)
-    await db.commit()
+)

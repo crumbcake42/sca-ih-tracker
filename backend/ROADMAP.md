@@ -231,15 +231,15 @@ Full design detail (factory signature, per-entity ref inventory, line numbers fo
 - [x] `app/common/tests/test_guarded_delete_factory.py` — 404/409/204 coverage + OpenAPI schema name check via `contractors` entity.
 - [x] `app/PATTERNS.md` section 14 — rewrite to reference `create_guarded_delete_router`; remove hand-rolled example.
 
-**Session B — Migrate six router modules:**
+**Session B — Migrate six router modules:** ✓ COMPLETE
 
-- [ ] `app/contractors/router/base.py` — delete `_get_contractor_references` + both handlers; `include_router(create_guarded_delete_router(...))`
-- [ ] `app/hygienists/router/base.py` — same
-- [ ] `app/schools/router/base.py` — same; uses `Table` selectable (`project_school_links.c.school_id`)
-- [ ] `app/employees/router/base.py` — same; two refs (`time_entries`, `sample_batch_inspectors`)
-- [ ] `app/deliverables/router/base.py` — same; three refs
-- [ ] `app/wa_codes/router/base.py` — same; six refs; place `include_router` call *after* `GET /{identifier}` to preserve route-matching order
-- [ ] Full test suite passes unchanged (response shapes preserved — labels verbatim, including `project_contractors_links` stray "s")
+- [x] `app/contractors/router/base.py` — delete `_get_contractor_references` + both handlers; `include_router(create_guarded_delete_router(...))`
+- [x] `app/hygienists/router/base.py` — same
+- [x] `app/schools/router/base.py` — same; uses `Table` selectable (`project_school_links.c.school_id`)
+- [x] `app/employees/router/base.py` — same; two refs (`time_entries`, `sample_batch_inspectors`)
+- [x] `app/deliverables/router/base.py` — same; three refs
+- [x] `app/wa_codes/router/base.py` — same; six refs
+- [x] Full test suite passes unchanged (532 tests; response shapes preserved — labels verbatim)
 
 **Session C — Docs + cross-side FE handoff:**
 

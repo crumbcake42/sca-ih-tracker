@@ -2,6 +2,8 @@
 
 ## Backend changes pending frontend pickup
 
+**`*Connections` schemas now typed — regen the OpenAPI client.** Six reference entities (`Contractor`, `Hygienist`, `School`, `Employee`, `Deliverable`, `WACode`) previously returned `unknown` from their `/connections` endpoints. The backend now emits named Pydantic schemas (`ContractorConnections`, `HygienistConnections`, `SchoolConnections`, `EmployeeConnections`, `DeliverableConnections`, `WACodeConnections`) with typed integer counts. After regenerating the client, the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed.
+
 **Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
 
 **`GET /work-auths/` is now paginated** — returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
