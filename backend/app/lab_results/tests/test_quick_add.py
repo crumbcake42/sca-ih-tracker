@@ -12,12 +12,21 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
-from app.common.enums import Boro, EmployeeRoleType, TimeEntryStatus
+from app.common.enums import Boro, TimeEntryStatus
 from app.employees.models import Employee, EmployeeRole
-from app.lab_results.models import SampleBatch, SampleType, SampleUnitType
+from app.lab_results.models import SampleType, SampleUnitType
 from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
+
+from tests.seeds import (
+    seed_school,
+    seed_employee,
+    seed_employee_role,
+    seed_project,
+    seed_sample_type,
+    seed_sample_unit_type,
+)
 
 BASE = "/lab-results/batches/quick-add"
 
@@ -34,66 +43,6 @@ def _code() -> str:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-async def _seed_school(db: AsyncSession) -> School:
-    school = School(
-        code=_code(),
-        name="QA School",
-        address="1 Quick Ave",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
-
-
-async def _seed_project(db: AsyncSession, school: School) -> Project:
-    project = Project(name="QA Project", project_number=f"25-QA{school.id:04d}")
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_employee(db: AsyncSession) -> Employee:
-    emp = Employee(first_name="Quick", last_name="Add")
-    db.add(emp)
-    await db.flush()
-    return emp
-
-
-async def _seed_role(
-    db: AsyncSession,
-    employee: Employee,
-    role_type: EmployeeRoleType = EmployeeRoleType.ACM_AIR_TECH,
-    start: date = date(2025, 1, 1),
-) -> EmployeeRole:
-    role = EmployeeRole(
-        employee_id=employee.id,
-        role_type=role_type,
-        start_date=start,
-        hourly_rate="75.00",
-    )
-    db.add(role)
-    await db.flush()
-    return role
-
-
-async def _seed_sample_type(db: AsyncSession, name: str | None = None) -> SampleType:
-    st = SampleType(name=name or f"QA Sample Type {_code()}")
-    db.add(st)
-    await db.flush()
-    return st
-
-
-async def _seed_unit_type(db: AsyncSession, sample_type: SampleType) -> SampleUnitType:
-    ut = SampleUnitType(sample_type_id=sample_type.id, name="QA Unit")
-    db.add(ut)
-    await db.flush()
-    return ut
 
 
 class _QAContext:
@@ -130,12 +79,12 @@ class _QAContext:
 
 
 async def _make_context(db: AsyncSession) -> _QAContext:
-    school = await _seed_school(db)
-    project = await _seed_project(db, school)
-    emp = await _seed_employee(db)
-    role = await _seed_role(db, emp)
-    sample_type = await _seed_sample_type(db)
-    unit_type = await _seed_unit_type(db, sample_type)
+    school = await seed_school(db)
+    project = await seed_project(db, school)
+    emp = await seed_employee(db)
+    role = await seed_employee_role(db, emp)
+    sample_type = await seed_sample_type(db)
+    unit_type = await seed_sample_unit_type(db, sample_type)
     return _QAContext(school, project, emp, role, sample_type, unit_type)
 
 
@@ -174,20 +123,24 @@ class TestQuickAdd:
         assert response.status_code == 201
 
         entry = await db_session.get(TimeEntry, response.json()["time_entry_id"])
-        assert entry.created_by_id == SYSTEM_USER_ID
+        assert entry and entry.created_by_id == SYSTEM_USER_ID
 
     async def test_missing_employee_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session)
-        response = await auth_client.post(BASE, json=ctx.payload("QA-003", employee_id=9999))
+        response = await auth_client.post(
+            BASE, json=ctx.payload("QA-003", employee_id=9999)
+        )
         assert response.status_code == 404
 
     async def test_missing_project_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session)
-        response = await auth_client.post(BASE, json=ctx.payload("QA-004", project_id=9999))
+        response = await auth_client.post(
+            BASE, json=ctx.payload("QA-004", project_id=9999)
+        )
         assert response.status_code == 404
 
     async def test_school_not_on_project_returns_422(

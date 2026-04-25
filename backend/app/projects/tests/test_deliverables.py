@@ -16,77 +16,17 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import (
-    Boro,
     InternalDeliverableStatus,
     NoteEntityType,
     SCADeliverableStatus,
     WACodeLevel,
 )
 from app.deliverables.models import (
-    Deliverable,
     ProjectBuildingDeliverable,
     ProjectDeliverable,
 )
-from app.notes.models import Note
-from app.projects.models import Project
-from app.schools.models import School
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-async def _seed_school(db: AsyncSession, code: str = "K001") -> School:
-    school = School(
-        code=code,
-        name=f"School {code}",
-        address="123 Main St",
-        city=Boro.BROOKLYN,
-        state="NY",
-        zip_code="11201",
-    )
-    db.add(school)
-    await db.flush()
-    return school
-
-
-async def _seed_project(db: AsyncSession, school: School, number: str = "26-111-01") -> Project:
-    project = Project(name="Test Project", project_number=number)
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_deliverable(
-    db: AsyncSession,
-    name: str = "Test Report",
-    level: WACodeLevel = WACodeLevel.PROJECT,
-) -> Deliverable:
-    d = Deliverable(name=name, level=level)
-    db.add(d)
-    await db.flush()
-    return d
-
-
-async def _seed_blocking_note(
-    db: AsyncSession,
-    deliverable_id: int,
-    *,
-    is_resolved: bool = False,
-) -> Note:
-    note = Note(
-        entity_type=NoteEntityType.DELIVERABLE,
-        entity_id=deliverable_id,
-        body="Blocking issue",
-        is_blocking=True,
-        is_resolved=is_resolved,
-        created_by_id=1,
-        updated_by_id=1,
-    )
-    db.add(note)
-    await db.flush()
-    return note
+from tests.seeds import seed_school, seed_project, seed_deliverable, seed_blocking_note
 
 
 # ---------------------------------------------------------------------------
@@ -98,9 +38,9 @@ class TestListProjectDeliverables:
     async def test_list_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session)
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
         await db_session.flush()
 
@@ -108,11 +48,9 @@ class TestListProjectDeliverables:
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    async def test_empty_list(
-        self, auth_client: AsyncClient, db_session: AsyncSession
-    ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
+    async def test_empty_list(self, auth_client: AsyncClient, db_session: AsyncSession):
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
         response = await auth_client.get(f"/projects/{project.id}/deliverables")
         assert response.status_code == 200
         assert response.json() == []
@@ -131,9 +69,9 @@ class TestAddProjectDeliverable:
     async def test_add_returns_201(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session)
 
         response = await auth_client.post(
             f"/projects/{project.id}/deliverables",
@@ -149,9 +87,9 @@ class TestAddProjectDeliverable:
     async def test_explicit_statuses_accepted(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session)
 
         response = await auth_client.post(
             f"/projects/{project.id}/deliverables",
@@ -169,8 +107,8 @@ class TestAddProjectDeliverable:
     async def test_missing_deliverable_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
         response = await auth_client.post(
             f"/projects/{project.id}/deliverables",
             json={"deliverable_id": 9999},
@@ -180,7 +118,7 @@ class TestAddProjectDeliverable:
     async def test_missing_project_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        d = await _seed_deliverable(db_session)
+        d = await seed_deliverable(db_session)
         response = await auth_client.post(
             "/projects/9999/deliverables",
             json={"deliverable_id": d.id},
@@ -190,9 +128,9 @@ class TestAddProjectDeliverable:
     async def test_duplicate_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session)
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
         await db_session.flush()
 
@@ -212,9 +150,9 @@ class TestUpdateProjectDeliverable:
     async def test_update_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session)
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
         await db_session.flush()
 
@@ -237,11 +175,13 @@ class TestUpdateProjectDeliverable:
     async def test_blocking_note_blocks_in_review(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, code="K010")
-        project = await _seed_project(db_session, school, number="26-110-01")
-        d = await _seed_deliverable(db_session, name="Report A")
+        school = await seed_school(db_session, code="K010")
+        project = await seed_project(db_session, school, number="26-110-01")
+        d = await seed_deliverable(db_session, name="Report A")
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
-        await _seed_blocking_note(db_session, d.id)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.DELIVERABLE, entity_id=d.id
+        )
 
         response = await auth_client.patch(
             f"/projects/{project.id}/deliverables/{d.id}",
@@ -253,11 +193,13 @@ class TestUpdateProjectDeliverable:
     async def test_blocking_note_does_not_block_non_gated_status(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, code="K011")
-        project = await _seed_project(db_session, school, number="26-111-01")
-        d = await _seed_deliverable(db_session, name="Report B")
+        school = await seed_school(db_session, code="K011")
+        project = await seed_project(db_session, school, number="26-111-01")
+        d = await seed_deliverable(db_session, name="Report B")
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
-        await _seed_blocking_note(db_session, d.id)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.DELIVERABLE, entity_id=d.id
+        )
 
         response = await auth_client.patch(
             f"/projects/{project.id}/deliverables/{d.id}",
@@ -268,11 +210,16 @@ class TestUpdateProjectDeliverable:
     async def test_resolved_blocking_note_allows_in_review(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, code="K012")
-        project = await _seed_project(db_session, school, number="26-112-01")
-        d = await _seed_deliverable(db_session, name="Report C")
+        school = await seed_school(db_session, code="K012")
+        project = await seed_project(db_session, school, number="26-112-01")
+        d = await seed_deliverable(db_session, name="Report C")
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
-        await _seed_blocking_note(db_session, d.id, is_resolved=True)
+        await seed_blocking_note(
+            db_session,
+            entity_type=NoteEntityType.DELIVERABLE,
+            entity_id=d.id,
+            is_resolved=True,
+        )
 
         response = await auth_client.patch(
             f"/projects/{project.id}/deliverables/{d.id}",
@@ -290,9 +237,9 @@ class TestDeleteProjectDeliverable:
     async def test_delete_returns_204(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session)
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
         await db_session.flush()
 
@@ -318,24 +265,28 @@ class TestListBuildingDeliverables:
     async def test_list_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session, level=WACodeLevel.BUILDING)
-        db_session.add(ProjectBuildingDeliverable(
-            project_id=project.id, deliverable_id=d.id, school_id=school.id
-        ))
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session, level=WACodeLevel.BUILDING)
+        db_session.add(
+            ProjectBuildingDeliverable(
+                project_id=project.id, deliverable_id=d.id, school_id=school.id
+            )
+        )
         await db_session.flush()
 
-        response = await auth_client.get(f"/projects/{project.id}/building-deliverables")
+        response = await auth_client.get(
+            f"/projects/{project.id}/building-deliverables"
+        )
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    async def test_empty_list(
-        self, auth_client: AsyncClient, db_session: AsyncSession
-    ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        response = await auth_client.get(f"/projects/{project.id}/building-deliverables")
+    async def test_empty_list(self, auth_client: AsyncClient, db_session: AsyncSession):
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        response = await auth_client.get(
+            f"/projects/{project.id}/building-deliverables"
+        )
         assert response.status_code == 200
         assert response.json() == []
 
@@ -353,9 +304,9 @@ class TestAddBuildingDeliverable:
     async def test_add_returns_201(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session, level=WACodeLevel.BUILDING)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session, level=WACodeLevel.BUILDING)
 
         response = await auth_client.post(
             f"/projects/{project.id}/building-deliverables",
@@ -372,10 +323,10 @@ class TestAddBuildingDeliverable:
     async def test_school_not_on_project_returns_422(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, code="K001")
-        other_school = await _seed_school(db_session, code="K002")
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session, level=WACodeLevel.BUILDING)
+        school = await seed_school(db_session, code="K001")
+        other_school = await seed_school(db_session, code="K002")
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session, level=WACodeLevel.BUILDING)
 
         response = await auth_client.post(
             f"/projects/{project.id}/building-deliverables",
@@ -386,8 +337,8 @@ class TestAddBuildingDeliverable:
     async def test_missing_deliverable_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
         response = await auth_client.post(
             f"/projects/{project.id}/building-deliverables",
             json={"deliverable_id": 9999, "school_id": school.id},
@@ -397,8 +348,8 @@ class TestAddBuildingDeliverable:
     async def test_missing_project_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        d = await _seed_deliverable(db_session, level=WACodeLevel.BUILDING)
+        school = await seed_school(db_session)
+        d = await seed_deliverable(db_session, level=WACodeLevel.BUILDING)
         response = await auth_client.post(
             "/projects/9999/building-deliverables",
             json={"deliverable_id": d.id, "school_id": school.id},
@@ -408,12 +359,14 @@ class TestAddBuildingDeliverable:
     async def test_duplicate_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session, level=WACodeLevel.BUILDING)
-        db_session.add(ProjectBuildingDeliverable(
-            project_id=project.id, deliverable_id=d.id, school_id=school.id
-        ))
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session, level=WACodeLevel.BUILDING)
+        db_session.add(
+            ProjectBuildingDeliverable(
+                project_id=project.id, deliverable_id=d.id, school_id=school.id
+            )
+        )
         await db_session.flush()
 
         response = await auth_client.post(
@@ -432,12 +385,14 @@ class TestUpdateBuildingDeliverable:
     async def test_update_returns_200(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session, level=WACodeLevel.BUILDING)
-        db_session.add(ProjectBuildingDeliverable(
-            project_id=project.id, deliverable_id=d.id, school_id=school.id
-        ))
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session, level=WACodeLevel.BUILDING)
+        db_session.add(
+            ProjectBuildingDeliverable(
+                project_id=project.id, deliverable_id=d.id, school_id=school.id
+            )
+        )
         await db_session.flush()
 
         response = await auth_client.patch(
@@ -459,13 +414,19 @@ class TestUpdateBuildingDeliverable:
     async def test_blocking_note_blocks_under_review(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, code="K020")
-        project = await _seed_project(db_session, school, number="26-120-01")
-        d = await _seed_deliverable(db_session, name="Bldg Report A", level=WACodeLevel.BUILDING)
-        db_session.add(ProjectBuildingDeliverable(
-            project_id=project.id, deliverable_id=d.id, school_id=school.id
-        ))
-        await _seed_blocking_note(db_session, d.id)
+        school = await seed_school(db_session, code="K020")
+        project = await seed_project(db_session, school, number="26-120-01")
+        d = await seed_deliverable(
+            db_session, name="Bldg Report A", level=WACodeLevel.BUILDING
+        )
+        db_session.add(
+            ProjectBuildingDeliverable(
+                project_id=project.id, deliverable_id=d.id, school_id=school.id
+            )
+        )
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.DELIVERABLE, entity_id=d.id
+        )
 
         response = await auth_client.patch(
             f"/projects/{project.id}/building-deliverables/{d.id}/{school.id}",
@@ -477,13 +438,19 @@ class TestUpdateBuildingDeliverable:
     async def test_blocking_note_does_not_block_non_gated_status(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, code="K021")
-        project = await _seed_project(db_session, school, number="26-121-01")
-        d = await _seed_deliverable(db_session, name="Bldg Report B", level=WACodeLevel.BUILDING)
-        db_session.add(ProjectBuildingDeliverable(
-            project_id=project.id, deliverable_id=d.id, school_id=school.id
-        ))
-        await _seed_blocking_note(db_session, d.id)
+        school = await seed_school(db_session, code="K021")
+        project = await seed_project(db_session, school, number="26-121-01")
+        d = await seed_deliverable(
+            db_session, name="Bldg Report B", level=WACodeLevel.BUILDING
+        )
+        db_session.add(
+            ProjectBuildingDeliverable(
+                project_id=project.id, deliverable_id=d.id, school_id=school.id
+            )
+        )
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.DELIVERABLE, entity_id=d.id
+        )
 
         response = await auth_client.patch(
             f"/projects/{project.id}/building-deliverables/{d.id}/{school.id}",
@@ -494,13 +461,22 @@ class TestUpdateBuildingDeliverable:
     async def test_resolved_blocking_note_allows_approved(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session, code="K022")
-        project = await _seed_project(db_session, school, number="26-122-01")
-        d = await _seed_deliverable(db_session, name="Bldg Report C", level=WACodeLevel.BUILDING)
-        db_session.add(ProjectBuildingDeliverable(
-            project_id=project.id, deliverable_id=d.id, school_id=school.id
-        ))
-        await _seed_blocking_note(db_session, d.id, is_resolved=True)
+        school = await seed_school(db_session, code="K022")
+        project = await seed_project(db_session, school, number="26-122-01")
+        d = await seed_deliverable(
+            db_session, name="Bldg Report C", level=WACodeLevel.BUILDING
+        )
+        db_session.add(
+            ProjectBuildingDeliverable(
+                project_id=project.id, deliverable_id=d.id, school_id=school.id
+            )
+        )
+        await seed_blocking_note(
+            db_session,
+            entity_type=NoteEntityType.DELIVERABLE,
+            entity_id=d.id,
+            is_resolved=True,
+        )
 
         response = await auth_client.patch(
             f"/projects/{project.id}/building-deliverables/{d.id}/{school.id}",
@@ -518,12 +494,14 @@ class TestDeleteBuildingDeliverable:
     async def test_delete_returns_204(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        school = await _seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        d = await _seed_deliverable(db_session, level=WACodeLevel.BUILDING)
-        db_session.add(ProjectBuildingDeliverable(
-            project_id=project.id, deliverable_id=d.id, school_id=school.id
-        ))
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        d = await seed_deliverable(db_session, level=WACodeLevel.BUILDING)
+        db_session.add(
+            ProjectBuildingDeliverable(
+                project_id=project.id, deliverable_id=d.id, school_id=school.id
+            )
+        )
         await db_session.flush()
 
         response = await auth_client.delete(
@@ -537,7 +515,5 @@ class TestDeleteBuildingDeliverable:
         assert follow_up.json() == []
 
     async def test_missing_returns_404(self, auth_client: AsyncClient):
-        response = await auth_client.delete(
-            "/projects/9999/building-deliverables/1/1"
-        )
+        response = await auth_client.delete("/projects/9999/building-deliverables/1/1")
         assert response.status_code == 404

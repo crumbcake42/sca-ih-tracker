@@ -8,9 +8,6 @@ Tests call service functions directly against db_session; no HTTP.
 All tests roll back via the conftest transaction fixture.
 """
 
-from datetime import UTC, datetime, timezone
-
-import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,36 +16,11 @@ from app.common.enums import NoteEntityType, NoteType
 from app.notes.models import Note
 from app.notes.service import auto_resolve_system_notes, create_system_note
 
+from tests.seeds import seed_note
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-async def _seed_note(
-    db: AsyncSession,
-    entity_type: NoteEntityType,
-    entity_id: int,
-    note_type: NoteType,
-    body: str,
-    *,
-    resolved: bool = False,
-) -> Note:
-    note = Note(
-        entity_type=entity_type,
-        entity_id=entity_id,
-        note_type=note_type,
-        body=body,
-        is_blocking=True,
-        is_resolved=resolved,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    if resolved:
-        note.resolved_by_id = SYSTEM_USER_ID
-        note.resolved_at = datetime.now(tz=UTC)
-    db.add(note)
-    await db.flush()
-    return note
 
 
 async def _count_notes(
@@ -110,18 +82,21 @@ class TestCreateSystemNote:
         )
 
         assert first.id == second.id
-        assert await _count_notes(
-            db_session, NoteEntityType.TIME_ENTRY, 1, NoteType.TIME_ENTRY_CONFLICT
-        ) == 1
+        assert (
+            await _count_notes(
+                db_session, NoteEntityType.TIME_ENTRY, 1, NoteType.TIME_ENTRY_CONFLICT
+            )
+            == 1
+        )
 
     async def test_does_not_deduplicate_resolved(self, db_session: AsyncSession):
         """Once a note is resolved, a subsequent call creates a fresh note."""
-        await _seed_note(
+        await seed_note(
             db_session,
             NoteEntityType.TIME_ENTRY,
             10,
-            NoteType.TIME_ENTRY_CONFLICT,
             "Old resolved note",
+            note_type=NoteType.TIME_ENTRY_CONFLICT,
             resolved=True,
         )
 
@@ -134,9 +109,12 @@ class TestCreateSystemNote:
         )
 
         assert new_note.is_resolved is False
-        assert await _count_notes(
-            db_session, NoteEntityType.TIME_ENTRY, 10, NoteType.TIME_ENTRY_CONFLICT
-        ) == 2
+        assert (
+            await _count_notes(
+                db_session, NoteEntityType.TIME_ENTRY, 10, NoteType.TIME_ENTRY_CONFLICT
+            )
+            == 2
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -147,19 +125,19 @@ class TestCreateSystemNote:
 class TestAutoResolveSystemNotes:
     async def test_resolves_all_matching(self, db_session: AsyncSession):
         """Two unresolved notes of the same type on the same entity are both resolved."""
-        n1 = await _seed_note(
+        n1 = await seed_note(
             db_session,
             NoteEntityType.TIME_ENTRY,
             5,
-            NoteType.TIME_ENTRY_CONFLICT,
             "Conflict A",
+            note_type=NoteType.TIME_ENTRY_CONFLICT,
         )
-        n2 = await _seed_note(
+        n2 = await seed_note(
             db_session,
             NoteEntityType.TIME_ENTRY,
             5,
-            NoteType.TIME_ENTRY_CONFLICT,
             "Conflict B",
+            note_type=NoteType.TIME_ENTRY_CONFLICT,
         )
 
         count = await auto_resolve_system_notes(
@@ -179,12 +157,12 @@ class TestAutoResolveSystemNotes:
         assert n2.is_resolved is True
 
     async def test_returns_count(self, db_session: AsyncSession):
-        await _seed_note(
+        await seed_note(
             db_session,
             NoteEntityType.TIME_ENTRY,
             20,
-            NoteType.TIME_ENTRY_CONFLICT,
             "One note",
+            note_type=NoteType.TIME_ENTRY_CONFLICT,
         )
 
         count = await auto_resolve_system_notes(
@@ -197,12 +175,12 @@ class TestAutoResolveSystemNotes:
 
     async def test_ignores_already_resolved(self, db_session: AsyncSession):
         """A pre-resolved note is not touched; returns 0."""
-        await _seed_note(
+        await seed_note(
             db_session,
             NoteEntityType.TIME_ENTRY,
             30,
-            NoteType.TIME_ENTRY_CONFLICT,
             "Already resolved",
+            note_type=NoteType.TIME_ENTRY_CONFLICT,
             resolved=True,
         )
 
@@ -217,12 +195,12 @@ class TestAutoResolveSystemNotes:
     async def test_ignores_different_note_type(self, db_session: AsyncSession):
         """Notes of a different type on the same entity are not resolved."""
         # Seed a TIME_ENTRY_CONFLICT note on entity 40
-        n = await _seed_note(
+        n = await seed_note(
             db_session,
             NoteEntityType.TIME_ENTRY,
             40,
-            NoteType.TIME_ENTRY_CONFLICT,
             "Should not be resolved",
+            note_type=NoteType.TIME_ENTRY_CONFLICT,
         )
 
         # Resolve a hypothetical OTHER type (use TIME_ENTRY_CONFLICT on a different
@@ -239,12 +217,12 @@ class TestAutoResolveSystemNotes:
 
     async def test_ignores_different_entity_type(self, db_session: AsyncSession):
         """A note on a PROJECT entity is not resolved when targeting TIME_ENTRY."""
-        n = await _seed_note(
+        n = await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             50,
-            NoteType.TIME_ENTRY_CONFLICT,
             "Project-level note",
+            note_type=NoteType.TIME_ENTRY_CONFLICT,
         )
 
         count = await auto_resolve_system_notes(
