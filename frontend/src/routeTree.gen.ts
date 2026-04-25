@@ -19,9 +19,11 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminWaCodesIndexRouteImport } from './routes/_authenticated/admin/wa-codes/index'
 import { Route as AuthenticatedAdminSchoolsIndexRouteImport } from './routes/_authenticated/admin/schools/index'
 import { Route as AuthenticatedAdminEmployeesIndexRouteImport } from './routes/_authenticated/admin/employees/index'
+import { Route as AuthenticatedAdminContractorsIndexRouteImport } from './routes/_authenticated/admin/contractors/index'
 import { Route as AuthenticatedAdminWaCodesWaCodeIdRouteImport } from './routes/_authenticated/admin/wa-codes/$waCodeId'
 import { Route as AuthenticatedAdminSchoolsSchoolIdRouteImport } from './routes/_authenticated/admin/schools/$schoolId'
 import { Route as AuthenticatedAdminEmployeesEmployeeIdRouteImport } from './routes/_authenticated/admin/employees/$employeeId'
+import { Route as AuthenticatedAdminContractorsContractorIdRouteImport } from './routes/_authenticated/admin/contractors/$contractorId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -76,6 +78,12 @@ const AuthenticatedAdminEmployeesIndexRoute =
     path: '/employees/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminContractorsIndexRoute =
+  AuthenticatedAdminContractorsIndexRouteImport.update({
+    id: '/contractors/',
+    path: '/contractors/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminWaCodesWaCodeIdRoute =
   AuthenticatedAdminWaCodesWaCodeIdRouteImport.update({
     id: '/wa-codes/$waCodeId',
@@ -94,6 +102,12 @@ const AuthenticatedAdminEmployeesEmployeeIdRoute =
     path: '/employees/$employeeId',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminContractorsContractorIdRoute =
+  AuthenticatedAdminContractorsContractorIdRouteImport.update({
+    id: '/contractors/$contractorId',
+    path: '/contractors/$contractorId',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -102,9 +116,11 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
   '/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
+  '/admin/contractors/': typeof AuthenticatedAdminContractorsIndexRoute
   '/admin/employees/': typeof AuthenticatedAdminEmployeesIndexRoute
   '/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
   '/admin/wa-codes/': typeof AuthenticatedAdminWaCodesIndexRoute
@@ -115,9 +131,11 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
   '/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   '/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
+  '/admin/contractors': typeof AuthenticatedAdminContractorsIndexRoute
   '/admin/employees': typeof AuthenticatedAdminEmployeesIndexRoute
   '/admin/schools': typeof AuthenticatedAdminSchoolsIndexRoute
   '/admin/wa-codes': typeof AuthenticatedAdminWaCodesIndexRoute
@@ -131,9 +149,11 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/admin/contractors/$contractorId': typeof AuthenticatedAdminContractorsContractorIdRoute
   '/_authenticated/admin/employees/$employeeId': typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   '/_authenticated/admin/schools/$schoolId': typeof AuthenticatedAdminSchoolsSchoolIdRoute
   '/_authenticated/admin/wa-codes/$waCodeId': typeof AuthenticatedAdminWaCodesWaCodeIdRoute
+  '/_authenticated/admin/contractors/': typeof AuthenticatedAdminContractorsIndexRoute
   '/_authenticated/admin/employees/': typeof AuthenticatedAdminEmployeesIndexRoute
   '/_authenticated/admin/schools/': typeof AuthenticatedAdminSchoolsIndexRoute
   '/_authenticated/admin/wa-codes/': typeof AuthenticatedAdminWaCodesIndexRoute
@@ -147,9 +167,11 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/admin/'
     | '/projects/'
+    | '/admin/contractors/$contractorId'
     | '/admin/employees/$employeeId'
     | '/admin/schools/$schoolId'
     | '/admin/wa-codes/$waCodeId'
+    | '/admin/contractors/'
     | '/admin/employees/'
     | '/admin/schools/'
     | '/admin/wa-codes/'
@@ -160,9 +182,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/projects'
+    | '/admin/contractors/$contractorId'
     | '/admin/employees/$employeeId'
     | '/admin/schools/$schoolId'
     | '/admin/wa-codes/$waCodeId'
+    | '/admin/contractors'
     | '/admin/employees'
     | '/admin/schools'
     | '/admin/wa-codes'
@@ -175,9 +199,11 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/admin/'
     | '/_authenticated/projects/'
+    | '/_authenticated/admin/contractors/$contractorId'
     | '/_authenticated/admin/employees/$employeeId'
     | '/_authenticated/admin/schools/$schoolId'
     | '/_authenticated/admin/wa-codes/$waCodeId'
+    | '/_authenticated/admin/contractors/'
     | '/_authenticated/admin/employees/'
     | '/_authenticated/admin/schools/'
     | '/_authenticated/admin/wa-codes/'
@@ -260,6 +286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEmployeesIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/contractors/': {
+      id: '/_authenticated/admin/contractors/'
+      path: '/contractors'
+      fullPath: '/admin/contractors/'
+      preLoaderRoute: typeof AuthenticatedAdminContractorsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/wa-codes/$waCodeId': {
       id: '/_authenticated/admin/wa-codes/$waCodeId'
       path: '/wa-codes/$waCodeId'
@@ -281,14 +314,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEmployeesEmployeeIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/contractors/$contractorId': {
+      id: '/_authenticated/admin/contractors/$contractorId'
+      path: '/contractors/$contractorId'
+      fullPath: '/admin/contractors/$contractorId'
+      preLoaderRoute: typeof AuthenticatedAdminContractorsContractorIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminContractorsContractorIdRoute: typeof AuthenticatedAdminContractorsContractorIdRoute
   AuthenticatedAdminEmployeesEmployeeIdRoute: typeof AuthenticatedAdminEmployeesEmployeeIdRoute
   AuthenticatedAdminSchoolsSchoolIdRoute: typeof AuthenticatedAdminSchoolsSchoolIdRoute
   AuthenticatedAdminWaCodesWaCodeIdRoute: typeof AuthenticatedAdminWaCodesWaCodeIdRoute
+  AuthenticatedAdminContractorsIndexRoute: typeof AuthenticatedAdminContractorsIndexRoute
   AuthenticatedAdminEmployeesIndexRoute: typeof AuthenticatedAdminEmployeesIndexRoute
   AuthenticatedAdminSchoolsIndexRoute: typeof AuthenticatedAdminSchoolsIndexRoute
   AuthenticatedAdminWaCodesIndexRoute: typeof AuthenticatedAdminWaCodesIndexRoute
@@ -296,12 +338,16 @@ interface AuthenticatedAdminRouteChildren {
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminContractorsContractorIdRoute:
+    AuthenticatedAdminContractorsContractorIdRoute,
   AuthenticatedAdminEmployeesEmployeeIdRoute:
     AuthenticatedAdminEmployeesEmployeeIdRoute,
   AuthenticatedAdminSchoolsSchoolIdRoute:
     AuthenticatedAdminSchoolsSchoolIdRoute,
   AuthenticatedAdminWaCodesWaCodeIdRoute:
     AuthenticatedAdminWaCodesWaCodeIdRoute,
+  AuthenticatedAdminContractorsIndexRoute:
+    AuthenticatedAdminContractorsIndexRoute,
   AuthenticatedAdminEmployeesIndexRoute: AuthenticatedAdminEmployeesIndexRoute,
   AuthenticatedAdminSchoolsIndexRoute: AuthenticatedAdminSchoolsIndexRoute,
   AuthenticatedAdminWaCodesIndexRoute: AuthenticatedAdminWaCodesIndexRoute,
@@ -335,12 +381,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

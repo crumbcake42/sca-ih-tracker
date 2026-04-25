@@ -387,7 +387,7 @@ Shared references for all three sub-sessions:
   - Create `src/PATTERNS.md` now that the shapes are stable
   - Test: retrofitted pages render identically; PATTERNS.md documents the column config shape, form field patterns, query invalidation
 
-- [ ] **Session 2.3a** — WA codes admin CRUD _(unblocked, next up)_
+- [x] **Session 2.3a** — WA codes admin CRUD
   - `src/features/wa-codes/api/wa-codes.ts` — domain-named barrel: `listWaCodesOptions/QueryKey`, `getWaCodeOptions/QueryKey`, `createWaCodeMutation`, `updateWaCodeMutation`, `deleteWaCodeMutation`, `getWaCodeConnectionsOptions/QueryKey`, `importBatchWaCodesMutation`. Note: generated detail path uses `{identifier}`; update/delete use `{wa_code_id}` — aliased at this layer.
   - `WaCodeFormDialog.tsx` via `useEntityForm`; Zod schema: `code`, `description`, `level` (`WaCodeLevel`), optional `default_fee`. In edit mode: `level` **disabled** when `getWaCodeConnections` reports linked records (implements "immutable once in use"); renders "in use — level locked" hint.
   - `WaCodeDetail.tsx` — fields + connection counts; Edit + Delete (AlertDialog; 409 renders backend `detail` inline, not a toast).
@@ -398,7 +398,7 @@ Shared references for all three sub-sessions:
   - Tests: `WaCodeFormDialog.test.tsx` — create path; 422 → `applyServerErrors`; **`level` disabled when connections present**. `WaCodeDetail.test.tsx` — 409 delete renders inline, no toast.
   - Storybook: `WaCodeFormDialog.stories.tsx` — Create, Edit (no connections), Edit (level locked).
 
-- [ ] **Session 2.3b** — Contractors _(unblocked: `GET /contractors/` returns `PaginatedResponseContractor` with `search`/`skip`/`limit`)_
+- [x] **Session 2.3b** — Contractors _(unblocked: `GET /contractors/` returns `PaginatedResponseContractor` with `search`/`skip`/`limit`)_
   - Employees pattern: list + detail + form dialog + delete-with-409 inline.
   - `src/features/contractors/api/contractors.ts` barrel; `EntityListPage<Contractor>` with module-scope columns.
 

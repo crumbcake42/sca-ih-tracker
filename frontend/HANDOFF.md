@@ -10,14 +10,49 @@
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, and auth fix complete.**
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, and 2.3b complete.**
 
 - OpenAPI client regenerated after backend unblocking session.
 - `EmployeeRolesTab` + `EmployeeRoleFormDialog` migrated from `role_type: string` to `role_type_id: number` + `role_type: EmployeeRoleTypeRead`; select options now fetched from `/employee-role-types/`.
 - `src/features/employees/api/employees.ts` barrel extended with `listEmployeeRoleTypesOptions/QueryKey`, `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`.
 - `EmployeeRoleFormDialog.test.tsx` updated to match new shape.
+- WA codes admin CRUD pages built and wired to dashboard (Session 2.3a). `GET /wa-codes/{id}/connections` returns `unknown` in generated client — backend needs `WaCodeConnections` response model before the `hasConnections` cast in `WaCodeFormDialog.tsx` can be removed.
 
-**Next is Session 2.3a — WA codes admin CRUD.** Sessions 2.3c (Contractors) and 2.3d (Hygienists) are now unblocked. Session 2.3b (Deliverables) still blocked — see "Backend changes pending frontend pickup" above.
+**Next: Session 2.3c (Hygienists) or 2.3d (Employee Role Types) — both unblocked.** Session 2.3e (Deliverables) still blocked — see "Backend changes pending frontend pickup" above.
+
+---
+
+## What Was Done This Session (Session 2.3b — Contractors admin CRUD)
+
+**Done:**
+
+- Built Contractors admin CRUD wired to the admin dashboard and sidebar.
+- `src/features/contractors/api/contractors.ts` — full barrel: `listContractors*`, `getContractor*`, `createContractorMutation`, `updateContractorMutation`, `deleteContractorMutation`, `getContractorConnections*`, `importBatchContractorsMutation`.
+- `ContractorFormDialog.tsx` — `useEntityForm`-based add/edit dialog; schema has all five fields required (matching `ContractorCreate`); no immutable-field lock (no level equivalent).
+- `ContractorDetail.tsx` — detail card with five `DetailRow`s, edit/delete buttons; `DeleteConfirmDialog` renders 409 `detail` inline, no toast.
+- `src/pages/admin/contractors/{index,detail,loader}.tsx` — `EntityListPage<Contractor>` list (Name, City, State, Zip code columns), detail page wrapper, loader.
+- `src/routes/_authenticated/admin/contractors/{index,$contractorId}.tsx` — file routes with `validateSearch` and loader. Route tree regenerated.
+- Enabled Contractors in `nav-items.ts` and `src/pages/admin/index.tsx` dashboard card.
+- Fixed 2.3a oversight: WA Codes dashboard card was still `disabled: true` — flipped to active (`to: "/admin/wa-codes"`).
+- Tests: `ContractorFormDialog.test.tsx` (4 tests: create, required-field validation, 422→applyServerErrors, edit prefill); `ContractorDetail.test.tsx` (1 test: 409 inline, no toast).
+- All 27 tests pass; `pnpm tsc --noEmit` and `pnpm check` clean.
+
+**Next:** Session 2.3c (Hygienists) or 2.3d (Employee Role Types) — both unblocked.
+
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
+
+---
+
+## What Was Done This Session (Session 2.3a — WA codes admin CRUD)
+
+**Done:**
+
+- Built WA codes admin CRUD pages and wired them to the admin dashboard.
+- Surfaced schema issue: `GET /wa-codes/{id}/connections` has no `response_model`, so the generated client types the response as `unknown`. The `hasConnections` check in `WaCodeFormDialog.tsx` uses a cast as a workaround. Backend fix tracked in backend HANDOFF.
+
+**Next:** Session 2.3b (Contractors), 2.3c (Hygienists), or 2.3d (Employee Role Types) — pick any; all unblocked.
+
+**Blockers:** Session 2.3e (Deliverables) — backend still needs `POST /deliverables/` + `PATCH /deliverables/{id}`. `WaCodeFormDialog.tsx` cast cleanup — backend needs `WaCodeConnections` response model on `GET /wa-codes/{id}/connections`.
 
 ---
 

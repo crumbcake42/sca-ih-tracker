@@ -52,9 +52,9 @@ const ENTITY_CARDS: readonly EntityCard[] = [
   },
   {
     label: "Contractors",
-    description: "Manage contractor records. Coming in Phase 2.3.",
+    description: "Manage contractor company records.",
     Icon: HardHatIcon,
-    disabled: true,
+    to: "/admin/contractors",
   },
   {
     label: "Hygienists",
@@ -65,9 +65,9 @@ const ENTITY_CARDS: readonly EntityCard[] = [
   {
     label: "WA Codes",
     description:
-      "Manage work authorization code categories used on project WAs. Coming in Phase 2.3.",
+      "Manage work authorization code categories used on project WAs.",
     Icon: TagIcon,
-    disabled: true,
+    to: "/admin/wa-codes",
   },
   {
     label: "Deliverables",
