@@ -8,138 +8,42 @@ PATCH  /lab-results/batches/{batch_id}
 DELETE /lab-results/batches/{batch_id}
 """
 
-from datetime import date, datetime
+from datetime import date
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.enums import Boro, EmployeeRoleType
+from app.common.enums import EmployeeRoleType
 from app.employees.models import Employee, EmployeeRole
 from app.lab_results.models import (
     SampleBatch,
-    SampleSubtype,
     SampleType,
-    SampleTypeRequiredRole,
     SampleUnitType,
-    TurnaroundOption,
 )
 from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
 
-from tests.seeds import seed_employee, seed_school
+from tests.seeds import (
+    seed_employee,
+    seed_school,
+    seed_project,
+    seed_employee_role,
+    seed_time_entry,
+    seed_sample_type,
+    seed_sample_subtype,
+    seed_sample_unit_type,
+    seed_sample_turnaround_option,
+    seed_sample_required_role,
+)
 
 BASE = "/lab-results/batches"
 
-DT_START = datetime(2025, 11, 30, 9, 0, 0)
-DT_END = datetime(2025, 11, 30, 17, 0, 0)
 DATE_COLLECTED = date(2025, 11, 30)
 
 # ---------------------------------------------------------------------------
 # Helpers — school codes use "B" prefix to avoid collision with config tests
 # ---------------------------------------------------------------------------
-
-_school_counter = iter(range(1, 9999))
-
-
-def _next_school_code() -> str:
-    return f"B{next(_school_counter):03d}"
-
-
-async def _seed_project(db: AsyncSession, school: School) -> Project:
-    project = Project(name="Batch Test Project", project_number=f"25-B{school.id:04d}")
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_role(
-    db: AsyncSession,
-    employee: Employee,
-    role_type: EmployeeRoleType = EmployeeRoleType.ACM_AIR_TECH,
-    start: date = date(2025, 1, 1),
-    end: date | None = None,
-) -> EmployeeRole:
-    role = EmployeeRole(
-        employee_id=employee.id,
-        role_type=role_type,
-        start_date=start,
-        end_date=end,
-        hourly_rate="75.00",
-    )
-    db.add(role)
-    await db.flush()
-    return role
-
-
-async def _seed_entry(
-    db: AsyncSession,
-    employee: Employee,
-    role: EmployeeRole,
-    project: Project,
-    school: School,
-) -> TimeEntry:
-    entry = TimeEntry(
-        start_datetime=DT_START,
-        end_datetime=DT_END,
-        employee_id=employee.id,
-        employee_role_id=role.id,
-        project_id=project.id,
-        school_id=school.id,
-    )
-    db.add(entry)
-    await db.flush()
-    return entry
-
-
-async def _seed_sample_type(
-    db: AsyncSession,
-    name: str = "Asbestos Air",
-    allows_multiple: bool = True,
-) -> SampleType:
-    st = SampleType(name=name, allows_multiple_inspectors=allows_multiple)
-    db.add(st)
-    await db.flush()
-    return st
-
-
-async def _seed_unit_type(
-    db: AsyncSession, sample_type: SampleType, name: str = "PCM Sample"
-) -> SampleUnitType:
-    ut = SampleUnitType(sample_type_id=sample_type.id, name=name)
-    db.add(ut)
-    await db.flush()
-    return ut
-
-
-async def _seed_subtype(
-    db: AsyncSession, sample_type: SampleType, name: str = "Friable"
-) -> SampleSubtype:
-    st = SampleSubtype(sample_type_id=sample_type.id, name=name)
-    db.add(st)
-    await db.flush()
-    return st
-
-
-async def _seed_tat(
-    db: AsyncSession, sample_type: SampleType, hours: int = 24, label: str = "Standard"
-) -> TurnaroundOption:
-    tat = TurnaroundOption(sample_type_id=sample_type.id, hours=hours, label=label)
-    db.add(tat)
-    await db.flush()
-    return tat
-
-
-async def _seed_required_role(
-    db: AsyncSession,
-    sample_type: SampleType,
-    role_type: EmployeeRoleType = EmployeeRoleType.ACM_AIR_TECH,
-) -> SampleTypeRequiredRole:
-    rr = SampleTypeRequiredRole(sample_type_id=sample_type.id, role_type=role_type)
-    db.add(rr)
-    await db.flush()
-    return rr
 
 
 # Full happy-path context: school, project, employee, role, time entry, sample type
@@ -185,12 +89,14 @@ async def _make_context(
     allows_multiple: bool = True,
 ) -> _BatchContext:
     school = await seed_school(db)
-    project = await _seed_project(db, school)
+    project = await seed_project(db, school)
     emp = await seed_employee(db)
-    role = await _seed_role(db, emp, role_type=role_type)
-    entry = await _seed_entry(db, emp, role, project, school)
-    sample_type = await _seed_sample_type(db, sample_type_name, allows_multiple)
-    unit_type = await _seed_unit_type(db, sample_type)
+    role = await seed_employee_role(db, emp, role_type=role_type)
+    entry = await seed_time_entry(db, emp, role, project, school)
+    sample_type = await seed_sample_type(
+        db, name=sample_type_name, allows_multiple_inspectors=allows_multiple
+    )
+    unit_type = await seed_sample_unit_type(db, sample_type)
     return _BatchContext(school, project, emp, role, entry, sample_type, unit_type)
 
 
@@ -219,8 +125,8 @@ class TestCreateBatch:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Create Optional Fields")
-        subtype = await _seed_subtype(db_session, ctx.sample_type)
-        tat = await _seed_tat(db_session, ctx.sample_type)
+        subtype = await seed_sample_subtype(db_session, ctx.sample_type)
+        tat = await seed_sample_turnaround_option(db_session, ctx.sample_type)
 
         response = await auth_client.post(
             BASE + "/",
@@ -312,8 +218,10 @@ class TestCreateBatchValidation:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Subtype Wrong Type")
-        other_type = await _seed_sample_type(db_session, "Other Type For Subtype")
-        wrong_subtype = await _seed_subtype(db_session, other_type, "Belongs to Other")
+        other_type = await seed_sample_type(db_session, name="Other Type For Subtype")
+        wrong_subtype = await seed_sample_subtype(
+            db_session, other_type, name="Belongs to Other"
+        )
 
         payload = ctx.batch_payload("BATCH-SW1", sample_subtype_id=wrong_subtype.id)
         response = await auth_client.post(BASE + "/", json=payload)
@@ -323,8 +231,8 @@ class TestCreateBatchValidation:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="TAT Wrong Type")
-        other_type = await _seed_sample_type(db_session, "Other Type For TAT")
-        wrong_tat = await _seed_tat(db_session, other_type)
+        other_type = await seed_sample_type(db_session, name="Other Type For TAT")
+        wrong_tat = await seed_sample_turnaround_option(db_session, other_type)
 
         payload = ctx.batch_payload("BATCH-TW1", turnaround_option_id=wrong_tat.id)
         response = await auth_client.post(BASE + "/", json=payload)
@@ -334,8 +242,10 @@ class TestCreateBatchValidation:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         ctx = await _make_context(db_session, sample_type_name="Unit Wrong Type")
-        other_type = await _seed_sample_type(db_session, "Other Type For Unit")
-        wrong_unit = await _seed_unit_type(db_session, other_type, "Wrong Unit")
+        other_type = await seed_sample_type(db_session, name="Other Type For Unit")
+        wrong_unit = await seed_sample_unit_type(
+            db_session, other_type, name="Wrong Unit"
+        )
 
         payload = ctx.batch_payload("BATCH-UW1")
         payload["units"] = [{"sample_unit_type_id": wrong_unit.id, "quantity": 3}]
@@ -351,8 +261,8 @@ class TestCreateBatchValidation:
             role_type=EmployeeRoleType.ACM_PROJECT_MONITOR,
             sample_type_name="Role Mismatch Type",
         )
-        await _seed_required_role(
-            db_session, ctx.sample_type, EmployeeRoleType.ACM_AIR_TECH
+        await seed_sample_required_role(
+            db_session, ctx.sample_type, role_type=EmployeeRoleType.ACM_AIR_TECH
         )
 
         response = await auth_client.post(
@@ -369,8 +279,8 @@ class TestCreateBatchValidation:
             role_type=EmployeeRoleType.ACM_AIR_TECH,
             sample_type_name="Role Match Type",
         )
-        await _seed_required_role(
-            db_session, ctx.sample_type, EmployeeRoleType.ACM_AIR_TECH
+        await seed_sample_required_role(
+            db_session, ctx.sample_type, role_type=EmployeeRoleType.ACM_AIR_TECH
         )
 
         response = await auth_client.post(

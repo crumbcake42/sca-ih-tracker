@@ -92,7 +92,7 @@ async def seed_sample_turnaround_option(
     return tat
 
 
-async def seed_required_role(
+async def seed_sample_required_role(
     db: AsyncSession,
     sample_type: SampleType,
     *,

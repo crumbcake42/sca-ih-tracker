@@ -176,7 +176,7 @@ class TestUpdateProjectDeliverable:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K010")
-        project = await seed_project(db_session, school, number="26-110-01")
+        project = await seed_project(db_session, school, project_number="26-110-01")
         d = await seed_deliverable(db_session, name="Report A")
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
         await seed_blocking_note(
@@ -194,7 +194,7 @@ class TestUpdateProjectDeliverable:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K011")
-        project = await seed_project(db_session, school, number="26-111-01")
+        project = await seed_project(db_session, school, project_number="26-111-01")
         d = await seed_deliverable(db_session, name="Report B")
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
         await seed_blocking_note(
@@ -211,7 +211,7 @@ class TestUpdateProjectDeliverable:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K012")
-        project = await seed_project(db_session, school, number="26-112-01")
+        project = await seed_project(db_session, school, project_number="26-112-01")
         d = await seed_deliverable(db_session, name="Report C")
         db_session.add(ProjectDeliverable(project_id=project.id, deliverable_id=d.id))
         await seed_blocking_note(
@@ -415,7 +415,7 @@ class TestUpdateBuildingDeliverable:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K020")
-        project = await seed_project(db_session, school, number="26-120-01")
+        project = await seed_project(db_session, school, project_number="26-120-01")
         d = await seed_deliverable(
             db_session, name="Bldg Report A", level=WACodeLevel.BUILDING
         )
@@ -439,7 +439,7 @@ class TestUpdateBuildingDeliverable:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K021")
-        project = await seed_project(db_session, school, number="26-121-01")
+        project = await seed_project(db_session, school, project_number="26-121-01")
         d = await seed_deliverable(
             db_session, name="Bldg Report B", level=WACodeLevel.BUILDING
         )
@@ -462,7 +462,7 @@ class TestUpdateBuildingDeliverable:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K022")
-        project = await seed_project(db_session, school, number="26-122-01")
+        project = await seed_project(db_session, school, project_number="26-122-01")
         d = await seed_deliverable(
             db_session, name="Bldg Report C", level=WACodeLevel.BUILDING
         )

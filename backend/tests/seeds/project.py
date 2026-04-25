@@ -9,12 +9,12 @@ _counter = itertools.count(1)
 
 
 async def seed_project(
-    db: AsyncSession, school: School, *, number: str | None = None, **overrides
+    db: AsyncSession, school: School, *, project_number: str | None = None, **overrides
 ) -> Project:
     n = next(_counter)
     project = Project(
         name=overrides.pop("name", "Test Project"),
-        project_number=number or f"26-{n:03d}-{n:04d}",
+        project_number=project_number or f"26-{n:03d}-{n:04d}",
         **overrides,
     )
     project.schools = [school]

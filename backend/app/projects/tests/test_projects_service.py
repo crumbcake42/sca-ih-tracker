@@ -5,16 +5,13 @@ Tests call service functions directly against db_session; no HTTP.
 All tests roll back via the conftest transaction fixture.
 """
 
-from datetime import UTC, date, datetime
-from decimal import Decimal
-from typing import TYPE_CHECKING
+# from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import (
     Boro,
-    EmployeeRoleType,
     NoteEntityType,
     NoteType,
     ProjectStatus,
@@ -24,15 +21,11 @@ from app.common.enums import (
     WACodeStatus,
 )
 from app.deliverables.models import (
-    Deliverable,
-    DeliverableWACodeTrigger,
     ProjectBuildingDeliverable,
     ProjectDeliverable,
 )
-from app.employees.models import Employee, EmployeeRole
-from app.lab_results.models import SampleBatch, SampleType, SampleTypeWACode
+from app.lab_results.models import SampleTypeWACode
 from app.notes.models import Note
-from app.projects.models import Project
 from app.projects.services import (
     check_sample_type_gap_note,
     derive_project_status,
@@ -41,142 +34,28 @@ from app.projects.services import (
     recalculate_deliverable_sca_status,
 )
 from app.schools.models import School
-from app.wa_codes.models import WACode
-from app.work_auths.models import WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
 
-from tests.seeds import seed_employee, seed_school
+from tests.seeds import (
+    seed_employee,
+    seed_school,
+    seed_project,
+    seed_work_auth,
+    seed_wa_code,
+    seed_work_auth_project_code,
+    seed_work_auth_building_code,
+    seed_employee_role,
+    seed_time_entry,
+    seed_sample_type,
+    seed_sample_batch,
+    seed_deliverable,
+    seed_deliverable_with_trigger,
+    seed_project_deliverable,
+    seed_project_building_deliverable,
+    seed_blocking_note,
+)
 
-if TYPE_CHECKING:
-    from app.time_entries.models import TimeEntry
-
-# ---------------------------------------------------------------------------
-# Seed helpers
-# ---------------------------------------------------------------------------
-
-
-async def _seed_project(
-    db: AsyncSession, school: School, *, suffix: str = "01"
-) -> Project:
-    project = Project(name="Test Project", project_number=f"26-999-{suffix:>04}")
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_role(db: AsyncSession, employee: Employee) -> EmployeeRole:
-    role = EmployeeRole(
-        employee_id=employee.id,
-        role_type=EmployeeRoleType.ACM_PROJECT_MONITOR,
-        start_date=date(2025, 1, 1),
-        end_date=None,
-        hourly_rate="75.00",
-    )
-    db.add(role)
-    await db.flush()
-    return role
-
-
-async def _seed_time_entry(
-    db: AsyncSession,
-    project: Project,
-    school: School,
-    employee: Employee,
-    role: EmployeeRole,
-) -> "TimeEntry":
-    from app.time_entries.models import TimeEntry
-
-    entry = TimeEntry(
-        start_datetime=datetime(2025, 6, 1, 9, 0, 0),
-        end_datetime=datetime(2025, 6, 1, 17, 0, 0),
-        employee_id=employee.id,
-        employee_role_id=role.id,
-        project_id=project.id,
-        school_id=school.id,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(entry)
-    await db.flush()
-    return entry
-
-
-async def _seed_sample_type(db: AsyncSession) -> SampleType:
-    st = SampleType(
-        name="PCM-Test", created_by_id=SYSTEM_USER_ID, updated_by_id=SYSTEM_USER_ID
-    )
-    db.add(st)
-    await db.flush()
-    return st
-
-
-async def _seed_batch(
-    db: AsyncSession, time_entry, sample_type: SampleType
-) -> SampleBatch:
-    batch = SampleBatch(
-        sample_type_id=sample_type.id,
-        time_entry_id=time_entry.id,
-        batch_num=f"BATCH-{time_entry.id}-TST",
-        is_report=False,
-        date_collected=date(2025, 6, 1),
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(batch)
-    await db.flush()
-    return batch
-
-
-async def _seed_deliverable(db: AsyncSession) -> Deliverable:
-    deliv = Deliverable(
-        name="Air Clearance Test",
-        level=WACodeLevel.PROJECT,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(deliv)
-    await db.flush()
-    return deliv
-
-
-async def _seed_project_deliverable(
-    db: AsyncSession, project: Project, deliverable: Deliverable
-) -> ProjectDeliverable:
-    pd = ProjectDeliverable(
-        project_id=project.id,
-        deliverable_id=deliverable.id,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(pd)
-    await db.flush()
-    return pd
-
-
-async def _seed_blocking_note(
-    db: AsyncSession,
-    entity_type: NoteEntityType,
-    entity_id: int,
-    body: str = "Blocking issue",
-    *,
-    resolved: bool = False,
-) -> Note:
-    note = Note(
-        entity_type=entity_type,
-        entity_id=entity_id,
-        body=body,
-        is_blocking=True,
-        is_resolved=resolved,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    if resolved:
-        note.resolved_by_id = SYSTEM_USER_ID
-        note.resolved_at = datetime.now(tz=UTC)
-    db.add(note)
-    await db.flush()
-    return note
-
+# if TYPE_CHECKING:
+#     from app.time_entries.models import TimeEntry
 
 # ---------------------------------------------------------------------------
 # Tests
@@ -186,7 +65,7 @@ async def _seed_blocking_note(
 class TestGetBlockingNotesForProject:
     async def test_empty_returns_empty_list(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="00")
+        project = await seed_project(db_session, school, project_number="26-666-0000")
 
         result = await get_blocking_notes_for_project(project.id, db_session)
 
@@ -194,10 +73,13 @@ class TestGetBlockingNotesForProject:
 
     async def test_returns_project_level_note(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="02")
+        project = await seed_project(db_session, school, project_number="26-666-0002")
 
-        await _seed_blocking_note(
-            db_session, NoteEntityType.PROJECT, project.id, "Project issue"
+        await seed_blocking_note(
+            db_session,
+            entity_type=NoteEntityType.PROJECT,
+            entity_id=project.id,
+            body="Project issue",
         )
 
         result = await get_blocking_notes_for_project(project.id, db_session)
@@ -210,12 +92,14 @@ class TestGetBlockingNotesForProject:
 
     async def test_returns_time_entry_note(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="03")
+        project = await seed_project(db_session, school, project_number="26-666-0003")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
 
-        await _seed_blocking_note(db_session, NoteEntityType.TIME_ENTRY, entry.id)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.TIME_ENTRY, entity_id=entry.id
+        )
 
         result = await get_blocking_notes_for_project(project.id, db_session)
 
@@ -226,14 +110,16 @@ class TestGetBlockingNotesForProject:
 
     async def test_returns_sample_batch_note(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="04")
+        project = await seed_project(db_session, school, project_number="26-666-0004")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        entry = await _seed_time_entry(db_session, project, school, emp, role)
-        st = await _seed_sample_type(db_session)
-        batch = await _seed_batch(db_session, entry, st)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
+        st = await seed_sample_type(db_session)
+        batch = await seed_sample_batch(db_session, entry, st)
 
-        await _seed_blocking_note(db_session, NoteEntityType.SAMPLE_BATCH, batch.id)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.SAMPLE_BATCH, entity_id=batch.id
+        )
 
         result = await get_blocking_notes_for_project(project.id, db_session)
 
@@ -244,11 +130,13 @@ class TestGetBlockingNotesForProject:
 
     async def test_returns_deliverable_note(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="05")
-        deliv = await _seed_deliverable(db_session)
-        await _seed_project_deliverable(db_session, project, deliv)
+        project = await seed_project(db_session, school, project_number="26-666-0005")
+        deliv = await seed_deliverable(db_session)
+        await seed_project_deliverable(db_session, project, deliv)
 
-        await _seed_blocking_note(db_session, NoteEntityType.DELIVERABLE, deliv.id)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.DELIVERABLE, entity_id=deliv.id
+        )
 
         result = await get_blocking_notes_for_project(project.id, db_session)
 
@@ -259,10 +147,13 @@ class TestGetBlockingNotesForProject:
 
     async def test_excludes_resolved_notes(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="06")
+        project = await seed_project(db_session, school, project_number="26-666-0006")
 
-        await _seed_blocking_note(
-            db_session, NoteEntityType.PROJECT, project.id, resolved=True
+        await seed_blocking_note(
+            db_session,
+            entity_type=NoteEntityType.PROJECT,
+            entity_id=project.id,
+            is_resolved=True,
         )
 
         result = await get_blocking_notes_for_project(project.id, db_session)
@@ -271,14 +162,16 @@ class TestGetBlockingNotesForProject:
 
     async def test_excludes_other_projects_time_entry(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project_a = await _seed_project(db_session, school, suffix="07")
-        project_b = await _seed_project(db_session, school, suffix="08")
+        project_a = await seed_project(db_session, school, project_number="26-666-0007")
+        project_b = await seed_project(db_session, school, project_number="26-666-0008")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
+        role = await seed_employee_role(db_session, emp)
 
         # Time entry belongs to project_b, not project_a
-        entry_b = await _seed_time_entry(db_session, project_b, school, emp, role)
-        await _seed_blocking_note(db_session, NoteEntityType.TIME_ENTRY, entry_b.id)
+        entry_b = await seed_time_entry(db_session, emp, role, project_b, school)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.TIME_ENTRY, entity_id=entry_b.id
+        )
 
         result = await get_blocking_notes_for_project(project_a.id, db_session)
 
@@ -287,12 +180,15 @@ class TestGetBlockingNotesForProject:
     async def test_ordered_by_created_at(self, db_session: AsyncSession):
         """Notes are returned in ascending created_at order."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="09")
+        project = await seed_project(db_session, school, project_number="26-666-0009")
 
         # Insert three notes on the project; DB will assign ascending created_at
         for body in ("First", "Second", "Third"):
-            await _seed_blocking_note(
-                db_session, NoteEntityType.PROJECT, project.id, body
+            await seed_blocking_note(
+                db_session,
+                entity_type=NoteEntityType.PROJECT,
+                entity_id=project.id,
+                body=body,
             )
 
         result = await get_blocking_notes_for_project(project.id, db_session)
@@ -304,160 +200,18 @@ class TestGetBlockingNotesForProject:
 
     async def test_entity_label_format(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="10")
+        project = await seed_project(db_session, school, project_number="26-666-0010")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
 
-        await _seed_blocking_note(db_session, NoteEntityType.TIME_ENTRY, entry.id)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.TIME_ENTRY, entity_id=entry.id
+        )
 
         result = await get_blocking_notes_for_project(project.id, db_session)
 
         assert result[0].entity_label == f"Time Entry #{entry.id}"
-
-
-# ---------------------------------------------------------------------------
-# Additional seed helpers for Phase 6 Session A tests
-# ---------------------------------------------------------------------------
-
-
-_wa_seq = 0
-
-
-def _next_wa_num() -> str:
-    global _wa_seq
-    _wa_seq += 1
-    return f"WA-{_wa_seq:04d}"
-
-
-async def _seed_wa_code(db: AsyncSession, *, code: str, level: WACodeLevel) -> WACode:
-    wa_code = WACode(
-        code=code,
-        description=f"Test code {code}",
-        level=level,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(wa_code)
-    await db.flush()
-    return wa_code
-
-
-async def _seed_work_auth(db: AsyncSession, project: Project) -> WorkAuth:
-    num = _next_wa_num()
-    wa = WorkAuth(
-        wa_num=num,
-        service_id=f"SVC-{num}",
-        project_num=f"PN-{num}",
-        initiation_date=date(2025, 1, 1),
-        project_id=project.id,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(wa)
-    await db.flush()
-    return wa
-
-
-async def _seed_wa_project_code(
-    db: AsyncSession,
-    wa: WorkAuth,
-    wa_code: WACode,
-    status: WACodeStatus = WACodeStatus.ACTIVE,
-) -> WorkAuthProjectCode:
-    pc = WorkAuthProjectCode(
-        work_auth_id=wa.id,
-        wa_code_id=wa_code.id,
-        fee=Decimal("100.00"),
-        status=status,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(pc)
-    await db.flush()
-    return pc
-
-
-async def _seed_wa_building_code(
-    db: AsyncSession,
-    wa: WorkAuth,
-    wa_code: WACode,
-    project: Project,
-    school: School,
-    status: WACodeStatus = WACodeStatus.ACTIVE,
-) -> WorkAuthBuildingCode:
-    bc = WorkAuthBuildingCode(
-        work_auth_id=wa.id,
-        wa_code_id=wa_code.id,
-        project_id=project.id,
-        school_id=school.id,
-        budget=Decimal("1000.00"),
-        status=status,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(bc)
-    await db.flush()
-    return bc
-
-
-async def _seed_deliverable_with_trigger(
-    db: AsyncSession,
-    *,
-    name: str,
-    level: WACodeLevel,
-    wa_code: WACode,
-) -> Deliverable:
-    deliv = Deliverable(
-        name=name,
-        level=level,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(deliv)
-    await db.flush()
-    trigger = DeliverableWACodeTrigger(deliverable_id=deliv.id, wa_code_id=wa_code.id)
-    db.add(trigger)
-    await db.flush()
-    return deliv
-
-
-async def _seed_project_deliverable_row(
-    db: AsyncSession,
-    project: Project,
-    deliverable: Deliverable,
-    sca_status: SCADeliverableStatus = SCADeliverableStatus.PENDING_WA,
-) -> ProjectDeliverable:
-    pd = ProjectDeliverable(
-        project_id=project.id,
-        deliverable_id=deliverable.id,
-        sca_status=sca_status,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(pd)
-    await db.flush()
-    return pd
-
-
-async def _seed_building_deliverable_row(
-    db: AsyncSession,
-    project: Project,
-    deliverable: Deliverable,
-    school: School,
-    sca_status: SCADeliverableStatus = SCADeliverableStatus.PENDING_WA,
-) -> ProjectBuildingDeliverable:
-    pbd = ProjectBuildingDeliverable(
-        project_id=project.id,
-        deliverable_id=deliverable.id,
-        school_id=school.id,
-        sca_status=sca_status,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(pbd)
-    await db.flush()
-    return pbd
 
 
 # ---------------------------------------------------------------------------
@@ -470,16 +224,14 @@ class TestRecalculateDeliverableSCAStatus:
         self, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="20")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-20", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0020")
+        wa_code = await seed_wa_code(db_session, code="A-20", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 20", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
         # Start at OUTSTANDING; no WA on the project
-        pd = await _seed_project_deliverable_row(
-            db_session, project, deliv, SCADeliverableStatus.OUTSTANDING
+        pd = await seed_project_deliverable(
+            db_session, project, deliv, sca_status=SCADeliverableStatus.OUTSTANDING
         )
 
         await recalculate_deliverable_sca_status(project.id, db_session)
@@ -489,16 +241,16 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_active_code_sets_outstanding(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="21")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-21", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0021")
+        wa_code = await seed_wa_code(db_session, code="A-21", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 21", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code, WACodeStatus.ACTIVE)
-        pd = await _seed_project_deliverable_row(db_session, project, deliv)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(
+            db_session, wa, wa_code, status=WACodeStatus.ACTIVE
+        )
+        pd = await seed_project_deliverable(db_session, project, deliv)
 
         await recalculate_deliverable_sca_status(project.id, db_session)
         await db_session.refresh(pd)
@@ -507,16 +259,16 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_added_by_rfa_code_sets_outstanding(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="22")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-22", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0022")
+        wa_code = await seed_wa_code(db_session, code="A-22", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 22", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code, WACodeStatus.ADDED_BY_RFA)
-        pd = await _seed_project_deliverable_row(db_session, project, deliv)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(
+            db_session, wa, wa_code, status=WACodeStatus.ADDED_BY_RFA
+        )
+        pd = await seed_project_deliverable(db_session, project, deliv)
 
         await recalculate_deliverable_sca_status(project.id, db_session)
         await db_session.refresh(pd)
@@ -525,16 +277,16 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_rfa_needed_code_sets_pending_rfa(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="23")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-23", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0023")
+        wa_code = await seed_wa_code(db_session, code="A-23", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 23", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code, WACodeStatus.RFA_NEEDED)
-        pd = await _seed_project_deliverable_row(db_session, project, deliv)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(
+            db_session, wa, wa_code, status=WACodeStatus.RFA_NEEDED
+        )
+        pd = await seed_project_deliverable(db_session, project, deliv)
 
         await recalculate_deliverable_sca_status(project.id, db_session)
         await db_session.refresh(pd)
@@ -543,16 +295,16 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_rfa_pending_code_sets_pending_rfa(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="24")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-24", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0024")
+        wa_code = await seed_wa_code(db_session, code="A-24", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 24", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code, WACodeStatus.RFA_PENDING)
-        pd = await _seed_project_deliverable_row(db_session, project, deliv)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(
+            db_session, wa, wa_code, status=WACodeStatus.RFA_PENDING
+        )
+        pd = await seed_project_deliverable(db_session, project, deliv)
 
         await recalculate_deliverable_sca_status(project.id, db_session)
         await db_session.refresh(pd)
@@ -561,17 +313,17 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_removed_code_treated_as_absent(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="25")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-25", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0025")
+        wa_code = await seed_wa_code(db_session, code="A-25", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 25", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code, WACodeStatus.REMOVED)
-        pd = await _seed_project_deliverable_row(
-            db_session, project, deliv, SCADeliverableStatus.OUTSTANDING
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(
+            db_session, wa, wa_code, status=WACodeStatus.REMOVED
+        )
+        pd = await seed_project_deliverable(
+            db_session, project, deliv, sca_status=SCADeliverableStatus.OUTSTANDING
         )
 
         await recalculate_deliverable_sca_status(project.id, db_session)
@@ -581,30 +333,30 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_manual_statuses_untouched(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="26")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-26", level=WACodeLevel.PROJECT
-        )
-        deliv_a = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0026")
+        wa_code = await seed_wa_code(db_session, code="A-26", level=WACodeLevel.PROJECT)
+        deliv_a = await seed_deliverable_with_trigger(
             db_session, name="Deliv 26a", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        deliv_b = await _seed_deliverable_with_trigger(
+        deliv_b = await seed_deliverable_with_trigger(
             db_session, name="Deliv 26b", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        deliv_c = await _seed_deliverable_with_trigger(
+        deliv_c = await seed_deliverable_with_trigger(
             db_session, name="Deliv 26c", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code, WACodeStatus.ACTIVE)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(
+            db_session, wa, wa_code, status=WACodeStatus.ACTIVE
+        )
 
-        pd_ur = await _seed_project_deliverable_row(
-            db_session, project, deliv_a, SCADeliverableStatus.UNDER_REVIEW
+        pd_ur = await seed_project_deliverable(
+            db_session, project, deliv_a, sca_status=SCADeliverableStatus.UNDER_REVIEW
         )
-        pd_rej = await _seed_project_deliverable_row(
-            db_session, project, deliv_b, SCADeliverableStatus.REJECTED
+        pd_rej = await seed_project_deliverable(
+            db_session, project, deliv_b, sca_status=SCADeliverableStatus.REJECTED
         )
-        pd_app = await _seed_project_deliverable_row(
-            db_session, project, deliv_c, SCADeliverableStatus.APPROVED
+        pd_app = await seed_project_deliverable(
+            db_session, project, deliv_c, sca_status=SCADeliverableStatus.APPROVED
         )
 
         await recalculate_deliverable_sca_status(project.id, db_session)
@@ -618,21 +370,23 @@ class TestRecalculateDeliverableSCAStatus:
 
     async def test_building_level_deliverable_updated(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="27")
-        wa_code = await _seed_wa_code(
+        project = await seed_project(db_session, school, project_number="26-666-0027")
+        wa_code = await seed_wa_code(
             db_session, code="B-27", level=WACodeLevel.BUILDING
         )
-        deliv = await _seed_deliverable_with_trigger(
+        deliv = await seed_deliverable_with_trigger(
             db_session,
             name="Bldg Deliv 27",
             level=WACodeLevel.BUILDING,
             wa_code=wa_code,
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_building_code(
-            db_session, wa, wa_code, project, school, WACodeStatus.ACTIVE
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_building_code(
+            db_session, wa, wa_code, project, school, status=WACodeStatus.ACTIVE
         )
-        pbd = await _seed_building_deliverable_row(db_session, project, deliv, school)
+        pbd = await seed_project_building_deliverable(
+            db_session, project, deliv, school
+        )
 
         await recalculate_deliverable_sca_status(project.id, db_session)
         await db_session.refresh(pbd)
@@ -643,21 +397,23 @@ class TestRecalculateDeliverableSCAStatus:
         self, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="28")
-        wa_code = await _seed_wa_code(
+        project = await seed_project(db_session, school, project_number="26-666-0028")
+        wa_code = await seed_wa_code(
             db_session, code="B-28", level=WACodeLevel.BUILDING
         )
-        deliv = await _seed_deliverable_with_trigger(
+        deliv = await seed_deliverable_with_trigger(
             db_session,
             name="Bldg Deliv 28",
             level=WACodeLevel.BUILDING,
             wa_code=wa_code,
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_building_code(
-            db_session, wa, wa_code, project, school, WACodeStatus.RFA_NEEDED
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_building_code(
+            db_session, wa, wa_code, project, school, status=WACodeStatus.RFA_NEEDED
         )
-        pbd = await _seed_building_deliverable_row(db_session, project, deliv, school)
+        pbd = await seed_project_building_deliverable(
+            db_session, project, deliv, school
+        )
 
         await recalculate_deliverable_sca_status(project.id, db_session)
         await db_session.refresh(pbd)
@@ -667,14 +423,12 @@ class TestRecalculateDeliverableSCAStatus:
     async def test_status_promotion_chain(self, db_session: AsyncSession):
         """Verify pending_wa → pending_rfa → outstanding promotion sequence."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="29")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-29", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0029")
+        wa_code = await seed_wa_code(db_session, code="A-29", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 29", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        pd = await _seed_project_deliverable_row(db_session, project, deliv)
+        pd = await seed_project_deliverable(db_session, project, deliv)
 
         # Stage 1: no WA → pending_wa (already the default)
         await recalculate_deliverable_sca_status(project.id, db_session)
@@ -682,9 +436,9 @@ class TestRecalculateDeliverableSCAStatus:
         assert pd.sca_status == SCADeliverableStatus.PENDING_WA
 
         # Stage 2: WA added with rfa_needed code → pending_rfa
-        wa = await _seed_work_auth(db_session, project)
-        pc = await _seed_wa_project_code(
-            db_session, wa, wa_code, WACodeStatus.RFA_NEEDED
+        wa = await seed_work_auth(db_session, project)
+        pc = await seed_work_auth_project_code(
+            db_session, wa, wa_code, status=WACodeStatus.RFA_NEEDED
         )
         await recalculate_deliverable_sca_status(project.id, db_session)
         await db_session.refresh(pd)
@@ -706,11 +460,9 @@ class TestRecalculateDeliverableSCAStatus:
 class TestEnsureDeliverablesExist:
     async def test_no_wa_creates_nothing(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="30")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-30", level=WACodeLevel.PROJECT
-        )
-        await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0030")
+        wa_code = await seed_wa_code(db_session, code="A-30", level=WACodeLevel.PROJECT)
+        await seed_deliverable_with_trigger(
             db_session, name="Deliv 30", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
 
@@ -733,15 +485,13 @@ class TestEnsureDeliverablesExist:
 
     async def test_creates_project_level_deliverable(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="31")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-31", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0031")
+        wa_code = await seed_wa_code(db_session, code="A-31", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 31", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(db_session, wa, wa_code)
 
         await ensure_deliverables_exist(project.id, db_session)
 
@@ -763,18 +513,18 @@ class TestEnsureDeliverablesExist:
 
     async def test_creates_building_level_deliverable(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="32")
-        wa_code = await _seed_wa_code(
+        project = await seed_project(db_session, school, project_number="26-666-0032")
+        wa_code = await seed_wa_code(
             db_session, code="B-32", level=WACodeLevel.BUILDING
         )
-        deliv = await _seed_deliverable_with_trigger(
+        deliv = await seed_deliverable_with_trigger(
             db_session,
             name="Bldg Deliv 32",
             level=WACodeLevel.BUILDING,
             wa_code=wa_code,
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_building_code(db_session, wa, wa_code, project, school)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_building_code(db_session, wa, wa_code, project, school)
 
         await ensure_deliverables_exist(project.id, db_session)
 
@@ -797,15 +547,13 @@ class TestEnsureDeliverablesExist:
 
     async def test_idempotent(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="33")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-33", level=WACodeLevel.PROJECT
-        )
-        await _seed_deliverable_with_trigger(
+        project = await seed_project(db_session, school, project_number="26-666-0033")
+        wa_code = await seed_wa_code(db_session, code="A-33", level=WACodeLevel.PROJECT)
+        await seed_deliverable_with_trigger(
             db_session, name="Deliv 33", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(db_session, wa, wa_code)
 
         await ensure_deliverables_exist(project.id, db_session)
         await ensure_deliverables_exist(project.id, db_session)
@@ -830,18 +578,18 @@ class TestEnsureDeliverablesExist:
     ):
         """A building-level code should not produce a project-level deliverable."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="34")
-        bldg_code = await _seed_wa_code(
+        project = await seed_project(db_session, school, project_number="26-666-0034")
+        bldg_code = await seed_wa_code(
             db_session, code="B-34", level=WACodeLevel.BUILDING
         )
-        await _seed_deliverable_with_trigger(
+        await seed_deliverable_with_trigger(
             db_session,
             name="Bldg Deliv 34",
             level=WACodeLevel.BUILDING,
             wa_code=bldg_code,
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_building_code(db_session, wa, bldg_code, project, school)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_building_code(db_session, wa, bldg_code, project, school)
 
         await ensure_deliverables_exist(project.id, db_session)
 
@@ -863,13 +611,11 @@ class TestEnsureDeliverablesExist:
     async def test_no_trigger_creates_nothing(self, db_session: AsyncSession):
         """A WA code with no deliverable trigger produces no rows."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="35")
-        wa_code = await _seed_wa_code(
-            db_session, code="A-35", level=WACodeLevel.PROJECT
-        )
+        project = await seed_project(db_session, school, project_number="26-666-0035")
+        wa_code = await seed_wa_code(db_session, code="A-35", level=WACodeLevel.PROJECT)
         # No DeliverableWACodeTrigger created
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(db_session, wa, wa_code)
 
         await ensure_deliverables_exist(project.id, db_session)
 
@@ -891,7 +637,7 @@ class TestEnsureDeliverablesExist:
     async def test_building_deliv_created_per_school(self, db_session: AsyncSession):
         """Building-level deliverable creates one row per linked school."""
         school_a = await seed_school(db_session)
-        project = await _seed_project(db_session, school_a, suffix="36")
+        project = await seed_project(db_session, school_a, project_number="26-666-0036")
         # Link a second school
         school_b = School(
             code="M036",
@@ -906,18 +652,18 @@ class TestEnsureDeliverablesExist:
         project.schools.append(school_b)
         await db_session.flush()
 
-        wa_code = await _seed_wa_code(
+        wa_code = await seed_wa_code(
             db_session, code="B-36", level=WACodeLevel.BUILDING
         )
-        deliv = await _seed_deliverable_with_trigger(
+        deliv = await seed_deliverable_with_trigger(
             db_session,
             name="Bldg Deliv 36",
             level=WACodeLevel.BUILDING,
             wa_code=wa_code,
         )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_building_code(db_session, wa, wa_code, project, school_a)
-        await _seed_wa_building_code(db_session, wa, wa_code, project, school_b)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_building_code(db_session, wa, wa_code, project, school_a)
+        await seed_work_auth_building_code(db_session, wa, wa_code, project, school_b)
 
         await ensure_deliverables_exist(project.id, db_session)
 
@@ -950,7 +696,7 @@ class TestCheckSampleTypeGapNote:
     async def test_no_wa_returns_early(self, db_session: AsyncSession):
         """With no WA on the project, function is a no-op (no error)."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="70")
+        project = await seed_project(db_session, school, project_number="26-666-0070")
         await check_sample_type_gap_note(project.id, db_session)
         from sqlalchemy import select as _sel
 
@@ -964,12 +710,10 @@ class TestCheckSampleTypeGapNote:
     async def test_no_batches_resolves_existing_note(self, db_session: AsyncSession):
         """If a gap note exists but the project now has no batches, note auto-resolves."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="71")
-        wa_code = await _seed_wa_code(
-            db_session, code="P-71", level=WACodeLevel.PROJECT
-        )
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code)
+        project = await seed_project(db_session, school, project_number="26-666-0071")
+        wa_code = await seed_wa_code(db_session, code="P-71", level=WACodeLevel.PROJECT)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(db_session, wa, wa_code)
 
         # Seed a pre-existing gap note manually
         existing = Note(
@@ -995,15 +739,13 @@ class TestCheckSampleTypeGapNote:
     ):
         """When the required WA code is on the WA, no gap note is created."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="72")
+        project = await seed_project(db_session, school, project_number="26-666-0072")
         employee = await seed_employee(db_session)
-        role = await _seed_role(db_session, employee)
-        entry = await _seed_time_entry(db_session, project, school, employee, role)
+        role = await seed_employee_role(db_session, employee)
+        entry = await seed_time_entry(db_session, employee, role, project, school)
 
-        wa_code = await _seed_wa_code(
-            db_session, code="P-72", level=WACodeLevel.PROJECT
-        )
-        sample_type = await _seed_sample_type(db_session)
+        wa_code = await seed_wa_code(db_session, code="P-72", level=WACodeLevel.PROJECT)
+        sample_type = await seed_sample_type(db_session)
         link = SampleTypeWACode(
             sample_type_id=sample_type.id,
             wa_code_id=wa_code.id,
@@ -1013,10 +755,10 @@ class TestCheckSampleTypeGapNote:
         db_session.add(link)
         await db_session.flush()
 
-        await _seed_batch(db_session, entry, sample_type)
+        await seed_sample_batch(db_session, entry, sample_type)
 
-        wa = await _seed_work_auth(db_session, project)
-        await _seed_wa_project_code(db_session, wa, wa_code)
+        wa = await seed_work_auth(db_session, project)
+        await seed_work_auth_project_code(db_session, wa, wa_code)
 
         await check_sample_type_gap_note(project.id, db_session)
 
@@ -1041,15 +783,15 @@ class TestCheckSampleTypeGapNote:
     ):
         """When a required WA code is absent, a blocking system note is created."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="73")
+        project = await seed_project(db_session, school, project_number="26-666-0073")
         employee = await seed_employee(db_session)
-        role = await _seed_role(db_session, employee)
-        entry = await _seed_time_entry(db_session, project, school, employee, role)
+        role = await seed_employee_role(db_session, employee)
+        entry = await seed_time_entry(db_session, employee, role, project, school)
 
-        required_code = await _seed_wa_code(
+        required_code = await seed_wa_code(
             db_session, code="P-73-REQ", level=WACodeLevel.PROJECT
         )
-        sample_type = await _seed_sample_type(db_session)
+        sample_type = await seed_sample_type(db_session)
         link = SampleTypeWACode(
             sample_type_id=sample_type.id,
             wa_code_id=required_code.id,
@@ -1059,10 +801,10 @@ class TestCheckSampleTypeGapNote:
         db_session.add(link)
         await db_session.flush()
 
-        await _seed_batch(db_session, entry, sample_type)
+        await seed_sample_batch(db_session, entry, sample_type)
 
         # WA exists but the required code is NOT on it
-        await _seed_work_auth(db_session, project)
+        await seed_work_auth(db_session, project)
 
         await check_sample_type_gap_note(project.id, db_session)
 
@@ -1085,15 +827,15 @@ class TestCheckSampleTypeGapNote:
     ):
         """After the missing code is added to the WA, the gap note auto-resolves."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="74")
+        project = await seed_project(db_session, school, project_number="26-666-0074")
         employee = await seed_employee(db_session)
-        role = await _seed_role(db_session, employee)
-        entry = await _seed_time_entry(db_session, project, school, employee, role)
+        role = await seed_employee_role(db_session, employee)
+        entry = await seed_time_entry(db_session, employee, role, project, school)
 
-        required_code = await _seed_wa_code(
+        required_code = await seed_wa_code(
             db_session, code="P-74-REQ", level=WACodeLevel.PROJECT
         )
-        sample_type = await _seed_sample_type(db_session)
+        sample_type = await seed_sample_type(db_session)
         link = SampleTypeWACode(
             sample_type_id=sample_type.id,
             wa_code_id=required_code.id,
@@ -1102,9 +844,9 @@ class TestCheckSampleTypeGapNote:
         )
         db_session.add(link)
         await db_session.flush()
-        await _seed_batch(db_session, entry, sample_type)
+        await seed_sample_batch(db_session, entry, sample_type)
 
-        wa = await _seed_work_auth(db_session, project)
+        wa = await seed_work_auth(db_session, project)
 
         # First call: note is created
         await check_sample_type_gap_note(project.id, db_session)
@@ -1122,7 +864,7 @@ class TestCheckSampleTypeGapNote:
         assert note.is_blocking is True
 
         # Now add the required code to the WA
-        await _seed_wa_project_code(db_session, wa, required_code)
+        await seed_work_auth_project_code(db_session, wa, required_code)
 
         # Second call: note should resolve
         await check_sample_type_gap_note(project.id, db_session)
@@ -1138,7 +880,7 @@ class TestCheckSampleTypeGapNote:
 class TestDeriveProjectStatus:
     async def test_no_time_entries_returns_setup(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="80")
+        project = await seed_project(db_session, school, project_number="26-666-0080")
 
         result = await derive_project_status(project.id, db_session)
 
@@ -1148,11 +890,13 @@ class TestDeriveProjectStatus:
 
     async def test_blocking_note_returns_blocked(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="81")
+        project = await seed_project(db_session, school, project_number="26-666-0081")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        await _seed_time_entry(db_session, project, school, emp, role)
-        await _seed_blocking_note(db_session, NoteEntityType.PROJECT, project.id)
+        role = await seed_employee_role(db_session, emp)
+        await seed_time_entry(db_session, emp, role, project, school)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.PROJECT, entity_id=project.id
+        )
 
         result = await derive_project_status(project.id, db_session)
 
@@ -1162,8 +906,10 @@ class TestDeriveProjectStatus:
     async def test_blocking_note_overrides_setup(self, db_session: AsyncSession):
         """BLOCKED takes priority even when no time entries exist."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="82")
-        await _seed_blocking_note(db_session, NoteEntityType.PROJECT, project.id)
+        project = await seed_project(db_session, school, project_number="26-666-0082")
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.PROJECT, entity_id=project.id
+        )
 
         result = await derive_project_status(project.id, db_session)
 
@@ -1173,21 +919,19 @@ class TestDeriveProjectStatus:
         self, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="83")
+        project = await seed_project(db_session, school, project_number="26-666-0083")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
         # Flip the entry to ENTERED so it's not unconfirmed
         entry.status = TimeEntryStatus.ENTERED
         await db_session.flush()
-        wa_code = await _seed_wa_code(
-            db_session, code="A-83", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        wa_code = await seed_wa_code(db_session, code="A-83", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 83", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        await _seed_project_deliverable_row(
-            db_session, project, deliv, SCADeliverableStatus.OUTSTANDING
+        await seed_project_deliverable(
+            db_session, project, deliv, sca_status=SCADeliverableStatus.OUTSTANDING
         )
 
         result = await derive_project_status(project.id, db_session)
@@ -1202,10 +946,10 @@ class TestDeriveProjectStatus:
         from app.common.enums import TimeEntryStatus
 
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="84")
+        project = await seed_project(db_session, school, project_number="26-666-0084")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
         entry.status = TimeEntryStatus.ASSUMED
         await db_session.flush()
 
@@ -1216,21 +960,19 @@ class TestDeriveProjectStatus:
 
     async def test_all_clear_returns_ready_to_close(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="85")
+        project = await seed_project(db_session, school, project_number="26-666-0085")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
         entry.status = TimeEntryStatus.ENTERED
         await db_session.flush()
         # Deliverable exists but is approved (not outstanding)
-        wa_code = await _seed_wa_code(
-            db_session, code="A-85", level=WACodeLevel.PROJECT
-        )
-        deliv = await _seed_deliverable_with_trigger(
+        wa_code = await seed_wa_code(db_session, code="A-85", level=WACodeLevel.PROJECT)
+        deliv = await seed_deliverable_with_trigger(
             db_session, name="Deliv 85", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        await _seed_project_deliverable_row(
-            db_session, project, deliv, SCADeliverableStatus.APPROVED
+        await seed_project_deliverable(
+            db_session, project, deliv, sca_status=SCADeliverableStatus.APPROVED
         )
 
         result = await derive_project_status(project.id, db_session)
@@ -1242,24 +984,22 @@ class TestDeriveProjectStatus:
 
     async def test_counts_are_accurate(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="86")
+        project = await seed_project(db_session, school, project_number="26-666-0086")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        await _seed_time_entry(db_session, project, school, emp, role)
-        wa_code = await _seed_wa_code(
-            db_session, code="A-86", level=WACodeLevel.PROJECT
-        )
-        deliv_a = await _seed_deliverable_with_trigger(
+        role = await seed_employee_role(db_session, emp)
+        await seed_time_entry(db_session, emp, role, project, school)
+        wa_code = await seed_wa_code(db_session, code="A-86", level=WACodeLevel.PROJECT)
+        deliv_a = await seed_deliverable_with_trigger(
             db_session, name="Deliv 86a", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        deliv_b = await _seed_deliverable_with_trigger(
+        deliv_b = await seed_deliverable_with_trigger(
             db_session, name="Deliv 86b", level=WACodeLevel.PROJECT, wa_code=wa_code
         )
-        await _seed_project_deliverable_row(
-            db_session, project, deliv_a, SCADeliverableStatus.OUTSTANDING
+        await seed_project_deliverable(
+            db_session, project, deliv_a, sca_status=SCADeliverableStatus.OUTSTANDING
         )
-        await _seed_project_deliverable_row(
-            db_session, project, deliv_b, SCADeliverableStatus.APPROVED
+        await seed_project_deliverable(
+            db_session, project, deliv_b, sca_status=SCADeliverableStatus.APPROVED
         )
 
         result = await derive_project_status(project.id, db_session)
@@ -1280,17 +1020,17 @@ class TestDeriveProjectStatus:
 
     async def test_has_work_auth_flag(self, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school, suffix="87")
+        project = await seed_project(db_session, school, project_number="26-666-0087")
         emp = await seed_employee(db_session)
-        role = await _seed_role(db_session, emp)
-        entry = await _seed_time_entry(db_session, project, school, emp, role)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
         entry.status = TimeEntryStatus.ENTERED
         await db_session.flush()
 
         result_before = await derive_project_status(project.id, db_session)
         assert result_before.has_work_auth is False
 
-        await _seed_work_auth(db_session, project)
+        await seed_work_auth(db_session, project)
 
         result_after = await derive_project_status(project.id, db_session)
         assert result_after.has_work_auth is True

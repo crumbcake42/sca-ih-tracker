@@ -6,18 +6,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import ProjectStatus
-from app.projects.models import Project
-from app.schools.models import School
 
-from tests.seeds import seed_school
-
-
-async def _seed_project(db: AsyncSession, school: School) -> Project:
-    project = Project(name="Status Test Project", project_number="26-111-99")
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
+from tests.seeds import seed_school, seed_project
 
 
 class TestGetProjectStatus:
@@ -29,7 +19,7 @@ class TestGetProjectStatus:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
+        project = await seed_project(db_session, school)
 
         response = await auth_client.get(f"/projects/{project.id}/status")
 

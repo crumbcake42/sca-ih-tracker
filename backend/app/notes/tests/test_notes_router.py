@@ -8,63 +8,12 @@ PATCH  /notes/{note_id}/resolve           — resolve user note (reject system n
 GET    /projects/{id}/blocking-issues     — aggregated blocking notes
 """
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.config import SYSTEM_USER_ID
-from app.common.enums import Boro, NoteEntityType, NoteType
-from app.notes.models import Note
-from app.projects.models import Project
-from app.schools.models import School
+from app.common.enums import NoteEntityType, NoteType
 
-from tests.seeds import seed_school
-
-# ---------------------------------------------------------------------------
-# Seed helpers
-# ---------------------------------------------------------------------------
-
-
-async def _seed_project(
-    db: AsyncSession, school: School, number: str = "26-100-0001"
-) -> Project:
-    project = Project(name="Notes Test Project", project_number=number)
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_note(
-    db: AsyncSession,
-    entity_type: NoteEntityType,
-    entity_id: int,
-    body: str = "Test note",
-    *,
-    is_blocking: bool = False,
-    note_type: NoteType | None = None,
-    parent_note_id: int | None = None,
-    resolved: bool = False,
-) -> Note:
-    from datetime import UTC, datetime
-
-    note = Note(
-        entity_type=entity_type,
-        entity_id=entity_id,
-        body=body,
-        is_blocking=is_blocking,
-        note_type=note_type,
-        parent_note_id=parent_note_id,
-        is_resolved=resolved,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    if resolved:
-        note.resolved_by_id = SYSTEM_USER_ID
-        note.resolved_at = datetime.now(tz=UTC)
-    db.add(note)
-    await db.flush()
-    return note
+from tests.seeds import seed_school, seed_project, seed_note
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +26,7 @@ class TestListNotes:
         self, client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K010")
-        project = await _seed_project(db_session, school, "26-100-0010")
+        project = await seed_project(db_session, school, project_number="26-100-0010")
 
         resp = await client.get(f"/notes/project/{project.id}")
 
@@ -88,9 +37,9 @@ class TestListNotes:
         self, client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K011")
-        project = await _seed_project(db_session, school, "26-100-0011")
-        await _seed_note(db_session, NoteEntityType.PROJECT, project.id, "First note")
-        await _seed_note(db_session, NoteEntityType.PROJECT, project.id, "Second note")
+        project = await seed_project(db_session, school, project_number="26-100-0011")
+        await seed_note(db_session, NoteEntityType.PROJECT, project.id, "First note")
+        await seed_note(db_session, NoteEntityType.PROJECT, project.id, "Second note")
 
         resp = await client.get(f"/notes/project/{project.id}")
 
@@ -104,11 +53,11 @@ class TestListNotes:
         self, client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K012")
-        project = await _seed_project(db_session, school, "26-100-0012")
-        parent = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0012")
+        parent = await seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Parent"
         )
-        await _seed_note(
+        await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,
@@ -141,7 +90,7 @@ class TestCreateNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K020")
-        project = await _seed_project(db_session, school, "26-100-0020")
+        project = await seed_project(db_session, school, project_number="26-100-0020")
 
         resp = await auth_client.post(
             f"/notes/project/{project.id}",
@@ -162,7 +111,7 @@ class TestCreateNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K021")
-        project = await _seed_project(db_session, school, "26-100-0021")
+        project = await seed_project(db_session, school, project_number="26-100-0021")
 
         resp = await auth_client.post(
             f"/notes/project/{project.id}",
@@ -181,7 +130,7 @@ class TestCreateNote:
 
     async def test_requires_auth(self, client: AsyncClient, db_session: AsyncSession):
         school = await seed_school(db_session, code="K022")
-        project = await _seed_project(db_session, school, "26-100-0022")
+        project = await seed_project(db_session, school, project_number="26-100-0022")
 
         resp = await client.post(
             f"/notes/project/{project.id}",
@@ -193,7 +142,7 @@ class TestCreateNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K023")
-        project = await _seed_project(db_session, school, "26-100-0023")
+        project = await seed_project(db_session, school, project_number="26-100-0023")
 
         resp = await auth_client.post(
             f"/notes/project/{project.id}",
@@ -212,8 +161,8 @@ class TestCreateReply:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K030")
-        project = await _seed_project(db_session, school, "26-100-0030")
-        parent = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0030")
+        parent = await seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Parent note"
         )
 
@@ -234,11 +183,11 @@ class TestCreateReply:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K031")
-        project = await _seed_project(db_session, school, "26-100-0031")
-        parent = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0031")
+        parent = await seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Parent"
         )
-        reply = await _seed_note(
+        reply = await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,
@@ -263,8 +212,8 @@ class TestCreateReply:
 
     async def test_requires_auth(self, client: AsyncClient, db_session: AsyncSession):
         school = await seed_school(db_session, code="K032")
-        project = await _seed_project(db_session, school, "26-100-0032")
-        parent = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0032")
+        parent = await seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Parent"
         )
 
@@ -285,8 +234,8 @@ class TestResolveNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K040")
-        project = await _seed_project(db_session, school, "26-100-0040")
-        note = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0040")
+        note = await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,
@@ -309,8 +258,8 @@ class TestResolveNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K041")
-        project = await _seed_project(db_session, school, "26-100-0041")
-        note = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0041")
+        note = await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,
@@ -334,8 +283,8 @@ class TestResolveNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K042")
-        project = await _seed_project(db_session, school, "26-100-0042")
-        system_note = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0042")
+        system_note = await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,
@@ -356,8 +305,8 @@ class TestResolveNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K043")
-        project = await _seed_project(db_session, school, "26-100-0043")
-        note = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0043")
+        note = await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,
@@ -383,8 +332,8 @@ class TestResolveNote:
 
     async def test_requires_auth(self, client: AsyncClient, db_session: AsyncSession):
         school = await seed_school(db_session, code="K044")
-        project = await _seed_project(db_session, school, "26-100-0044")
-        note = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0044")
+        note = await seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Blocking", is_blocking=True
         )
 
@@ -398,8 +347,8 @@ class TestResolveNote:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K045")
-        project = await _seed_project(db_session, school, "26-100-0045")
-        note = await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0045")
+        note = await seed_note(
             db_session, NoteEntityType.PROJECT, project.id, "Blocking", is_blocking=True
         )
 
@@ -420,7 +369,7 @@ class TestGetBlockingIssues:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K050")
-        project = await _seed_project(db_session, school, "26-100-0050")
+        project = await seed_project(db_session, school, project_number="26-100-0050")
 
         resp = await auth_client.get(f"/projects/{project.id}/blocking-issues")
 
@@ -431,8 +380,8 @@ class TestGetBlockingIssues:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K051")
-        project = await _seed_project(db_session, school, "26-100-0051")
-        await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0051")
+        await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,
@@ -454,8 +403,8 @@ class TestGetBlockingIssues:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session, code="K052")
-        project = await _seed_project(db_session, school, "26-100-0052")
-        await _seed_note(
+        project = await seed_project(db_session, school, project_number="26-100-0052")
+        await seed_note(
             db_session,
             NoteEntityType.PROJECT,
             project.id,

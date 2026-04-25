@@ -12,62 +12,14 @@ PATCH  /work-auths/{id}/building-codes/{wa_code_id}/{school_id}
 DELETE /work-auths/{id}/building-codes/{wa_code_id}/{school_id}
 """
 
-from datetime import date
-
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import WACodeLevel, WACodeStatus
-from app.projects.models import Project
-from app.schools.models import School
 from app.wa_codes.models import WACode
-from app.work_auths.models import WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
+from app.work_auths.models import WorkAuthBuildingCode, WorkAuthProjectCode
 
-from tests.seeds import seed_school
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-async def _seed_project(
-    db: AsyncSession, school: School, number: str = "26-111-01"
-) -> Project:
-    project = Project(name="Test Project", project_number=number)
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_work_auth(db: AsyncSession, project: Project) -> WorkAuth:
-    wa = WorkAuth(
-        wa_num="WA-001",
-        service_id="SVC-001",
-        project_num="PN-001",
-        initiation_date=date(2025, 1, 1),
-        project_id=project.id,
-    )
-    db.add(wa)
-    await db.flush()
-    return wa
-
-
-async def _seed_wa_code(
-    db: AsyncSession,
-    code: str = "P-001",
-    level: WACodeLevel = WACodeLevel.PROJECT,
-    default_fee: str | None = None,
-) -> WACode:
-    wac = WACode(
-        code=code,
-        description=f"Description for {code}",
-        level=level,
-        default_fee=default_fee,
-    )
-    db.add(wac)
-    await db.flush()
-    return wac
+from tests.seeds import seed_school, seed_project, seed_work_auth, seed_wa_code
 
 
 # ---------------------------------------------------------------------------
@@ -80,9 +32,9 @@ class TestAddProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, level=WACodeLevel.PROJECT)
 
         response = await auth_client.post(
             f"/work-auths/{wa.id}/project-codes",
@@ -98,9 +50,9 @@ class TestAddProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
 
         response = await auth_client.post(
             f"/work-auths/{wa.id}/project-codes",
@@ -112,8 +64,8 @@ class TestAddProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
 
         response = await auth_client.post(
             f"/work-auths/{wa.id}/project-codes",
@@ -125,9 +77,9 @@ class TestAddProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, level=WACodeLevel.PROJECT)
 
         await auth_client.post(
             f"/work-auths/{wa.id}/project-codes",
@@ -150,9 +102,9 @@ class TestAddProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(
             db_session, level=WACodeLevel.PROJECT, default_fee="350.00"
         )
 
@@ -167,9 +119,9 @@ class TestAddProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(
             db_session, level=WACodeLevel.PROJECT, default_fee="350.00"
         )
 
@@ -184,9 +136,9 @@ class TestAddProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(
             db_session, level=WACodeLevel.PROJECT, default_fee=None
         )
 
@@ -207,9 +159,9 @@ class TestListProjectCodes:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, level=WACodeLevel.PROJECT)
         db_session.add(
             WorkAuthProjectCode(
                 work_auth_id=wa.id,
@@ -226,8 +178,8 @@ class TestListProjectCodes:
 
     async def test_empty_list(self, auth_client: AsyncClient, db_session: AsyncSession):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
 
         response = await auth_client.get(f"/work-auths/{wa.id}/project-codes")
         assert response.status_code == 200
@@ -244,9 +196,9 @@ class TestUpdateProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, level=WACodeLevel.PROJECT)
         db_session.add(
             WorkAuthProjectCode(
                 work_auth_id=wa.id,
@@ -284,9 +236,9 @@ class TestDeleteProjectCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, level=WACodeLevel.PROJECT)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, level=WACodeLevel.PROJECT)
         db_session.add(
             WorkAuthProjectCode(
                 work_auth_id=wa.id,
@@ -320,9 +272,9 @@ class TestAddBuildingCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
 
         response = await auth_client.post(
             f"/work-auths/{wa.id}/building-codes",
@@ -338,9 +290,9 @@ class TestAddBuildingCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="P-001", level=WACodeLevel.PROJECT)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="P-001", level=WACodeLevel.PROJECT)
 
         response = await auth_client.post(
             f"/work-auths/{wa.id}/building-codes",
@@ -353,9 +305,9 @@ class TestAddBuildingCode:
     ):
         school = await seed_school(db_session, code="K001")
         other_school = await seed_school(db_session, code="K002")
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
 
         response = await auth_client.post(
             f"/work-auths/{wa.id}/building-codes",
@@ -371,9 +323,9 @@ class TestAddBuildingCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
 
         await auth_client.post(
             f"/work-auths/{wa.id}/building-codes",
@@ -396,9 +348,9 @@ class TestListBuildingCodes:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
         db_session.add(
             WorkAuthBuildingCode(
                 work_auth_id=wa.id,
@@ -426,9 +378,9 @@ class TestUpdateBuildingCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
         db_session.add(
             WorkAuthBuildingCode(
                 work_auth_id=wa.id,
@@ -461,9 +413,9 @@ class TestDeleteBuildingCode:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa = await _seed_work_auth(db_session, project)
-        wac = await _seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
+        project = await seed_project(db_session, school)
+        wa = await seed_work_auth(db_session, project)
+        wac = await seed_wa_code(db_session, code="B-001", level=WACodeLevel.BUILDING)
         db_session.add(
             WorkAuthBuildingCode(
                 work_auth_id=wa.id,

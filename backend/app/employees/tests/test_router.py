@@ -35,7 +35,7 @@ class TestCreateEmployee:
     async def test_auto_dedup_display_name(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await seed_employee(db_session, first_name="John", last_name="Smith")
+        await seed_employee(db_session, first_name="John", last_name="Smith", display_name="John Smith")
         response = await auth_client.post("/employees/", json=_payload())
         assert response.status_code == 201
         assert response.json()["display_name"] == "John Smith 2"
@@ -43,7 +43,7 @@ class TestCreateEmployee:
     async def test_third_collision_gets_suffix_3(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        await seed_employee(db_session, first_name="John", last_name="Smith")
+        await seed_employee(db_session, first_name="John", last_name="Smith", display_name="John Smith")
         await seed_employee(
             db_session,
             first_name="John",

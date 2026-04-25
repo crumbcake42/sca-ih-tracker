@@ -36,6 +36,7 @@ def _role_payload(
         end_date=None,
         hourly_rate="30.00",
     )
+    overrides = {k: v.isoformat() if isinstance(v, date) else v for k, v in overrides.items()}
     return {**defaults, **overrides}
 
 
@@ -104,7 +105,7 @@ class TestEmployeeRoleCRUD:
 
 class TestRoleOverlap:
     """
-    All tests seed one closed role [Jan–Mar] of the same type,
+    All tests seed one closed role [Jan-Mar] of the same type,
     then attempt to add a second role of the same type that varies in position.
     """
 

@@ -8,7 +8,7 @@ from .employees import seed_employee, seed_employee_role
 from .hygienist import seed_hygienist
 from .lab_results import (
     seed_sample_batch,
-    seed_required_role,
+    seed_sample_required_role,
     seed_sample_subtype,
     seed_sample_type,
     seed_sample_turnaround_option,
@@ -40,7 +40,7 @@ __all__ = [
     "seed_hygienist",
     # lab results
     "seed_sample_batch",
-    "seed_required_role",
+    "seed_sample_required_role",
     "seed_sample_subtype",
     "seed_sample_type",
     "seed_sample_turnaround_option",

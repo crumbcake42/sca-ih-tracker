@@ -8,79 +8,22 @@ These tests exercise the wiring added in Phase 6 Session B.
 from datetime import date
 from decimal import Decimal
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
-from app.common.enums import (
-    Boro,
-    RFAAction,
-    RFAStatus,
-    SCADeliverableStatus,
-    WACodeLevel,
-    WACodeStatus,
-)
-from app.deliverables.models import (
-    Deliverable,
-    DeliverableWACodeTrigger,
-    ProjectDeliverable,
-)
-from app.projects.models import Project
-from app.schools.models import School
-from app.wa_codes.models import WACode
+from app.common.enums import SCADeliverableStatus, WACodeStatus
+from app.deliverables.models import ProjectDeliverable
+
 from app.work_auths.models import WorkAuth, WorkAuthProjectCode
 
-from tests.seeds import seed_school
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-async def _seed_project(db: AsyncSession, school: School) -> Project:
-    project = Project(name="Integration Project", project_number="26-901-0001")
-    project.schools = [school]
-    db.add(project)
-    await db.flush()
-    return project
-
-
-async def _seed_wa_code(
-    db: AsyncSession, code: str, level: WACodeLevel = WACodeLevel.PROJECT
-) -> WACode:
-    wac = WACode(
-        code=code,
-        description=f"Desc {code}",
-        level=level,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(wac)
-    await db.flush()
-    return wac
-
-
-async def _seed_deliverable_with_trigger(
-    db: AsyncSession, name: str, wa_code: WACode
-) -> Deliverable:
-    deliv = Deliverable(
-        name=name,
-        level=WACodeLevel.PROJECT,
-        created_by_id=SYSTEM_USER_ID,
-        updated_by_id=SYSTEM_USER_ID,
-    )
-    db.add(deliv)
-    await db.flush()
-    trigger = DeliverableWACodeTrigger(
-        deliverable_id=deliv.id,
-        wa_code_id=wa_code.id,
-    )
-    db.add(trigger)
-    await db.flush()
-    return deliv
-
+from tests.seeds import (
+    seed_project,
+    seed_school,
+    seed_wa_code,
+    seed_deliverable_with_trigger,
+)
 
 # ---------------------------------------------------------------------------
 # Tests
@@ -94,10 +37,10 @@ class TestDeliverableIntegration:
         """POST /work-auths/{id}/project-codes creates the deliverable row and sets
         sca_status=OUTSTANDING when the added code is ACTIVE."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa_code = await _seed_wa_code(db_session, "P-INT-01")
-        deliv = await _seed_deliverable_with_trigger(
-            db_session, "Integration Deliv 1", wa_code
+        project = await seed_project(db_session, school)
+        wa_code = await seed_wa_code(db_session, code="P-INT-01")
+        deliv = await seed_deliverable_with_trigger(
+            db_session, wa_code, name="Integration Deliv 1"
         )
 
         # Create WA via API (also triggers ensure + recalculate but no codes yet)
@@ -137,10 +80,10 @@ class TestDeliverableIntegration:
         """DELETE /work-auths/{id}/project-codes/{code_id} recalculates status;
         removing the only code reverts deliverable to PENDING_WA."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa_code = await _seed_wa_code(db_session, "P-INT-02")
-        deliv = await _seed_deliverable_with_trigger(
-            db_session, "Integration Deliv 2", wa_code
+        project = await seed_project(db_session, school)
+        wa_code = await seed_wa_code(db_session, code="P-INT-02")
+        deliv = await seed_deliverable_with_trigger(
+            db_session, wa_code, name="Integration Deliv 2"
         )
 
         wa = WorkAuth(
@@ -189,10 +132,10 @@ class TestDeliverableIntegration:
         """PATCH /work-auths/{id}/rfas/{id} with approved status advances a
         PENDING_RFA deliverable to OUTSTANDING when the code becomes ADDED_BY_RFA."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa_code = await _seed_wa_code(db_session, "P-INT-03")
-        deliv = await _seed_deliverable_with_trigger(
-            db_session, "Integration Deliv 3", wa_code
+        project = await seed_project(db_session, school)
+        wa_code = await seed_wa_code(db_session, code="P-INT-03")
+        deliv = await seed_deliverable_with_trigger(
+            db_session, wa_code, name="Integration Deliv 3"
         )
 
         wa = WorkAuth(
@@ -255,10 +198,10 @@ class TestDeliverableIntegration:
         """PATCH /work-auths/{id}/rfas/{id} with rejected status leaves deliverable
         at PENDING_RFA (code reverts to RFA_NEEDED)."""
         school = await seed_school(db_session)
-        project = await _seed_project(db_session, school)
-        wa_code = await _seed_wa_code(db_session, "P-INT-04")
-        deliv = await _seed_deliverable_with_trigger(
-            db_session, "Integration Deliv 4", wa_code
+        project = await seed_project(db_session, school)
+        wa_code = await seed_wa_code(db_session, code="P-INT-04")
+        deliv = await seed_deliverable_with_trigger(
+            db_session, wa_code, name="Integration Deliv 4"
         )
 
         wa = WorkAuth(

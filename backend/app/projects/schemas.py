@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.common.enums import ProjectStatus
 from app.notes.schemas import BlockingIssue
 
-PROJECT_NUMBER_REGEX = r"^\d{2}\-[1-3]{3}-\d{2}([:;]\d{2})?$"
+PROJECT_NUMBER_REGEX = r"^\d{2}-\d{3}-\d{4}([:;]\d{2,})?$"
 
 
 class ProjectBase(BaseModel):

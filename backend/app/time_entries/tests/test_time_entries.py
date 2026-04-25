@@ -13,7 +13,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import SampleBatchStatus, TimeEntryStatus
-from app.lab_results.models import SampleBatch, SampleType
+from app.lab_results.models import SampleBatch
 from app.time_entries.models import TimeEntry
 
 from tests.seeds import (
@@ -24,6 +24,7 @@ from tests.seeds import (
     seed_employee,
     seed_employee_role,
     seed_time_entry,
+    seed_sample_type,
 )
 
 # ---------------------------------------------------------------------------
@@ -727,12 +728,6 @@ class TestTimeEntryOverlap:
 
 
 class TestDeleteTimeEntryGuard:
-    async def _seed_sample_type(self, db: AsyncSession) -> SampleType:
-        st = SampleType(name="Guard Test Type")
-        db.add(st)
-        await db.flush()
-        return st
-
     async def test_delete_with_active_batch_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
@@ -743,7 +738,7 @@ class TestDeleteTimeEntryGuard:
         emp = await seed_employee(db_session)
         role = await seed_employee_role(db_session, emp)
         entry = await seed_time_entry(db_session, emp, role, project, school)
-        st = await self._seed_sample_type(db_session)
+        st = await seed_sample_type(db_session)
 
         batch = SampleBatch(
             sample_type_id=st.id,
@@ -768,7 +763,7 @@ class TestDeleteTimeEntryGuard:
         emp = await seed_employee(db_session)
         role = await seed_employee_role(db_session, emp)
         entry = await seed_time_entry(db_session, emp, role, project, school)
-        st = await self._seed_sample_type(db_session)
+        st = await seed_sample_type(db_session)
 
         batch = SampleBatch(
             sample_type_id=st.id,
