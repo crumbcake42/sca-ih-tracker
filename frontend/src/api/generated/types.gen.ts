@@ -283,6 +283,16 @@ export type Contractor = {
 };
 
 /**
+ * ContractorConnections
+ */
+export type ContractorConnections = {
+    /**
+     * Project Contractors Links
+     */
+    project_contractors_links: number;
+};
+
+/**
  * ContractorCreate
  */
 export type ContractorCreate = {
@@ -354,6 +364,24 @@ export type Deliverable = {
 };
 
 /**
+ * DeliverableConnections
+ */
+export type DeliverableConnections = {
+    /**
+     * Project Deliverables
+     */
+    project_deliverables: number;
+    /**
+     * Project Building Deliverables
+     */
+    project_building_deliverables: number;
+    /**
+     * Deliverable Wa Code Triggers
+     */
+    deliverable_wa_code_triggers: number;
+};
+
+/**
  * DeliverableWACodeTrigger
  */
 export type DeliverableWaCodeTrigger = {
@@ -421,6 +449,20 @@ export type Employee = {
 };
 
 /**
+ * EmployeeConnections
+ */
+export type EmployeeConnections = {
+    /**
+     * Time Entries
+     */
+    time_entries: number;
+    /**
+     * Sample Batch Inspectors
+     */
+    sample_batch_inspectors: number;
+};
+
+/**
  * EmployeeCreate
  */
 export type EmployeeCreate = {
@@ -455,10 +497,7 @@ export type EmployeeCreate = {
  * EmployeeRole
  */
 export type EmployeeRole = {
-    /**
-     * Role Type Id
-     */
-    role_type_id: number;
+    role_type: EmployeeRoleType;
     /**
      * Start Date
      */
@@ -479,17 +518,13 @@ export type EmployeeRole = {
      * Employee Id
      */
     employee_id: number;
-    role_type: EmployeeRoleTypeRead;
 };
 
 /**
  * EmployeeRoleCreate
  */
 export type EmployeeRoleCreate = {
-    /**
-     * Role Type Id
-     */
-    role_type_id: number;
+    role_type: EmployeeRoleType;
     /**
      * Start Date
      */
@@ -508,52 +543,6 @@ export type EmployeeRoleCreate = {
  * EmployeeRoleType
  */
 export type EmployeeRoleType = 'Asbestos On Site Technical Air Testing' | 'Asbestos Project Monitor' | 'Asbestos Inspector Level A' | 'Asbestos Investigator Level A' | 'Asbestos Project Manager Level A' | 'Certified Lead Inspector / Risk Assessor Level A' | 'Certified Lead Inspector / Risk Assessor Level B' | 'Mold Field Technician' | 'Mold Project Manager Level A' | 'Mold Project Manager Level B';
-
-/**
- * EmployeeRoleTypeCreate
- */
-export type EmployeeRoleTypeCreate = {
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Description
-     */
-    description?: string | null;
-};
-
-/**
- * EmployeeRoleTypeRead
- */
-export type EmployeeRoleTypeRead = {
-    /**
-     * Id
-     */
-    id: number;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Description
-     */
-    description?: string | null;
-};
-
-/**
- * EmployeeRoleTypeUpdate
- */
-export type EmployeeRoleTypeUpdate = {
-    /**
-     * Name
-     */
-    name?: string | null;
-    /**
-     * Description
-     */
-    description?: string | null;
-};
 
 /**
  * EmployeeRoleUpdate
@@ -650,6 +639,16 @@ export type HygienistAssignment = {
      * Assigned At
      */
     assigned_at: string;
+};
+
+/**
+ * HygienistConnections
+ */
+export type HygienistConnections = {
+    /**
+     * Project Hygienist Links
+     */
+    project_hygienist_links: number;
 };
 
 /**
@@ -1845,6 +1844,16 @@ export type School = {
 };
 
 /**
+ * SchoolConnections
+ */
+export type SchoolConnections = {
+    /**
+     * Project School Links
+     */
+    project_school_links: number;
+};
+
+/**
  * SchoolCreate
  */
 export type SchoolCreate = {
@@ -2130,6 +2139,36 @@ export type WaCode = {
      * Id
      */
     id: number;
+};
+
+/**
+ * WACodeConnections
+ */
+export type WaCodeConnections = {
+    /**
+     * Work Auth Project Codes
+     */
+    work_auth_project_codes: number;
+    /**
+     * Work Auth Building Codes
+     */
+    work_auth_building_codes: number;
+    /**
+     * Rfa Project Codes
+     */
+    rfa_project_codes: number;
+    /**
+     * Rfa Building Codes
+     */
+    rfa_building_codes: number;
+    /**
+     * Deliverable Wa Code Triggers
+     */
+    deliverable_wa_code_triggers: number;
+    /**
+     * Sample Type Wa Codes
+     */
+    sample_type_wa_codes: number;
 };
 
 /**
@@ -2439,7 +2478,7 @@ export type CreateContractorContractorsPostResponses = {
 
 export type CreateContractorContractorsPostResponse = CreateContractorContractorsPostResponses[keyof CreateContractorContractorsPostResponses];
 
-export type DeleteContractorContractorsContractorIdDeleteData = {
+export type WrapperContractorsContractorIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -2451,23 +2490,23 @@ export type DeleteContractorContractorsContractorIdDeleteData = {
     url: '/contractors/{contractor_id}';
 };
 
-export type DeleteContractorContractorsContractorIdDeleteErrors = {
+export type WrapperContractorsContractorIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteContractorContractorsContractorIdDeleteError = DeleteContractorContractorsContractorIdDeleteErrors[keyof DeleteContractorContractorsContractorIdDeleteErrors];
+export type WrapperContractorsContractorIdDeleteError = WrapperContractorsContractorIdDeleteErrors[keyof WrapperContractorsContractorIdDeleteErrors];
 
-export type DeleteContractorContractorsContractorIdDeleteResponses = {
+export type WrapperContractorsContractorIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteContractorContractorsContractorIdDeleteResponse = DeleteContractorContractorsContractorIdDeleteResponses[keyof DeleteContractorContractorsContractorIdDeleteResponses];
+export type WrapperContractorsContractorIdDeleteResponse = WrapperContractorsContractorIdDeleteResponses[keyof WrapperContractorsContractorIdDeleteResponses];
 
 export type GetContractorContractorsContractorIdGetData = {
     body?: never;
@@ -2529,7 +2568,7 @@ export type UpdateContractorContractorsContractorIdPatchResponses = {
 
 export type UpdateContractorContractorsContractorIdPatchResponse = UpdateContractorContractorsContractorIdPatchResponses[keyof UpdateContractorContractorsContractorIdPatchResponses];
 
-export type GetContractorConnectionsContractorsContractorIdConnectionsGetData = {
+export type WrapperContractorsContractorIdConnectionsGetData = {
     body?: never;
     path: {
         /**
@@ -2541,21 +2580,23 @@ export type GetContractorConnectionsContractorsContractorIdConnectionsGetData = 
     url: '/contractors/{contractor_id}/connections';
 };
 
-export type GetContractorConnectionsContractorsContractorIdConnectionsGetErrors = {
+export type WrapperContractorsContractorIdConnectionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetContractorConnectionsContractorsContractorIdConnectionsGetError = GetContractorConnectionsContractorsContractorIdConnectionsGetErrors[keyof GetContractorConnectionsContractorsContractorIdConnectionsGetErrors];
+export type WrapperContractorsContractorIdConnectionsGetError = WrapperContractorsContractorIdConnectionsGetErrors[keyof WrapperContractorsContractorIdConnectionsGetErrors];
 
-export type GetContractorConnectionsContractorsContractorIdConnectionsGetResponses = {
+export type WrapperContractorsContractorIdConnectionsGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: ContractorConnections;
 };
+
+export type WrapperContractorsContractorIdConnectionsGetResponse = WrapperContractorsContractorIdConnectionsGetResponses[keyof WrapperContractorsContractorIdConnectionsGetResponses];
 
 export type ImportBatchContractorsBatchImportPostData = {
     body: BodyImportBatchContractorsBatchImportPost;
@@ -3408,7 +3449,7 @@ export type ListEntriesDeliverablesGetResponses = {
 
 export type ListEntriesDeliverablesGetResponse = ListEntriesDeliverablesGetResponses[keyof ListEntriesDeliverablesGetResponses];
 
-export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetData = {
+export type WrapperDeliverablesDeliverableIdConnectionsGetData = {
     body?: never;
     path: {
         /**
@@ -3420,23 +3461,25 @@ export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetData
     url: '/deliverables/{deliverable_id}/connections';
 };
 
-export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetErrors = {
+export type WrapperDeliverablesDeliverableIdConnectionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetError = GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetErrors[keyof GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetErrors];
+export type WrapperDeliverablesDeliverableIdConnectionsGetError = WrapperDeliverablesDeliverableIdConnectionsGetErrors[keyof WrapperDeliverablesDeliverableIdConnectionsGetErrors];
 
-export type GetDeliverableConnectionsDeliverablesDeliverableIdConnectionsGetResponses = {
+export type WrapperDeliverablesDeliverableIdConnectionsGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: DeliverableConnections;
 };
 
-export type DeleteDeliverableDeliverablesDeliverableIdDeleteData = {
+export type WrapperDeliverablesDeliverableIdConnectionsGetResponse = WrapperDeliverablesDeliverableIdConnectionsGetResponses[keyof WrapperDeliverablesDeliverableIdConnectionsGetResponses];
+
+export type WrapperDeliverablesDeliverableIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -3448,23 +3491,23 @@ export type DeleteDeliverableDeliverablesDeliverableIdDeleteData = {
     url: '/deliverables/{deliverable_id}';
 };
 
-export type DeleteDeliverableDeliverablesDeliverableIdDeleteErrors = {
+export type WrapperDeliverablesDeliverableIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteDeliverableDeliverablesDeliverableIdDeleteError = DeleteDeliverableDeliverablesDeliverableIdDeleteErrors[keyof DeleteDeliverableDeliverablesDeliverableIdDeleteErrors];
+export type WrapperDeliverablesDeliverableIdDeleteError = WrapperDeliverablesDeliverableIdDeleteErrors[keyof WrapperDeliverablesDeliverableIdDeleteErrors];
 
-export type DeleteDeliverableDeliverablesDeliverableIdDeleteResponses = {
+export type WrapperDeliverablesDeliverableIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteDeliverableDeliverablesDeliverableIdDeleteResponse = DeleteDeliverableDeliverablesDeliverableIdDeleteResponses[keyof DeleteDeliverableDeliverablesDeliverableIdDeleteResponses];
+export type WrapperDeliverablesDeliverableIdDeleteResponse = WrapperDeliverablesDeliverableIdDeleteResponses[keyof WrapperDeliverablesDeliverableIdDeleteResponses];
 
 export type ImportBatchDeliverablesBatchImportPostData = {
     body: BodyImportBatchDeliverablesBatchImportPost;
@@ -3655,7 +3698,7 @@ export type CreateEmployeeEmployeesPostResponses = {
 
 export type CreateEmployeeEmployeesPostResponse = CreateEmployeeEmployeesPostResponses[keyof CreateEmployeeEmployeesPostResponses];
 
-export type DeleteEmployeeEmployeesEmployeeIdDeleteData = {
+export type WrapperEmployeesEmployeeIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -3667,23 +3710,23 @@ export type DeleteEmployeeEmployeesEmployeeIdDeleteData = {
     url: '/employees/{employee_id}';
 };
 
-export type DeleteEmployeeEmployeesEmployeeIdDeleteErrors = {
+export type WrapperEmployeesEmployeeIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteEmployeeEmployeesEmployeeIdDeleteError = DeleteEmployeeEmployeesEmployeeIdDeleteErrors[keyof DeleteEmployeeEmployeesEmployeeIdDeleteErrors];
+export type WrapperEmployeesEmployeeIdDeleteError = WrapperEmployeesEmployeeIdDeleteErrors[keyof WrapperEmployeesEmployeeIdDeleteErrors];
 
-export type DeleteEmployeeEmployeesEmployeeIdDeleteResponses = {
+export type WrapperEmployeesEmployeeIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteEmployeeEmployeesEmployeeIdDeleteResponse = DeleteEmployeeEmployeesEmployeeIdDeleteResponses[keyof DeleteEmployeeEmployeesEmployeeIdDeleteResponses];
+export type WrapperEmployeesEmployeeIdDeleteResponse = WrapperEmployeesEmployeeIdDeleteResponses[keyof WrapperEmployeesEmployeeIdDeleteResponses];
 
 export type GetEmployeeEmployeesEmployeeIdGetData = {
     body?: never;
@@ -3745,7 +3788,7 @@ export type UpdateEmployeeEmployeesEmployeeIdPatchResponses = {
 
 export type UpdateEmployeeEmployeesEmployeeIdPatchResponse = UpdateEmployeeEmployeesEmployeeIdPatchResponses[keyof UpdateEmployeeEmployeesEmployeeIdPatchResponses];
 
-export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetData = {
+export type WrapperEmployeesEmployeeIdConnectionsGetData = {
     body?: never;
     path: {
         /**
@@ -3757,21 +3800,23 @@ export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetData = {
     url: '/employees/{employee_id}/connections';
 };
 
-export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetErrors = {
+export type WrapperEmployeesEmployeeIdConnectionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetError = GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetErrors[keyof GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetErrors];
+export type WrapperEmployeesEmployeeIdConnectionsGetError = WrapperEmployeesEmployeeIdConnectionsGetErrors[keyof WrapperEmployeesEmployeeIdConnectionsGetErrors];
 
-export type GetEmployeeConnectionsEmployeesEmployeeIdConnectionsGetResponses = {
+export type WrapperEmployeesEmployeeIdConnectionsGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: EmployeeConnections;
 };
+
+export type WrapperEmployeesEmployeeIdConnectionsGetResponse = WrapperEmployeesEmployeeIdConnectionsGetResponses[keyof WrapperEmployeesEmployeeIdConnectionsGetResponses];
 
 export type ListEmployeeRolesEmployeesEmployeeIdRolesGetData = {
     body?: never;
@@ -3925,139 +3970,6 @@ export type ImportBatchEmployeesBatchImportPostResponses = {
 
 export type ImportBatchEmployeesBatchImportPostResponse = ImportBatchEmployeesBatchImportPostResponses[keyof ImportBatchEmployeesBatchImportPostResponses];
 
-export type ListEmployeeRoleTypesEmployeeRoleTypesGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/employee-role-types/';
-};
-
-export type ListEmployeeRoleTypesEmployeeRoleTypesGetResponses = {
-    /**
-     * Response List Employee Role Types Employee Role Types  Get
-     *
-     * Successful Response
-     */
-    200: Array<EmployeeRoleTypeRead>;
-};
-
-export type ListEmployeeRoleTypesEmployeeRoleTypesGetResponse = ListEmployeeRoleTypesEmployeeRoleTypesGetResponses[keyof ListEmployeeRoleTypesEmployeeRoleTypesGetResponses];
-
-export type CreateEmployeeRoleTypeEmployeeRoleTypesPostData = {
-    body: EmployeeRoleTypeCreate;
-    path?: never;
-    query?: never;
-    url: '/employee-role-types/';
-};
-
-export type CreateEmployeeRoleTypeEmployeeRoleTypesPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CreateEmployeeRoleTypeEmployeeRoleTypesPostError = CreateEmployeeRoleTypeEmployeeRoleTypesPostErrors[keyof CreateEmployeeRoleTypeEmployeeRoleTypesPostErrors];
-
-export type CreateEmployeeRoleTypeEmployeeRoleTypesPostResponses = {
-    /**
-     * Successful Response
-     */
-    201: EmployeeRoleTypeRead;
-};
-
-export type CreateEmployeeRoleTypeEmployeeRoleTypesPostResponse = CreateEmployeeRoleTypeEmployeeRoleTypesPostResponses[keyof CreateEmployeeRoleTypeEmployeeRoleTypesPostResponses];
-
-export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Role Type Id
-         */
-        role_type_id: number;
-    };
-    query?: never;
-    url: '/employee-role-types/{role_type_id}';
-};
-
-export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteError = DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteErrors[keyof DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteErrors];
-
-export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    204: void;
-};
-
-export type DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponse = DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponses[keyof DeleteEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdDeleteResponses];
-
-export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetData = {
-    body?: never;
-    path: {
-        /**
-         * Role Type Id
-         */
-        role_type_id: number;
-    };
-    query?: never;
-    url: '/employee-role-types/{role_type_id}';
-};
-
-export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetError = GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetErrors[keyof GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetErrors];
-
-export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: EmployeeRoleTypeRead;
-};
-
-export type GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponse = GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponses[keyof GetEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdGetResponses];
-
-export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchData = {
-    body: EmployeeRoleTypeUpdate;
-    path: {
-        /**
-         * Role Type Id
-         */
-        role_type_id: number;
-    };
-    query?: never;
-    url: '/employee-role-types/{role_type_id}';
-};
-
-export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchError = UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchErrors[keyof UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchErrors];
-
-export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: EmployeeRoleTypeRead;
-};
-
-export type UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponse = UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponses[keyof UpdateEmployeeRoleTypeEmployeeRoleTypesRoleTypeIdPatchResponses];
-
 export type ListEntriesHygienistsGetData = {
     body?: never;
     path?: never;
@@ -4121,7 +4033,7 @@ export type CreateHygienistHygienistsPostResponses = {
 
 export type CreateHygienistHygienistsPostResponse = CreateHygienistHygienistsPostResponses[keyof CreateHygienistHygienistsPostResponses];
 
-export type DeleteHygienistHygienistsHygienistIdDeleteData = {
+export type WrapperHygienistsHygienistIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -4133,23 +4045,23 @@ export type DeleteHygienistHygienistsHygienistIdDeleteData = {
     url: '/hygienists/{hygienist_id}';
 };
 
-export type DeleteHygienistHygienistsHygienistIdDeleteErrors = {
+export type WrapperHygienistsHygienistIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteHygienistHygienistsHygienistIdDeleteError = DeleteHygienistHygienistsHygienistIdDeleteErrors[keyof DeleteHygienistHygienistsHygienistIdDeleteErrors];
+export type WrapperHygienistsHygienistIdDeleteError = WrapperHygienistsHygienistIdDeleteErrors[keyof WrapperHygienistsHygienistIdDeleteErrors];
 
-export type DeleteHygienistHygienistsHygienistIdDeleteResponses = {
+export type WrapperHygienistsHygienistIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteHygienistHygienistsHygienistIdDeleteResponse = DeleteHygienistHygienistsHygienistIdDeleteResponses[keyof DeleteHygienistHygienistsHygienistIdDeleteResponses];
+export type WrapperHygienistsHygienistIdDeleteResponse = WrapperHygienistsHygienistIdDeleteResponses[keyof WrapperHygienistsHygienistIdDeleteResponses];
 
 export type GetHygienistHygienistsHygienistIdGetData = {
     body?: never;
@@ -4211,7 +4123,7 @@ export type UpdateHygienistHygienistsHygienistIdPatchResponses = {
 
 export type UpdateHygienistHygienistsHygienistIdPatchResponse = UpdateHygienistHygienistsHygienistIdPatchResponses[keyof UpdateHygienistHygienistsHygienistIdPatchResponses];
 
-export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetData = {
+export type WrapperHygienistsHygienistIdConnectionsGetData = {
     body?: never;
     path: {
         /**
@@ -4223,21 +4135,23 @@ export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetData = {
     url: '/hygienists/{hygienist_id}/connections';
 };
 
-export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetErrors = {
+export type WrapperHygienistsHygienistIdConnectionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetError = GetHygienistConnectionsHygienistsHygienistIdConnectionsGetErrors[keyof GetHygienistConnectionsHygienistsHygienistIdConnectionsGetErrors];
+export type WrapperHygienistsHygienistIdConnectionsGetError = WrapperHygienistsHygienistIdConnectionsGetErrors[keyof WrapperHygienistsHygienistIdConnectionsGetErrors];
 
-export type GetHygienistConnectionsHygienistsHygienistIdConnectionsGetResponses = {
+export type WrapperHygienistsHygienistIdConnectionsGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: HygienistConnections;
 };
+
+export type WrapperHygienistsHygienistIdConnectionsGetResponse = WrapperHygienistsHygienistIdConnectionsGetResponses[keyof WrapperHygienistsHygienistIdConnectionsGetResponses];
 
 export type GetProjectsProjectsGetData = {
     body?: never;
@@ -5061,7 +4975,7 @@ export type GetSchoolSchoolsIdentifierGetResponses = {
 
 export type GetSchoolSchoolsIdentifierGetResponse = GetSchoolSchoolsIdentifierGetResponses[keyof GetSchoolSchoolsIdentifierGetResponses];
 
-export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetData = {
+export type WrapperSchoolsSchoolIdConnectionsGetData = {
     body?: never;
     path: {
         /**
@@ -5073,23 +4987,25 @@ export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetData = {
     url: '/schools/{school_id}/connections';
 };
 
-export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetErrors = {
+export type WrapperSchoolsSchoolIdConnectionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetError = GetSchoolConnectionsSchoolsSchoolIdConnectionsGetErrors[keyof GetSchoolConnectionsSchoolsSchoolIdConnectionsGetErrors];
+export type WrapperSchoolsSchoolIdConnectionsGetError = WrapperSchoolsSchoolIdConnectionsGetErrors[keyof WrapperSchoolsSchoolIdConnectionsGetErrors];
 
-export type GetSchoolConnectionsSchoolsSchoolIdConnectionsGetResponses = {
+export type WrapperSchoolsSchoolIdConnectionsGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: SchoolConnections;
 };
 
-export type DeleteSchoolSchoolsSchoolIdDeleteData = {
+export type WrapperSchoolsSchoolIdConnectionsGetResponse = WrapperSchoolsSchoolIdConnectionsGetResponses[keyof WrapperSchoolsSchoolIdConnectionsGetResponses];
+
+export type WrapperSchoolsSchoolIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -5101,23 +5017,23 @@ export type DeleteSchoolSchoolsSchoolIdDeleteData = {
     url: '/schools/{school_id}';
 };
 
-export type DeleteSchoolSchoolsSchoolIdDeleteErrors = {
+export type WrapperSchoolsSchoolIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteSchoolSchoolsSchoolIdDeleteError = DeleteSchoolSchoolsSchoolIdDeleteErrors[keyof DeleteSchoolSchoolsSchoolIdDeleteErrors];
+export type WrapperSchoolsSchoolIdDeleteError = WrapperSchoolsSchoolIdDeleteErrors[keyof WrapperSchoolsSchoolIdDeleteErrors];
 
-export type DeleteSchoolSchoolsSchoolIdDeleteResponses = {
+export type WrapperSchoolsSchoolIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteSchoolSchoolsSchoolIdDeleteResponse = DeleteSchoolSchoolsSchoolIdDeleteResponses[keyof DeleteSchoolSchoolsSchoolIdDeleteResponses];
+export type WrapperSchoolsSchoolIdDeleteResponse = WrapperSchoolsSchoolIdDeleteResponses[keyof WrapperSchoolsSchoolIdDeleteResponses];
 
 export type UpdateSchoolSchoolsSchoolIdPatchData = {
     body: SchoolUpdate;
@@ -5427,7 +5343,7 @@ export type GetWaCodeWaCodesIdentifierGetResponses = {
 
 export type GetWaCodeWaCodesIdentifierGetResponse = GetWaCodeWaCodesIdentifierGetResponses[keyof GetWaCodeWaCodesIdentifierGetResponses];
 
-export type DeleteWaCodeWaCodesWaCodeIdDeleteData = {
+export type WrapperWaCodesWaCodeIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -5439,23 +5355,23 @@ export type DeleteWaCodeWaCodesWaCodeIdDeleteData = {
     url: '/wa-codes/{wa_code_id}';
 };
 
-export type DeleteWaCodeWaCodesWaCodeIdDeleteErrors = {
+export type WrapperWaCodesWaCodeIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteWaCodeWaCodesWaCodeIdDeleteError = DeleteWaCodeWaCodesWaCodeIdDeleteErrors[keyof DeleteWaCodeWaCodesWaCodeIdDeleteErrors];
+export type WrapperWaCodesWaCodeIdDeleteError = WrapperWaCodesWaCodeIdDeleteErrors[keyof WrapperWaCodesWaCodeIdDeleteErrors];
 
-export type DeleteWaCodeWaCodesWaCodeIdDeleteResponses = {
+export type WrapperWaCodesWaCodeIdDeleteResponses = {
     /**
      * Successful Response
      */
     204: void;
 };
 
-export type DeleteWaCodeWaCodesWaCodeIdDeleteResponse = DeleteWaCodeWaCodesWaCodeIdDeleteResponses[keyof DeleteWaCodeWaCodesWaCodeIdDeleteResponses];
+export type WrapperWaCodesWaCodeIdDeleteResponse = WrapperWaCodesWaCodeIdDeleteResponses[keyof WrapperWaCodesWaCodeIdDeleteResponses];
 
 export type UpdateWaCodeWaCodesWaCodeIdPatchData = {
     body: WaCodeUpdate;
@@ -5487,7 +5403,7 @@ export type UpdateWaCodeWaCodesWaCodeIdPatchResponses = {
 
 export type UpdateWaCodeWaCodesWaCodeIdPatchResponse = UpdateWaCodeWaCodesWaCodeIdPatchResponses[keyof UpdateWaCodeWaCodesWaCodeIdPatchResponses];
 
-export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetData = {
+export type WrapperWaCodesWaCodeIdConnectionsGetData = {
     body?: never;
     path: {
         /**
@@ -5499,21 +5415,23 @@ export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetData = {
     url: '/wa-codes/{wa_code_id}/connections';
 };
 
-export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetErrors = {
+export type WrapperWaCodesWaCodeIdConnectionsGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetError = GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetErrors[keyof GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetErrors];
+export type WrapperWaCodesWaCodeIdConnectionsGetError = WrapperWaCodesWaCodeIdConnectionsGetErrors[keyof WrapperWaCodesWaCodeIdConnectionsGetErrors];
 
-export type GetWaCodeConnectionsWaCodesWaCodeIdConnectionsGetResponses = {
+export type WrapperWaCodesWaCodeIdConnectionsGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: WaCodeConnections;
 };
+
+export type WrapperWaCodesWaCodeIdConnectionsGetResponse = WrapperWaCodesWaCodeIdConnectionsGetResponses[keyof WrapperWaCodesWaCodeIdConnectionsGetResponses];
 
 export type ImportBatchWaCodesBatchImportPostData = {
     body: BodyImportBatchWaCodesBatchImportPost;

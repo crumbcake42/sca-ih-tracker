@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.factories import create_readonly_router
-from app.common.guards import assert_deletable
+from app.common.factories import create_guarded_delete_router, create_readonly_router
 from app.database import get_db
 from app.deliverables.models import DeliverableWACodeTrigger
 from app.lab_results.models import SampleTypeWACode
@@ -122,36 +121,18 @@ async def update_wa_code(
     return wa_code
 
 
-async def _get_wa_code_references(db: AsyncSession, wa_code_id: int) -> dict[str, int]:
-    counts = {}
-    for model, label in [
-        (WorkAuthProjectCode, "work_auth_project_codes"),
-        (WorkAuthBuildingCode, "work_auth_building_codes"),
-        (RFAProjectCode, "rfa_project_codes"),
-        (RFABuildingCode, "rfa_building_codes"),
-        (DeliverableWACodeTrigger, "deliverable_wa_code_triggers"),
-        (SampleTypeWACode, "sample_type_wa_codes"),
-    ]:
-        count = await db.scalar(
-            select(func.count()).select_from(model).where(model.wa_code_id == wa_code_id)
-        )
-        counts[label] = count or 0
-    return counts
-
-
-@router.get("/{wa_code_id}/connections")
-async def get_wa_code_connections(wa_code_id: int, db: AsyncSession = Depends(get_db)):
-    wa_code = await db.get(WACodeModel, wa_code_id)
-    if not wa_code:
-        raise HTTPException(status_code=404, detail="WA code not found")
-    return await _get_wa_code_references(db, wa_code_id)
-
-
-@router.delete("/{wa_code_id}", status_code=204)
-async def delete_wa_code(wa_code_id: int, db: AsyncSession = Depends(get_db)):
-    wa_code = await db.get(WACodeModel, wa_code_id)
-    if not wa_code:
-        raise HTTPException(status_code=404, detail="WA code not found")
-    assert_deletable(await _get_wa_code_references(db, wa_code_id))
-    await db.delete(wa_code)
-    await db.commit()
+router.include_router(
+    create_guarded_delete_router(
+        model=WACodeModel,
+        not_found_detail="WA code not found",
+        refs=[
+            (WorkAuthProjectCode, WorkAuthProjectCode.wa_code_id, "work_auth_project_codes"),
+            (WorkAuthBuildingCode, WorkAuthBuildingCode.wa_code_id, "work_auth_building_codes"),
+            (RFAProjectCode, RFAProjectCode.wa_code_id, "rfa_project_codes"),
+            (RFABuildingCode, RFABuildingCode.wa_code_id, "rfa_building_codes"),
+            (DeliverableWACodeTrigger, DeliverableWACodeTrigger.wa_code_id, "deliverable_wa_code_triggers"),
+            (SampleTypeWACode, SampleTypeWACode.wa_code_id, "sample_type_wa_codes"),
+        ],
+        path_param_name="wa_code_id",
+    )
+)
