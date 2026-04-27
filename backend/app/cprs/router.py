@@ -19,16 +19,16 @@ from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 
 # Routes scoped to a project: GET list, POST manual create
-projects_cpr_router = APIRouter(prefix="/projects", tags=["contractor-payment-records"])
+projects_cpr_router = APIRouter(prefix="/projects", tags=["CPRs"])
 
 # Routes scoped to a single CPR row: PATCH, dismiss, DELETE
 cpr_router = APIRouter(
-    prefix="/contractor-payment-records", tags=["contractor-payment-records"]
+    prefix="/cprs", tags=["CPRs"]
 )
 
 
 @projects_cpr_router.get(
-    "/{project_id}/contractor-payment-records",
+    "/{project_id}/cprs",
     response_model=list[ContractorPaymentRecordRead],
 )
 async def list_contractor_payment_records(
@@ -52,7 +52,7 @@ async def list_contractor_payment_records(
 
 
 @projects_cpr_router.post(
-    "/{project_id}/contractor-payment-records",
+    "/{project_id}/cprs",
     response_model=ContractorPaymentRecordRead,
     status_code=status.HTTP_201_CREATED,
 )
