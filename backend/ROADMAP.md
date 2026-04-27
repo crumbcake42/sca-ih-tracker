@@ -386,7 +386,7 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 **Data layer** (recorded per job): ✓ COMPLETE (basic CRUD — state model pending)
 
-- [x] `sample_batches` — `id`, `sample_type_id`, `sample_subtype_id` (nullable), `turnaround_option_id` (nullable), `time_entry_id` (FK, currently required — make nullable in next migration), `batch_num`, `is_report`, `date_collected`, `notes`
+- [x] `sample_batches` — `id`, `sample_type_id`, `sample_subtype_id` (nullable), `turnaround_option_id` (nullable), `time_entry_id` (FK, currently required — make nullable in next migration), `batch_num`, `is_report` *(retired in Phase 6.5 Session E2 — see Silo 4)*, `date_collected`, `notes`
 - [x] `sample_batch_units` — `id`, `batch_id` (FK), `sample_unit_type_id` (FK), `quantity` (int), `unit_rate` (Numeric, nullable)
 - [x] `sample_batch_inspectors` — M2M: `batch_id`, `employee_id` (FK)
 - [x] App-layer validation on batch create: unit type must belong to the batch's sample type (422 otherwise); employee must hold a role in `sample_type_required_roles` for the type
@@ -483,7 +483,7 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 ### Phase 6.5 — `ProjectRequirement` Protocol + Closure-Gating Silos
 
-Three new closure-gating silos (`project_document_requirements`, `cprs`, `project_dep_filings`) ship as native implementors of a generic `ProjectRequirement` protocol introduced in this phase. The closure-gate aggregator walks one registry instead of four bespoke note sources.
+Four closure-gating silos (`project_document_requirements`, `cprs`, `project_dep_filings`, `lab_report_requirements`) ship as native implementors of a generic `ProjectRequirement` protocol introduced in this phase. The closure-gate aggregator walks one registry instead of four bespoke note sources. (Silo 4 `lab_report_requirements` was added 2026-04-27 to retire the standalone `is_report` boolean on `sample_batches` — see Session E2.)
 
 Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.claude/plans/i-want-to-finish-abundant-bunny.md`.
 
@@ -541,6 +541,15 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 - `compute_is_fulfilled() -> is_saved`
 - Materialization: manager UX flow ("project has DEP filings" button → form list with common ones pre-checked → POST `{form_ids: [...]}`); no WA-code-driven auto-create
 
+**Silo 4 — `lab_report_requirements`** (one row per `SampleBatch`; retires the `is_report` boolean)
+- Lives in new module `app/lab_reports/` (mirrors `cprs/` and `dep_filings/` placement; not inside `lab_results/`)
+- Columns: `id`, `project_id`, `sample_batch_id` (FK, unique-among-non-dismissed), `is_saved`, nullable `file_id`, `notes`, dismissal fields (from `DismissibleMixin`), `AuditMixin`. No `is_required` column from day one (per E0d outcome)
+- `compute_is_fulfilled() -> is_saved`
+- Materialization: `BATCH_CREATED` event (already declared in `app/common/enums.py`) auto-creates one row per batch whose `time_entry_id` resolves to a project. Hardcoded — every batch triggers a row; no per-sample-type config table. Easy to evolve to configurable later by gating the handler on a config lookup
+- Idempotent: skips if a non-dismissed `LabReportRequirement` already exists for the same `sample_batch_id`
+- Dispatch sites: `app/lab_results/router/batches.py` (POST `/batches/`) and `app/lab_results/service.py` (`quick_add_batch`); mirror existing `TIME_ENTRY_CREATED` dispatch placement
+- The `is_report` column on `sample_batches` is dropped in the same session (no backfill — no production data to preserve)
+
 **Cross-cutting:**
 
 - `time_entries.status` gains a fourth value `EXPECTED` (nullable employee/dates; does not participate in overlap checks) — implementation pending in this phase
@@ -585,7 +594,7 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 
 ---
 
-**Pre-Session-E refactor stack (E0a → E0b → E0c → E0d).** Two reviews on 2026-04-27 produced this stack. The first review (path-finalization) surfaced module-layering and router-pattern problems in the post-Session-D state. The second (architecture evaluation, plan: `~/.claude/plans/confirm-you-have-a-transient-bengio.md`) surfaced four protocol/schema cleanup items and gutted the speculative Phase 6.7 framework. All four sub-sessions complete with a green test suite before Session E lands silo 3. New memory entries: `feedback_module_organization.md`, `feedback_lateral_vs_hierarchical.md`. Migrations only in E0d (drop `is_required` columns).
+**Pre-Session-E refactor stack (E0a → E0b → E0c → E0d).** Two reviews on 2026-04-27 produced this stack. The first review (path-finalization) surfaced module-layering and router-pattern problems in the post-Session-D state. The second (architecture evaluation, plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`) surfaced four protocol/schema cleanup items and gutted the speculative Phase 6.7 framework. All four sub-sessions complete with a green test suite before Session E lands silo 3. New memory entries: `feedback_module_organization.md`, `feedback_lateral_vs_hierarchical.md`. Migrations only in E0d (drop `is_required` columns).
 
 - [ ] **Session E0a — Module split refactor (Refactor 1)**
   - Create `app/common/requirements/` with `protocol.py`, `registry.py`, `dispatcher.py` (renamed from `services.py`), `aggregator.py`, `schemas.py` (UnfulfilledRequirement only), README.md
@@ -634,11 +643,27 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
   - `app/projects/router.py` mounts the under-project sub-router; `main.py` includes only the item router
   - User-managed migration
 
+- [ ] **Session E2 — Silo 4: `lab_reports`** (retires `sample_batches.is_report`; planned 2026-04-27, plan ref: `../.claude/plans/i-want-to-revisit-refactored-valley.md`)
+  - **Depends on E0d only** (uses no-`is_required` shape from day one). Independent of Session E — may land before, after, or alongside it
+  - Create `app/lab_reports/` module: `models.py` (`LabReportRequirement`), `service.py` (`LabReportHandler` + `materialize_for_batch_created`), `schemas.py`, `router.py`, `tests/`, `README.md`
+  - `LabReportRequirement` keys on `sample_batch_id` (FK, partial-unique among non-dismissed) — mirrors the partial-unique pattern at `app/required_docs/models.py:51`. Class-level `requirement_type = "lab_report"`, `is_dismissable = True`. `is_fulfilled() -> is_saved`. `label` derives from the loaded `sample_batch.batch_num`
+  - Register handler with `RequirementEvent.BATCH_CREATED` (the event is already declared in `app/common/enums.py:149`; no new event)
+  - Wire dispatch in two places (mirror `TIME_ENTRY_CREATED` placement at `app/time_entries/router.py:98` and `app/lab_results/service.py:253`):
+    - `app/lab_results/router/batches.py` POST `/batches/` after the batch is added and `time_entry_id` resolves to a `project_id`
+    - `app/lab_results/service.py` `quick_add_batch` in the same transactional region as the existing `TIME_ENTRY_CREATED` dispatch
+  - Two routers per Option C: `lab_report_router` (prefix `/lab-reports`, item ops: PATCH `/save`, POST `/dismiss`, POST `/undismiss`) + `lab_report_under_project_router` (no prefix; `GET /{project_id}/lab-reports`); `app/projects/router.py` mounts the under-project sub-router
+  - Drop `is_report` from `SampleBatch` model + Read/Create/Update/QuickAdd schemas + tests at `app/lab_results/tests/test_batches.py:124,424` (which become "POST creates a `LabReportRequirement` row")
+  - **No backfill** — no production data to preserve. Existing batches do not retroactively get requirement rows
+  - Aggregator integration: `get_unfulfilled_requirements_for_project` picks up the new handler automatically (no aggregator changes); add a coverage test asserting unsaved rows surface
+  - User-managed migration: drop `is_report` from `sample_batches`; create `lab_report_requirements` table
+  - Verify: `.venv/Scripts/python.exe -m pytest app/lab_reports/tests app/lab_results/tests app/required_docs/tests app/project_requirements/tests -v`; OpenAPI diff drops `is_report` from SampleBatch schemas and adds new `LabReportRequirement*` schemas (FE handoff note required)
+
 - [ ] **Session F — Closure-gate integration + project status surface**
   - Extend `lock_project_records()` (`app/projects/services.py:509`) to refuse close on any unfulfilled non-dismissed requirement, in addition to the existing blocking-notes check
   - Extend `derive_project_status()` and `ProjectStatusRead` (`app/projects/schemas.py`) — add `unfulfilled_requirement_count`
   - New `GET /projects/{id}/requirements` endpoint in `app/projects/router.py` (returns `list[UnfulfilledRequirement]` from `app.common.requirements.schemas`); not a new module
-  - `frontend/HANDOFF.md` note: regen OpenAPI client (new `UnfulfilledRequirement`, `ContractorPaymentRecord`, `ProjectDocumentRequirement`, `ProjectDepFiling`, `WaCodeRequirementTrigger`, `DepFilingForm` schemas)
+  - Lab reports (Session E2 silo) participate automatically via the registered handler — no extra wiring here
+  - `frontend/HANDOFF.md` note: regen OpenAPI client (new `UnfulfilledRequirement`, `ContractorPaymentRecord`, `ProjectDocumentRequirement`, `ProjectDepFiling`, `LabReportRequirement`, `WaCodeRequirementTrigger`, `DepFilingForm` schemas)
   - ROADMAP.md checkboxes; HANDOFF.md update
   - Final sweep: `.venv/Scripts/python.exe -m pytest app/ -v` clean
 
@@ -655,7 +680,7 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 ### Phase 6.7 — Peer Dependency Navigation (two-layer rule, no framework)
 
 **Superseded earlier plan.** The 2026-04-27 architecture evaluation
-(plan: `~/.claude/plans/confirm-you-have-a-transient-bengio.md`,
+(plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`,
 detailed comparison: `PLANNING-peer-navigation.md`) replaced the
 peer-route factory + `/requirement-sets/...` introspection layer with
 a simpler rule. The rationale: most "peer" relationships are singular

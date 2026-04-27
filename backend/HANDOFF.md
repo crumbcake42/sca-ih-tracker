@@ -8,12 +8,15 @@ This file captures decisions made and work completed in the most recent session.
 
 **Phase 6.5 Session D complete** (Silo 2 / `cprs`). Full suite: 693 passing.
 
-**Two reviews on 2026-04-27**, no code written either time:
+**Three reviews on 2026-04-27**, no code written:
 
-1. **Path-finalization review** — surfaced module-layering (`app/project_requirements/` mixes contract with specific config) and router-pattern (`/projects` prefix declared from inside child modules) problems. Produced Sessions E0a + E0b. Plan: `~/.claude/plans/review-the-current-phase-cached-wilkes.md`.
-2. **Architecture evaluation** — confirmed the `ProjectRequirement` abstraction is worth keeping, gutted the speculative Phase 6.7 framework, and surfaced four protocol/schema hygiene items. Produced Sessions E0c + E0d. Plan: `~/.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
+1. **Path-finalization review** — surfaced module-layering (`app/project_requirements/` mixes contract with specific config) and router-pattern (`/projects` prefix declared from inside child modules) problems. Produced Sessions E0a + E0b. Plan: `../.claude/plans/review-the-current-phase-cached-wilkes.md`.
+2. **Architecture evaluation** — confirmed the `ProjectRequirement` abstraction is worth keeping, gutted the speculative Phase 6.7 framework, and surfaced four protocol/schema hygiene items. Produced Sessions E0c + E0d. Plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
+3. **Lab-report silo design** — proposed retiring the standalone `SampleBatch.is_report` boolean by modeling the typed lab report as a per-batch `ProjectRequirement` materialized on `BATCH_CREATED`. Produced Session E2 (Silo 4 `lab_reports`). Plan: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 
-**Next: Session E0a → E0b → E0c → E0d → E → F.** The four E0 refactor sub-sessions (E0a, E0b, E0c pure code; E0d migration-bearing) must each complete with a green test suite before Session E (silo 3 `dep_filings`) starts.
+**Next: Session E0a → E0b → E0c → E0d → {E, E2 — independent} → F.** The four E0 refactor sub-sessions must each complete with a green test suite before silo work (E and/or E2) starts. Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
+
+> Plans + key memory entries for the E0a–F + E2 arc are checkpointed in `../.claude/{plans,memory}/` so this context travels across machines. See `../.claude/README.md`.
 
 ---
 
@@ -92,7 +95,7 @@ Full spec in ROADMAP.md Phase 6.7 → "Admin-introspection layer".
 
 ### Part B — Architecture evaluation (produced E0c + E0d, gutted Phase 6.7)
 
-Plan reference: `~/.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
+Plan reference: `../.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
 
 **Decision — keep the `ProjectRequirement` abstraction.** Closure-aggregator collapse + `DismissibleMixin` + `WACodeRequirementTrigger` admin config pay for the layer on day one. Going back to bespoke per-silo gates would re-introduce the documentation drift this work was meant to prevent.
 
@@ -119,6 +122,33 @@ Plan reference: `~/.claude/plans/confirm-you-have-a-transient-bengio.md`. Compar
 
 - `feedback_lateral_vs_hierarchical.md` — append the two-layer rule (singular peer → embedded Read schema; lateral peer → bespoke endpoint with descriptive name; debug → `/admin/registry-dump`).
 - `app/PATTERNS.md` — new entry codifying the two-layer rule alongside the project-scoped child-router pattern from E0b.
+
+---
+
+### Part C — Lab-report silo design (produced Session E2)
+
+Plan reference: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
+
+**Problem.** `SampleBatch.is_report` (`app/lab_results/models.py:153`) is a user-toggled boolean indicating whether the typed/printed lab report has arrived to match the field-collected COC. It is set on POST/PATCH/quick-add but is **not** wired into project closure — the design doc says typed reports are required to close, but `lock_project_records` does not validate it. Every other "did this thing get done?" gate is moving into the requirements framework; `is_report` is the last bespoke closure-style flag outside it.
+
+**Decision — model the typed lab report as a per-batch `ProjectRequirement`.** Retire `is_report`. Add a fourth silo `lab_reports` (`app/lab_reports/`) with a `LabReportRequirement` ORM model satisfying the protocol, materialized on `RequirementEvent.BATCH_CREATED` (event already declared in `app/common/enums.py:149`; no new event needed). Closure unification — one source of truth for "what's outstanding" — comes for free once Session F wires the aggregator into `lock_project_records`.
+
+**Locked design choices (2026-04-27 review):**
+
+- **Silo placement**: new top-level module `app/lab_reports/`, not nested under `app/lab_results/`. Mirrors `cprs/` and (incoming) `dep_filings/`. Keeps `ProjectDocumentRequirement`'s identity tuple `(employee, date, school)` clean — lab reports key on `sample_batch_id` instead.
+- **Trigger**: hardcoded — every `BATCH_CREATED` materializes one `LabReportRequirement`. No per-sample-type config table from day one. Easy to evolve to configurable later by gating the handler on a config lookup if a sample type ever turns out to be report-free.
+- **Migration of `is_report`**: drop the column, no backfill. No production data to preserve.
+- **Sequencing**: own session (Session E2), depends only on E0d (uses no-`is_required` shape from day one). Independent of Session E — may land before, after, or alongside it. Closure-gate wiring stays Session F's job; no `lock_project_records` changes in E2.
+- **Dismissibility**: yes (`is_dismissable: ClassVar[bool] = True`, `DismissibleMixin`). A manager can dismiss the report requirement on a batch that genuinely doesn't need one. Mirrors `ProjectDocumentRequirement`.
+
+**Carry-overs / deferred from this evaluation** (do not block Session E2):
+
+- **Conditional trigger by sample_type.** If field-only sample types ever appear, gate `materialize_for_batch_created` on a `sample_type_required_reports` config table (mirroring `sample_type_required_roles` / `sample_type_wa_codes`). Not added now — would be premature.
+- **File upload wiring.** `LabReportRequirement.file_id` is added nullable per Decision #9 (file upload infrastructure stays deferred); current "saved" state is just `is_saved=True`.
+
+### Memory entries to consider after E2 lands
+
+- Update `feedback_lateral_vs_hierarchical.md` if the bespoke `/lab-reports/{id}/...` endpoints exercise any new edge of the two-layer rule (likely none — they are item ops on the requirement, not peer navigation).
 
 ---
 
@@ -246,6 +276,7 @@ Nothing new for FE this session (no code written). Regen points across the upcom
 
 - After **E0c** lands: regen the OpenAPI client. `UnfulfilledRequirementRead` loses `requirement_key`. `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` `label` / `is_fulfilled` shapes are unchanged in OpenAPI (still computed at serialization, just from the model property now), but the CPR `label` value will start including the contractor name correctly.
 - After **E0d** lands: regen again. `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lose `is_required`.
-- After **Session F** lands: final regen — new schemas include `WACodeRequirementTriggerCreate`, `WACodeRequirementTriggerRead`, plus Silo 1–3 schemas; `UnfulfilledRequirement` from `app.common.requirements.schemas`.
+- After **Session E2** lands (independent of E): regen. `SampleBatchRead` / `SampleBatchCreate` / `SampleBatchUpdate` / `SampleBatchQuickAdd` lose `is_report`; new `LabReportRequirementRead` schemas appear; new endpoints `GET /projects/{id}/lab-reports`, `PATCH /lab-reports/{id}/save`, `POST /lab-reports/{id}/dismiss`, `POST /lab-reports/{id}/undismiss`. Frontend that reads or writes `is_report` must move to the new lab-report endpoints.
+- After **Session F** lands: final regen — new schemas include `WACodeRequirementTriggerCreate`, `WACodeRequirementTriggerRead`, plus Silo 1–4 schemas (incl. `LabReportRequirement`); `UnfulfilledRequirement` from `app.common.requirements.schemas`.
 
 URLs are stable across the E0a–E0d refactors (verified by OpenAPI diff in each verification step).
