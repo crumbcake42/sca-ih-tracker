@@ -8,6 +8,7 @@ from app.common.enums import (
     NoteType,
     ProjectStatus,
     RFAStatus,
+    RequirementEvent,
     SampleBatchStatus,
     SCADeliverableStatus,
     TimeEntryStatus,
@@ -67,17 +68,42 @@ async def process_project_import(db: AsyncSession, project_data: dict):
 
             # If no link exists, or the contractor has changed:
             if not current_link or current_link.contractor_id != contractor.id:
+                prior_contractor_id = (
+                    current_link.contractor_id if current_link else None
+                )
                 # Set all old links to False
                 await db.execute(
                     update(ProjectContractorLink)
                     .where(ProjectContractorLink.project_id == project.id)
                     .values(is_current=False)
                 )
+                await db.flush()
+                # Fire unlink event for the displaced contractor (if any)
+                if prior_contractor_id is not None:
+                    from app.project_requirements.services import (
+                        dispatch_requirement_event,
+                    )
+
+                    await dispatch_requirement_event(
+                        project_id=project.id,
+                        event=RequirementEvent.CONTRACTOR_UNLINKED,
+                        payload={"contractor_id": prior_contractor_id},
+                        db=db,
+                    )
                 # Create the new "Active" link
                 new_link = ProjectContractorLink(
                     project_id=project.id, contractor_id=contractor.id, is_current=True
                 )
                 db.add(new_link)
+                await db.flush()
+                from app.project_requirements.services import dispatch_requirement_event
+
+                await dispatch_requirement_event(
+                    project_id=project.id,
+                    event=RequirementEvent.CONTRACTOR_LINKED,
+                    payload={"contractor_id": contractor.id},
+                    db=db,
+                )
 
 
 _DERIVABLE_SCA_STATUSES = {
@@ -552,6 +578,7 @@ _ENTITY_LINK_TEMPLATES = {
     NoteEntityType.TIME_ENTRY: "/time-entries/{}",
     NoteEntityType.DELIVERABLE: "/deliverables/{}",
     NoteEntityType.SAMPLE_BATCH: "/lab-results/batches/{}",
+    NoteEntityType.CONTRACTOR_PAYMENT_RECORD: "/contractor-payment-records/{}",
 }
 
 

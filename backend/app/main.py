@@ -5,7 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import app.project_requirements  # noqa: F401 — populates the requirement type registry on startup
 import app.required_docs  # noqa: F401 — registers ProjectDocumentHandler in the requirement registry
+import app.cprs  # noqa: F401 — registers ContractorPaymentRecordHandler in the requirement registry
 
+from app.cprs.router import cpr_router, projects_cpr_router
 from app.contractors.router import router as contractors_router
 from app.database import Base, engine
 from app.deliverables.router import router as deliverables_router
@@ -60,6 +62,8 @@ app.include_router(time_entries_router)
 app.include_router(requirement_triggers_router)
 app.include_router(projects_doc_router)
 app.include_router(doc_req_router)
+app.include_router(projects_cpr_router)
+app.include_router(cpr_router)
 app.include_router(wa_codes_router)
 app.include_router(work_auths_router)
 app.include_router(auth_router)

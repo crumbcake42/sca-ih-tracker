@@ -1,3 +1,4 @@
+from .contractors import seed_contractor
 from .deliverables import (
     seed_deliverable,
     seed_deliverable_with_trigger,
@@ -28,6 +29,8 @@ from .work_auths import (
 )
 
 __all__ = [
+    # contractors
+    "seed_contractor",
     # deliverables
     "seed_deliverable",
     "seed_deliverable_with_trigger",

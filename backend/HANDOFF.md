@@ -6,60 +6,61 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 6.5 Session C complete.** Silo 1 (`project_document_requirements`) is fully implemented: model, schemas, service, router, 50 tests, all passing. Full suite: 643 passing.
+**Phase 6.5 Session D complete.** Silo 2 (`cprs`) is fully implemented: model, schemas, service, router, 50 tests, all passing. Full suite: 693 passing.
 
-**Next: Session D — Silo 2: `contractor_payment_records`.** See ROADMAP.md Phase 6.5 Session D.
+**Next: Session E — Silo 3: `dep_filing_forms` + `project_dep_filings`.** See ROADMAP.md Phase 6.5 Session E.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 6.5 Session C — Silo 1: `project_document_requirements`
+### Phase 6.5 Session D — Silo 2: `cprs`
 
 **Files created:**
-- `app/required_docs/__init__.py` — imports `service` for side-effect registration of `ProjectDocumentHandler`
-- `app/required_docs/models.py` — `ProjectDocumentRequirement` ORM model; columns: `project_id`, `document_type` (SQLEnum), `is_required`, `is_saved`, `is_placeholder`, `employee_id`, `date`, `school_id`, `file_id`, `expected_role_type`, `wa_code_trigger_id`, `notes`, plus `DismissibleMixin` + `AuditMixin`; partial unique index on `(project_id, document_type, employee_id, date, school_id) WHERE dismissed_at IS NULL`; composite index on `(project_id, is_saved, dismissed_at)`; properties: `requirement_key`, `label`, `is_dismissed`, `is_fulfilled()`
-- `app/required_docs/schemas.py` — `ProjectDocumentRequirementCreate`, `ProjectDocumentRequirementUpdate`, `ProjectDocumentRequirementDismiss`, `ProjectDocumentRequirementRead`; uses `@computed_field` for `label`, `is_fulfilled`, `is_dismissed`; uses `from datetime import date as DateField` to avoid Python 3.14 annotation shadowing
-- `app/required_docs/service.py` — `ROLES_REQUIRING_DAILY_LOG = {ACM_AIR_TECH: [DAILY_LOG], ACM_PROJECT_MONITOR: [DAILY_LOG]}`; `materialize_for_time_entry`, `materialize_for_wa_code_added`, `cleanup_for_wa_code_removed`; `ProjectDocumentHandler` class registered via `@register_requirement_type("project_document", events=[TIME_ENTRY_CREATED, WA_CODE_ADDED, WA_CODE_REMOVED])`
-- `app/required_docs/router.py` — two routers: `projects_doc_router` (prefix `/projects`) and `doc_req_router` (prefix `/document-requirements`); endpoints: list, manual POST, PATCH, dismiss POST, DELETE (guarded: 422 unless `is_placeholder=True AND is_saved=False`)
-- `app/required_docs/README.md` — module docs
-- `app/required_docs/tests/__init__.py`, `test_protocol.py` (11), `test_models.py` (5), `test_dispatch.py` (13), `test_router.py` (17), `test_aggregator.py` (4)
+- `app/cprs/__init__.py` — imports `service` for side-effect registration of `ContractorPaymentRecordHandler`
+- `app/cprs/models.py` — `ContractorPaymentRecord` ORM model; inherits `Base, AuditMixin, DismissibleMixin, ManualTerminalMixin`; columns: `project_id`, `contractor_id`, `is_required`, RFA stage (`rfa_submitted_at`, `rfa_internal_status`, `rfa_internal_resolved_at`, `rfa_sca_status`, `rfa_sca_resolved_at`), RFP stage (`rfp_submitted_at`, `rfp_internal_status`, `rfp_internal_resolved_at`, `rfp_saved_at`), `file_id`, `notes`, plus `DismissibleMixin` + `AuditMixin`; partial unique index on `(project_id, contractor_id) WHERE dismissed_at IS NULL`; composite index on `(project_id, rfp_saved_at, dismissed_at)`; `contractor` relationship with `lazy="selectin"`; `is_fulfilled() -> rfp_saved_at IS NOT NULL`
+- `app/cprs/schemas.py` — `ContractorPaymentRecordCreate`, `ContractorPaymentRecordUpdate`, `ContractorPaymentRecordDismiss`, `ContractorPaymentRecordRead`; uses `@computed_field` for `label`, `is_fulfilled`, `is_dismissed`
+- `app/cprs/service.py` — `materialize_for_contractor_linked`, `cleanup_for_contractor_unlinked` (Decision #6 conditional delete), `record_stage_history_note` (non-blocking history note on re-submission); `ContractorPaymentRecordHandler` registered via `@register_requirement_type("contractor_payment_record", events=[CONTRACTOR_LINKED, CONTRACTOR_UNLINKED])`
+- `app/cprs/router.py` — two routers: `projects_cpr_router` (prefix `/projects`) and `cpr_router` (prefix `/contractor-payment-records`); endpoints: list, manual POST (validates contractor link), PATCH (stage regression note on RFA/RFP re-submission), dismiss POST, DELETE (guarded: 422 unless pristine — no RFA/RFP submitted)
+- `app/cprs/README.md` — module docs
+- `app/cprs/tests/__init__.py`, `test_protocol.py` (13), `test_models.py` (5), `test_dispatch.py` (8), `test_router.py` (20), `test_aggregator.py` (4)
 
 **Files modified:**
-- `app/common/enums.py` — added `DocumentType(StrEnum)` with `DAILY_LOG`, `REOCCUPANCY_LETTER`, `MINOR_LETTER`
-- `app/main.py` — `import app.required_docs  # noqa` + `include_router` for both required_docs routers
-- `app/time_entries/router.py` — `dispatch_requirement_event(project_id, TIME_ENTRY_CREATED, {time_entry_id: entry.id}, db)` called before `db.commit()` in `create_time_entry`
-- `app/lab_results/service.py` — same dispatch call before final commit in `quick_add_batch`
-- `backend/ROADMAP.md` — Session C checkbox ticked
+- `app/common/enums.py` — added `NoteEntityType.CONTRACTOR_PAYMENT_RECORD`, `NoteType.CPR_STAGE_REGRESSION`, `CPRStageStatus(StrEnum)` (`PENDING`, `APPROVED`, `REJECTED`, `WITHDRAWN`), `RequirementEvent.CONTRACTOR_UNLINKED`
+- `app/notes/service.py` — added `ContractorPaymentRecord` to `model_map` in `validate_entity_exists`
+- `app/projects/services.py` — added `NoteEntityType.CONTRACTOR_PAYMENT_RECORD` to `_ENTITY_LINK_TEMPLATES`; wired `dispatch_requirement_event` for `CONTRACTOR_LINKED` / `CONTRACTOR_UNLINKED` in `process_project_import` (fires after flush, before commit)
+- `app/main.py` — `import app.cprs  # noqa` + `include_router` for both CPR routers
+- `backend/ROADMAP.md` — Session D checkbox ticked
+- `tests/seeds/__init__.py` — exported `seed_contractor`
 
 ### Key decisions locked this session
 
-- **`ProjectDocumentHandler` separate from ORM model (Decision #13):** Handler class lives in `service.py`, not `models.py`. This avoids circular imports: `service.py` imports `ProjectDocumentRequirement` from `models.py`; `models.py` imports nothing from `service.py`. `__init__.py` imports `service` for the side-effect of registering the handler.
-- **Silo-owned mapping:** `ROLES_REQUIRING_DAILY_LOG` is a `dict[EmployeeRoleType, list[DocumentType]]` constant in `service.py`. No DB table, no admin CRUD — adding roles is a code change. Chosen because the mapping is tied to the time-entry domain, not to employee role admin.
-- **Single `DAILY_LOG` type:** No per-role-kind variants. Drift handling (early end, missing pages, missing license checklists) covered by blocking notes in `app/notes/`.
-- **`is_saved` is the only fulfillment signal:** No overlap-check or `EXPECTED` time-entry status in Silo 1.
-- **WA code production dispatch pending:** `ProjectDocumentHandler` subscribes to `WA_CODE_ADDED` / `WA_CODE_REMOVED` and the materializers are tested. But the production firing of those events from `app/work_auths/` is deferred to a future session — only `TIME_ENTRY_CREATED` is wired in production today.
-- **Decision #6 (conditional de-materialization):** On `WA_CODE_REMOVED`, rows are deleted only if pristine (`is_saved=False AND dismissed_at IS NULL AND file_id IS NULL`). Saved, dismissed, or file-attached rows are kept with `wa_code_trigger_id=NULL` (via ON DELETE SET NULL).
-- **`@computed_field` for schema derived fields:** `label`, `is_fulfilled`, `is_dismissed` in `ProjectDocumentRequirementRead` use `@computed_field` + `@property` to avoid Pydantic reading `is_fulfilled` as a bound method instead of a return value.
+- **`ManualTerminalMixin` first real consumer (Decision #4):** `ContractorPaymentRecord` is the first silo model to inherit `ManualTerminalMixin`. The mixin adds no columns — it is a marker class setting `has_manual_terminals = True`. The aggregator and future tooling detect it via `getattr(handler_cls, 'has_manual_terminals', False)`.
+- **Stage regression notes are non-blocking (divergence from `create_system_note`):** History notes are created directly on the `Note` model with `is_blocking=False, is_resolved=True`. Using `create_system_note` was rejected because it hardcodes `is_blocking=True`. The CPR itself being unfulfilled (via the aggregator) is what gates closure — the regression note is audit trail only.
+- **`CONTRACTOR_UNLINKED` event added:** `RequirementEvent.CONTRACTOR_UNLINKED = "contractor_unlinked"` was added to the enum. The dispatch fires from `process_project_import` when the current contractor link is replaced. This is currently the only production source of `CONTRACTOR_UNLINKED`.
+- **Decision #6 — conditional de-materialization:** `cleanup_for_contractor_unlinked` deletes a row only if `rfa_submitted_at IS NULL AND dismissed_at IS NULL AND file_id IS NULL`. Progressed rows are kept for manual inspection/dismissal.
+- **`label` in `ContractorPaymentRecordRead` schema uses `contractor_id` only (no name):** The Read schema does not have the `contractor` relationship loaded (Pydantic reads from ORM attributes, not relationships during serialization). The label computed_field uses `f"CPR — Contractor #{self.contractor_id}"`. The ORM model's `label` property uses the loaded relationship for richer output when accessed directly.
 
 ### Migration needed (user generates)
 
-New table: `project_document_requirements`
+New table: `contractor_payment_records`
 
 ```sql
-CREATE TABLE project_document_requirements (
+CREATE TABLE contractor_payment_records (
     id INTEGER PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    document_type VARCHAR NOT NULL,  -- 'daily_log' | 'reoccupancy_letter' | 'minor_letter'
+    contractor_id INTEGER NOT NULL REFERENCES contractors(id) ON DELETE RESTRICT,
     is_required BOOLEAN NOT NULL DEFAULT 1,
-    is_saved BOOLEAN NOT NULL DEFAULT 0,
-    is_placeholder BOOLEAN NOT NULL DEFAULT 0,
-    employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
-    date DATE,
-    school_id INTEGER REFERENCES schools(id) ON DELETE SET NULL,
+    rfa_submitted_at DATETIME,
+    rfa_internal_status VARCHAR,  -- 'pending' | 'approved' | 'rejected' | 'withdrawn'
+    rfa_internal_resolved_at DATETIME,
+    rfa_sca_status VARCHAR,
+    rfa_sca_resolved_at DATETIME,
+    rfp_submitted_at DATETIME,
+    rfp_internal_status VARCHAR,
+    rfp_internal_resolved_at DATETIME,
+    rfp_saved_at DATETIME,
     file_id INTEGER,
-    expected_role_type VARCHAR,
-    wa_code_trigger_id INTEGER REFERENCES wa_code_requirement_triggers(id) ON DELETE SET NULL,
     notes TEXT,
     dismissal_reason TEXT,
     dismissed_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -69,31 +70,35 @@ CREATE TABLE project_document_requirements (
     created_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     updated_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE INDEX ix_project_document_requirements_project_id
-    ON project_document_requirements (project_id);
-CREATE INDEX ix_project_document_requirements_document_type
-    ON project_document_requirements (document_type);
-CREATE INDEX ix_project_document_requirements_employee_id
-    ON project_document_requirements (employee_id);
-CREATE INDEX ix_project_document_requirements_date
-    ON project_document_requirements (date);
-CREATE INDEX ix_project_document_requirements_school_id
-    ON project_document_requirements (school_id);
-CREATE INDEX ix_proj_doc_req_status
-    ON project_document_requirements (project_id, is_saved, dismissed_at);
+CREATE INDEX ix_contractor_payment_records_project_id
+    ON contractor_payment_records (project_id);
+CREATE INDEX ix_contractor_payment_records_contractor_id
+    ON contractor_payment_records (contractor_id);
+CREATE INDEX ix_cpr_status
+    ON contractor_payment_records (project_id, rfp_saved_at, dismissed_at);
 -- Partial unique index (SQLite 3.8+)
-CREATE UNIQUE INDEX ix_uq_proj_doc_req_active
-    ON project_document_requirements (project_id, document_type, employee_id, date, school_id)
+CREATE UNIQUE INDEX ix_uq_cpr_active
+    ON contractor_payment_records (project_id, contractor_id)
     WHERE dismissed_at IS NULL;
 ```
 
-The alembic migration should use `Index("ix_uq_proj_doc_req_active", ..., unique=True, sqlite_where=text("dismissed_at IS NULL"))`.
+---
+
+## Known gaps / follow-up for Session E or F
+
+1. **`ContractorPaymentRecordRead.label` has no contractor name.** The schema `@computed_field` only has `contractor_id` (Pydantic doesn't load relationships), so it returns `"CPR — Contractor #N"`. The ORM model's `label` property correctly uses `contractor.name` via the `selectin` relationship, but that never reaches the API response. Fix: add `contractor_name: str` to the Read schema, populated from the loaded relationship. Do before Session F when the frontend first consumes this schema.
+
+2. **`process_project_import` is the only production dispatch site for `CONTRACTOR_LINKED` / `CONTRACTOR_UNLINKED`.** No dedicated HTTP endpoint exists to link or unlink a contractor. If one is added in the future (e.g. `PATCH /projects/{id}/contractor`), it must also call `dispatch_requirement_event` for both events.
+
+3. **User-authored blocking notes on CPR entities do not surface in `get_blocking_notes_for_project`.** `NoteEntityType.CONTRACTOR_PAYMENT_RECORD` is registered (the notes endpoint accepts it and `validate_entity_exists` handles it), but `get_blocking_notes_for_project` in `app/projects/services.py` does not walk that entity type. CPR history notes are `is_blocking=False` so this is harmless now, but a manager-authored blocking note on a CPR row would be silently ignored at closure. Session F should add CPR to the `get_blocking_notes_for_project` walk.
 
 ---
 
-## Session B carry-over (still pending)
+## Session C carry-over (still pending)
 
-**Migration from Session B still pending (user generates):** `wa_code_requirement_triggers` table — see Session B HANDOFF for exact DDL. This is a prerequisite for the Session C migration (FK dependency: `wa_code_trigger_id` references it).
+**Migration from Session B still pending (user generates):** `wa_code_requirement_triggers` table — see Session B HANDOFF for exact DDL.
+
+**Migration from Session C still pending (user generates):** `project_document_requirements` table — see Session C HANDOFF for exact DDL.
 
 ---
 

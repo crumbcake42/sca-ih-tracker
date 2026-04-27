@@ -483,7 +483,7 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 ### Phase 6.5 — `ProjectRequirement` Protocol + Closure-Gating Silos
 
-Three new closure-gating silos (`project_document_requirements`, `contractor_payment_records`, `project_dep_filings`) ship as native implementors of a generic `ProjectRequirement` protocol introduced in this phase. The closure-gate aggregator walks one registry instead of four bespoke note sources.
+Three new closure-gating silos (`project_document_requirements`, `cprs`, `project_dep_filings`) ship as native implementors of a generic `ProjectRequirement` protocol introduced in this phase. The closure-gate aggregator walks one registry instead of four bespoke note sources.
 
 Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.claude/plans/i-want-to-finish-abundant-bunny.md`.
 
@@ -520,7 +520,7 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 - Materialization: `TIME_ENTRY_CREATED` event auto-creates `DAILY_LOG` row when employee role's `requires_daily_log=True`; manual POST for re-occupancy / minor letters
 - `try_match()` matches an actual document upload by `(project_id, document_type, employee_id, date, school_id)` tuple equality
 
-**Silo 2 — `contractor_payment_records`** (CPR with RFA+RFP sub-flow)
+**Silo 2 — `cprs`** (CPR with RFA+RFP sub-flow)
 - One row per `(project, contractor)`. Columns: `project_id`, `contractor_id`, `is_required`, RFA dates/statuses (`rfa_submitted_at`, `rfa_internal_status`+`rfa_internal_resolved_at`, `rfa_sca_status`+`rfa_sca_resolved_at`), RFP dates/statuses through saving (`rfp_submitted_at`, `rfp_internal_status`+`rfp_internal_resolved_at`, `rfp_saved_at`), nullable `file_id`, `notes` + dismissal fields + `AuditMixin`
 - Uses `ManualTerminalMixin` for the four sub-states; `compute_is_fulfilled() -> rfp_saved_at IS NOT NULL`. SCA's post-save RFP review intentionally not tracked
 - Materialization: `CONTRACTOR_LINKED` event auto-creates one row per `(project, contractor)` with `is_required=True`
@@ -567,7 +567,7 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
   - 50 new tests (643 total, all passing)
   - User-managed migration (pending)
 
-- [ ] **Session D — Silo 2: `contractor_payment_records`**
+- [x] **Session D — Silo 2: `cprs`**
   - Model + schema + router + service for CPR; `ManualTerminalMixin` applied
   - Add `CPRStageStatus` enum to `app/common/enums.py`
   - Materialization on `CONTRACTOR_LINKED`; de-materialization on contractor unlink (Decision #6)

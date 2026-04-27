@@ -101,6 +101,7 @@ class NoteEntityType(StrEnum):
     TIME_ENTRY = "time_entry"
     DELIVERABLE = "deliverable"
     SAMPLE_BATCH = "sample_batch"
+    CONTRACTOR_PAYMENT_RECORD = "contractor_payment_record"
 
 
 class NoteType(StrEnum):
@@ -108,6 +109,7 @@ class NoteType(StrEnum):
 
     TIME_ENTRY_CONFLICT = "time_entry_conflict"
     MISSING_SAMPLE_TYPE_WA_CODE = "missing_sample_type_wa_code"
+    CPR_STAGE_REGRESSION = "cpr_stage_regression"
 
 
 class EmployeeRoleType(StrEnum):
@@ -129,6 +131,13 @@ class DocumentType(StrEnum):
     MINOR_LETTER = "minor_letter"
 
 
+class CPRStageStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
+
+
 class RequirementEvent(StrEnum):
     """Events that can trigger requirement materialization or recalculation.
     Defined in Session A; first dispatch wiring is Session B."""
@@ -139,3 +148,4 @@ class RequirementEvent(StrEnum):
     TIME_ENTRY_CREATED = "time_entry_created"
     BATCH_CREATED = "batch_created"
     CONTRACTOR_LINKED = "contractor_linked"
+    CONTRACTOR_UNLINKED = "contractor_unlinked"
