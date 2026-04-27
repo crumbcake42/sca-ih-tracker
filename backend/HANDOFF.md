@@ -31,7 +31,7 @@ The module currently holds `ProjectRequirement` protocol, `RequirementTypeRegist
 **Resolution (Session E0a):**
 
 - `app/common/requirements/` (new) — contract layer: `protocol.py`, `registry.py`, `dispatcher.py` (renamed from `services.py`), `aggregator.py`, `schemas.py` (UnfulfilledRequirement only), README.md, tests/
-- `app/requirement_triggers/` (renamed from `app/project_requirements/`) — `models.py`, `schemas.py` (WACodeRequirementTrigger* only), `services.py` (hash_template_params only), `router.py`, README.md, tests/
+- `app/requirement_triggers/` (renamed from `app/project_requirements/`) — `models.py`, `schemas.py` (WACodeRequirementTrigger\* only), `services.py` (hash_template_params only), `router.py`, README.md, tests/
 - `app/deliverables/requirement_adapter.py` (moved from `app/project_requirements/adapters/deliverables.py`); `app/deliverables/__init__.py` gains side-effect import for handler registration
 
 Decision #11 (in Phase 6.5 Locked Design Decisions) updated to reference `app/requirement_triggers/` instead of `app/project_requirements/`.
@@ -70,7 +70,7 @@ Constraints frozen for the eventual builder:
 
 > **Superseded by Part B (architecture evaluation).** The introspection layer described below was dropped. See Part B "Decision — kill Phase 6.7's `requirement_sets/` introspection layer." Replaced by an optional flat `GET /admin/registry-dump`. Original Problem 4 text retained below for history.
 
-The peer-query factory alone makes individual edges typed and consistent, but admins still need to *review* which clusters exist and *inspect* what's attached to a given entity without reading source code or READMEs.
+The peer-query factory alone makes individual edges typed and consistent, but admins still need to _review_ which clusters exist and _inspect_ what's attached to a given entity without reading source code or READMEs.
 
 **Resolution (Phase 6.7, same session as the framework primitives):** Three read-only endpoints expose the registry to admins. Sets remain developer-defined (no CRUD; no `requirement_sets` table) per Decision #7.
 
@@ -171,7 +171,7 @@ Plan reference: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 - `app/common/requirements/tests/test_aggregator.py` (move; if it covers the deliverable adapter specifically, split that into `app/deliverables/tests/test_requirement_adapter.py`)
 - `app/requirement_triggers/__init__.py`
 - `app/requirement_triggers/models.py` (move from `app/project_requirements/models.py`)
-- `app/requirement_triggers/schemas.py` (WACodeRequirementTrigger* only — split from `app/project_requirements/schemas.py`)
+- `app/requirement_triggers/schemas.py` (WACodeRequirementTrigger\* only — split from `app/project_requirements/schemas.py`)
 - `app/requirement_triggers/services.py` (hash_template_params only — split from `app/project_requirements/services.py`)
 - `app/requirement_triggers/router.py` (move; update internal imports)
 - `app/requirement_triggers/README.md`
@@ -186,8 +186,8 @@ Plan reference: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 **Files to modify (import updates only):**
 
 - `app/main.py` — top-of-file side-effect imports + `include_router` (rename project_requirements → requirement_triggers)
-- `app/cprs/service.py` — `from app.common.requirements.registry import register_requirement_type`
-- `app/cprs/models.py` — `from app.common.requirements.protocol import DismissibleMixin, ManualTerminalMixin`
+- `app/cprs/service.py` — `from app.common.requirements import register_requirement_type`
+- `app/cprs/models.py` — `from app.common.requirements import DismissibleMixin, ManualTerminalMixin`
 - `app/required_docs/service.py` — registry from common; `WACodeRequirementTrigger` from triggers module
 - `app/required_docs/models.py` — `DismissibleMixin` from common
 - `app/lab_results/service.py` — `dispatch_requirement_event` from `app.common.requirements.dispatcher`

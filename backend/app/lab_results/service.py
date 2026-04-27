@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import RequirementEvent, TimeEntryStatus
-from app.project_requirements.services import dispatch_requirement_event
+from app.common.requirements.dispatcher import dispatch_requirement_event
 from app.employees.models import Employee, EmployeeRole
 from app.lab_results.models import (
     SampleBatch,

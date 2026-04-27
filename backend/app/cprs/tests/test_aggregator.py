@@ -10,7 +10,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cprs.models import ContractorPaymentRecord
-from app.project_requirements.aggregator import get_unfulfilled_requirements_for_project
+from app.common.requirements import get_unfulfilled_requirements_for_project
 from tests.seeds import seed_contractor, seed_project, seed_school
 
 

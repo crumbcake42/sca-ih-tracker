@@ -7,16 +7,16 @@ import pytest
 from unittest.mock import MagicMock
 
 from app.common.enums import SCADeliverableStatus
-from app.project_requirements.adapters.deliverables import (
+from app.deliverables.requirement_adapter import (
     BuildingDeliverableRequirementAdapter,
     DeliverableRequirementAdapter,
 )
-from app.project_requirements.protocol import (
+from app.common.requirements import (
     DismissibleMixin,
     ManualTerminalMixin,
     ProjectRequirement,
 )
-from app.project_requirements.registry import RequirementTypeRegistry
+from app.common.requirements import RequirementTypeRegistry
 
 
 # ---------------------------------------------------------------------------

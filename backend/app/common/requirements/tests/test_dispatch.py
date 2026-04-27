@@ -2,7 +2,7 @@
 Tests for dispatch_requirement_event().
 
 Uses fresh RequirementTypeRegistry instances per test — never clears the global
-registry (per README guidance). Monkeypatches services.registry so the dispatcher
+registry (per README guidance). Monkeypatches dispatcher.registry so the dispatcher
 sees the isolated test registry without touching the global.
 """
 
@@ -10,7 +10,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from app.common.enums import RequirementEvent
-from app.project_requirements.registry import RequirementTypeRegistry
+from app.common.requirements import RequirementTypeRegistry
 
 
 class TestDispatchRequirementEvent:
@@ -28,13 +28,13 @@ class TestDispatchRequirementEvent:
         class FakeHandler:
             pass
 
-        FakeHandler.handle_event = handle_event
+        setattr(FakeHandler, "handle_event", handle_event)
         fresh_registry.register("fake", FakeHandler, events=[RequirementEvent.WA_CODE_ADDED])
 
-        import app.project_requirements.services as svc
-        monkeypatch.setattr(svc, "registry", fresh_registry)
+        from app.common.requirements import dispatcher
+        monkeypatch.setattr(dispatcher, "registry", fresh_registry)
 
-        await svc.dispatch_requirement_event(
+        await dispatcher.dispatch_requirement_event(
             project_id=1,
             event=RequirementEvent.WA_CODE_ADDED,
             payload={"wa_code_id": 99},
@@ -51,14 +51,14 @@ class TestDispatchRequirementEvent:
         class FakeHandler:
             pass
 
-        FakeHandler.handle_event = handle_event
+        setattr(FakeHandler, "handle_event", handle_event)
         # Subscribed to WA_CODE_REMOVED, not WA_CODE_ADDED
         fresh_registry.register("fake", FakeHandler, events=[RequirementEvent.WA_CODE_REMOVED])
 
-        import app.project_requirements.services as svc
-        monkeypatch.setattr(svc, "registry", fresh_registry)
+        from app.common.requirements import dispatcher
+        monkeypatch.setattr(dispatcher, "registry", fresh_registry)
 
-        await svc.dispatch_requirement_event(
+        await dispatcher.dispatch_requirement_event(
             project_id=1,
             event=RequirementEvent.WA_CODE_ADDED,
             payload={},
@@ -68,11 +68,11 @@ class TestDispatchRequirementEvent:
         handle_event.assert_not_awaited()
 
     async def test_no_subscribers_is_a_noop(self, fresh_registry, mock_db, monkeypatch):
-        import app.project_requirements.services as svc
-        monkeypatch.setattr(svc, "registry", fresh_registry)
+        from app.common.requirements import dispatcher
+        monkeypatch.setattr(dispatcher, "registry", fresh_registry)
 
         # Should not raise even with no handlers registered
-        await svc.dispatch_requirement_event(
+        await dispatcher.dispatch_requirement_event(
             project_id=1,
             event=RequirementEvent.WA_CODE_ADDED,
             payload={},
@@ -89,15 +89,15 @@ class TestDispatchRequirementEvent:
         class HandlerB:
             pass
 
-        HandlerA.handle_event = handle_a
-        HandlerB.handle_event = handle_b
+        setattr(HandlerA, "handle_event", handle_a)
+        setattr(HandlerB, "handle_event", handle_b)
         fresh_registry.register("type_a", HandlerA, events=[RequirementEvent.WA_CODE_ADDED])
         fresh_registry.register("type_b", HandlerB, events=[RequirementEvent.WA_CODE_ADDED])
 
-        import app.project_requirements.services as svc
-        monkeypatch.setattr(svc, "registry", fresh_registry)
+        from app.common.requirements import dispatcher
+        monkeypatch.setattr(dispatcher, "registry", fresh_registry)
 
-        await svc.dispatch_requirement_event(
+        await dispatcher.dispatch_requirement_event(
             project_id=5,
             event=RequirementEvent.WA_CODE_ADDED,
             payload={"wa_code_id": 7},
@@ -115,11 +115,11 @@ class TestDispatchRequirementEvent:
 
         fresh_registry.register("bad", HandlerThatRaises, events=[RequirementEvent.WA_CODE_ADDED])
 
-        import app.project_requirements.services as svc
-        monkeypatch.setattr(svc, "registry", fresh_registry)
+        from app.common.requirements import dispatcher
+        monkeypatch.setattr(dispatcher, "registry", fresh_registry)
 
         with pytest.raises(RuntimeError, match="handler failed"):
-            await svc.dispatch_requirement_event(
+            await dispatcher.dispatch_requirement_event(
                 project_id=1,
                 event=RequirementEvent.WA_CODE_ADDED,
                 payload={},

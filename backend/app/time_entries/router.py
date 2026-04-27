@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import RequirementEvent, SampleBatchStatus, TimeEntryStatus
-from app.project_requirements.services import dispatch_requirement_event
+from app.common.requirements.dispatcher import dispatch_requirement_event
 from app.database import get_db
 from app.employees.models import Employee
 from app.lab_results.models import SampleBatch

@@ -5,7 +5,7 @@ Verifies that the canonicalization is deterministic and key-order independent,
 which is load-bearing for the uniqueness constraint on wa_code_requirement_triggers.
 """
 
-from app.project_requirements.services import hash_template_params
+from app.requirement_triggers.services import hash_template_params
 
 
 class TestHashTemplateParams:

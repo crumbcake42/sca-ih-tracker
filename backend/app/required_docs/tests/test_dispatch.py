@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import DocumentType, EmployeeRoleType, RequirementEvent
-from app.project_requirements.models import WACodeRequirementTrigger
-from app.project_requirements.services import hash_template_params
+from app.requirement_triggers.models import WACodeRequirementTrigger
+from app.requirement_triggers.services import hash_template_params
 from app.required_docs.models import ProjectDocumentRequirement
 from app.required_docs.service import (
     ROLES_REQUIRING_DAILY_LOG,

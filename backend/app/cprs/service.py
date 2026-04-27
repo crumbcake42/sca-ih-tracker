@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import NoteEntityType, NoteType, RequirementEvent
 from app.cprs.models import ContractorPaymentRecord
-from app.project_requirements.registry import register_requirement_type
+from app.common.requirements import register_requirement_type
 
 
 async def materialize_for_contractor_linked(

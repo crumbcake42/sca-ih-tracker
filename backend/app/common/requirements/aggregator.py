@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.project_requirements.registry import registry
-from app.project_requirements.schemas import UnfulfilledRequirement
+from .registry import registry
+from .schemas import UnfulfilledRequirement
 
 
 async def get_unfulfilled_requirements_for_project(

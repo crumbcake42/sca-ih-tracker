@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enums import CPRStageStatus
 from app.database import AuditMixin, Base
-from app.project_requirements.protocol import DismissibleMixin, ManualTerminalMixin
+from app.common.requirements import DismissibleMixin, ManualTerminalMixin
 
 
 class ContractorPaymentRecord(Base, AuditMixin, DismissibleMixin, ManualTerminalMixin):

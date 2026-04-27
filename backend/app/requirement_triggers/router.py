@@ -3,13 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.project_requirements.models import WACodeRequirementTrigger
-from app.project_requirements.registry import registry
-from app.project_requirements.schemas import (
+from app.common.requirements import registry
+from app.requirement_triggers.models import WACodeRequirementTrigger
+from app.requirement_triggers.schemas import (
     WACodeRequirementTriggerCreate,
     WACodeRequirementTriggerRead,
 )
-from app.project_requirements.services import hash_template_params
+from app.requirement_triggers.services import hash_template_params
 from app.users.dependencies import PermissionChecker, PermissionName
 from app.users.models import User
 from app.wa_codes.models import WACode

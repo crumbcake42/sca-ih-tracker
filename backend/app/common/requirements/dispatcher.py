@@ -1,15 +1,7 @@
-import hashlib
-import json
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import RequirementEvent
-from app.project_requirements.registry import registry
-
-
-def hash_template_params(params: dict) -> str:
-    canonical = json.dumps(params, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+from .registry import registry
 
 
 async def dispatch_requirement_event(

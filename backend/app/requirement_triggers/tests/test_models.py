@@ -11,8 +11,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.project_requirements.models import WACodeRequirementTrigger
-from app.project_requirements.services import hash_template_params
+from app.requirement_triggers.models import WACodeRequirementTrigger
+from app.requirement_triggers.services import hash_template_params
 from tests.seeds import seed_wa_code
 
 

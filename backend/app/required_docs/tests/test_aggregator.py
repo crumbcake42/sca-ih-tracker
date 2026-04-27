@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import DocumentType
-from app.project_requirements.aggregator import get_unfulfilled_requirements_for_project
+from app.common.requirements import get_unfulfilled_requirements_for_project
 from app.required_docs.models import ProjectDocumentRequirement
 from tests.seeds import seed_project, seed_school
 

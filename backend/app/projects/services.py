@@ -80,9 +80,7 @@ async def process_project_import(db: AsyncSession, project_data: dict):
                 await db.flush()
                 # Fire unlink event for the displaced contractor (if any)
                 if prior_contractor_id is not None:
-                    from app.project_requirements.services import (
-                        dispatch_requirement_event,
-                    )
+                    from app.common.requirements.dispatcher import dispatch_requirement_event
 
                     await dispatch_requirement_event(
                         project_id=project.id,
@@ -96,7 +94,7 @@ async def process_project_import(db: AsyncSession, project_data: dict):
                 )
                 db.add(new_link)
                 await db.flush()
-                from app.project_requirements.services import dispatch_requirement_event
+                from app.common.requirements.dispatcher import dispatch_requirement_event
 
                 await dispatch_requirement_event(
                     project_id=project.id,

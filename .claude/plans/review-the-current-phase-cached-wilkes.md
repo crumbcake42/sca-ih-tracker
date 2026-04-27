@@ -31,7 +31,7 @@ already landed, three organization problems surfaced:
    peer can be the entry point and a manager wants to navigate to any
    other peer scoped to the parent's project. The user's example —
    field-work cluster: `lab_result ↔ time_entry ↔ daily_log ↔
-   wa_code_assignment` — is 4 entities × 3 peers per entity = 12
+wa_code_assignment` — is 4 entities × 3 peers per entity = 12
    read-side endpoints, plus the create-side materialization paths. With
    no shared mechanism, each pair becomes a hand-written endpoint and
    each entity's router grows linearly with the cluster size. The need
@@ -126,8 +126,8 @@ are **removed entirely** after the move.
 
 - **`protocol.py`, `registry.py`, `dispatcher.py`, `aggregator.py`,
   `schemas.py` (UnfulfilledRequirement)** are pure contract — they define
-  *what* a requirement type must look like, *how* events are routed, and
-  *how* the closure gate aggregates. They couple only to
+  _what_ a requirement type must look like, _how_ events are routed, and
+  _how_ the closure gate aggregates. They couple only to
   `app.common.enums.RequirementEvent` (already in common) and SQLAlchemy
   primitives. They are exactly the kind of cross-cutting infrastructure
   that belongs alongside `app/common/factories/`, `app/common/guards.py`,
@@ -149,7 +149,7 @@ are **removed entirely** after the move.
   registers the adapter into the registry on app startup (mirroring how
   `app/cprs/__init__.py` and `app/required_docs/__init__.py` already do
   for their handlers). Deliverables already imports from
-  `app.common.requirements.registry` for `register_requirement_type` —
+  `app.common.requirements` for `register_requirement_type` —
   the dependency direction is correct.
 
 ### Import updates (every file that needs touching)
@@ -157,7 +157,7 @@ are **removed entirely** after the move.
 ```
 # Old → New
 app.project_requirements.protocol          → app.common.requirements.protocol
-app.project_requirements.registry          → app.common.requirements.registry
+app.project_requirements.registry          → app.common.requirements
 app.project_requirements.aggregator        → app.common.requirements.aggregator
 app.project_requirements.services          → app.common.requirements.dispatcher  (for dispatch_requirement_event)
                                             → app.requirement_triggers.services  (for hash_template_params)
@@ -173,8 +173,8 @@ Files needing import edits:
 - `app/main.py` — top-of-file side-effect imports + `include_router` for
   the trigger router (rename `project_requirements` → `requirement_triggers`,
   variable name `requirement_triggers_router` already correct).
-- `app/cprs/service.py` — `from app.common.requirements.registry import register_requirement_type`
-- `app/cprs/models.py` — `from app.common.requirements.protocol import DismissibleMixin, ManualTerminalMixin`
+- `app/cprs/service.py` — `from app.common.requirements import register_requirement_type`
+- `app/cprs/models.py` — `from app.common.requirements import DismissibleMixin, ManualTerminalMixin`
 - `app/required_docs/service.py` — registry + `WACodeRequirementTrigger` (now from triggers module)
 - `app/required_docs/models.py` — `DismissibleMixin` from common
 - `app/lab_results/service.py` — `dispatch_requirement_event` from `app.common.requirements.dispatcher`
@@ -192,14 +192,14 @@ checklist; current known callers are listed in the exploration report.
 
 ### Test moves
 
-| Test file (current path) | New path |
-|---|---|
-| `app/project_requirements/tests/test_protocol.py` | `app/common/requirements/tests/test_protocol.py` |
-| `app/project_requirements/tests/test_dispatch.py` | `app/common/requirements/tests/test_dispatch.py` |
+| Test file (current path)                            | New path                                           |
+| --------------------------------------------------- | -------------------------------------------------- |
+| `app/project_requirements/tests/test_protocol.py`   | `app/common/requirements/tests/test_protocol.py`   |
+| `app/project_requirements/tests/test_dispatch.py`   | `app/common/requirements/tests/test_dispatch.py`   |
 | `app/project_requirements/tests/test_aggregator.py` | `app/common/requirements/tests/test_aggregator.py` |
-| `app/project_requirements/tests/test_models.py` | `app/requirement_triggers/tests/test_models.py` |
-| `app/project_requirements/tests/test_router.py` | `app/requirement_triggers/tests/test_router.py` |
-| `app/project_requirements/tests/test_hash.py` | `app/requirement_triggers/tests/test_hash.py` |
+| `app/project_requirements/tests/test_models.py`     | `app/requirement_triggers/tests/test_models.py`    |
+| `app/project_requirements/tests/test_router.py`     | `app/requirement_triggers/tests/test_router.py`    |
+| `app/project_requirements/tests/test_hash.py`       | `app/requirement_triggers/tests/test_hash.py`      |
 
 If `test_aggregator.py` covers the `DeliverableRequirementAdapter`
 specifically (as opposed to the generic aggregator walk), split that
@@ -277,7 +277,7 @@ mounts it under its own `/projects` prefix.** (Recommended.)
   own URL space; mirrors the existing nested-mount pattern in
   `app/wa_codes/router/__init__.py:15` (`router.include_router(requirement_triggers_router)`).
 - Cons: introduces an import edge `app/projects/router.py →
-  app/cprs/router.py`. This is one-way (cprs already imports
+app/cprs/router.py`. This is one-way (cprs already imports
   `Project, ProjectContractorLink` from `app.projects.models`, never
   from `projects.router`), so no circular import is created. The
   visible cost is one extra import per child module added under
@@ -305,7 +305,7 @@ attach to `cpr_router`; project-collection routes (`GET /projects/{id}/cprs`)
 attach to the under-project sub-router that `projects_router` mounts.
 The two router objects per module map cleanly onto the two route
 shapes. This is the strongest argument for C over A or B: A flattens
-project-scope into a query param (loses URL hierarchy *and* makes peer
+project-scope into a query param (loses URL hierarchy _and_ makes peer
 routes inconsistent), and B leaves the parent-prefix-from-child
 awkwardness in place forever.
 
@@ -446,18 +446,18 @@ existing dispatch already covers it.
 
 ### Sequencing — when does the framework primitive ship?
 
-Three options for *this* refactor session:
+Three options for _this_ refactor session:
 
 **Option I — Build the primitive now, no concrete edges.** Add
 `app/common/peer_routes.py`, write the factory and decorator, write the
 factory's tests. Sessions E and F register edges as they need them.
-*Risk:* premature — primitive without consumer; CLAUDE.md guidance
+_Risk:_ premature — primitive without consumer; CLAUDE.md guidance
 discourages this.
 
 **Option II — Defer entirely. Build when first edge is needed.** This
 refactor only does Refactors 1 and 2. The first peer endpoint that gets
 wired (likely in Session E or a follow-up) brings the primitive with it.
-*Risk:* the first wirer has to do double duty — primitive design plus
+_Risk:_ the first wirer has to do double duty — primitive design plus
 their own session work.
 
 **Option III — Defer the build, lock the design here.** This refactor
@@ -475,7 +475,7 @@ home and unblocks Session E/F planning.
 ### Admin-introspection layer (added to Phase 6.7 scope)
 
 The factory alone gives typed individual edges, but admins still need
-to *review* which clusters exist and *inspect* what's attached to a
+to _review_ which clusters exist and _inspect_ what's attached to a
 specific entity. Without an introspection layer, admins must read
 source code or READMEs to discover lateral relationships. Three
 read-only endpoints solve this:
@@ -649,14 +649,15 @@ or F.
 > independently, related by domain rules, no peer owns the others, and
 > any peer can be the entry point for navigating to its peers. Example:
 > field-work cluster — `lab_result ↔ time_entry ↔ daily_log ↔
-> wa_code_assignment`. These use the **peer-route framework** (Phase
+wa_code_assignment`. These use the **peer-route framework** (Phase
 > 6.7, deferred): declarative `@register_peer_query(parent, peer)` edges
-> + `create_peer_routes()` factory that emits typed
-> `GET /<parent>/{id}/<peer>` endpoints from registered edges. Each
-> query function returns the **project-scoped form** of the peer
-> (`WorkAuthProjectCode`, not `WACode`), enforces project scoping
-> internally, and lives in the parent's module while importing peer
-> models from elsewhere.
+>
+> - `create_peer_routes()` factory that emits typed
+>   `GET /<parent>/{id}/<peer>` endpoints from registered edges. Each
+>   query function returns the **project-scoped form** of the peer
+>   (`WorkAuthProjectCode`, not `WACode`), enforces project scoping
+>   internally, and lives in the parent's module while importing peer
+>   models from elsewhere.
 >
 > **Why:** Hand-writing one endpoint per pair grows N² with cluster
 > size and diverges over time. The factory pattern makes lateral peers
@@ -665,8 +666,8 @@ or F.
 > handle both loses the strengths of each.
 >
 > **How to apply:** Before wiring a new cross-module read endpoint,
-> ask: does the parent *own* the peer (single-direction, cascade on
-> delete), or are they *allies* (bidirectional, peer-of-peer
+> ask: does the parent _own_ the peer (single-direction, cascade on
+> delete), or are they _allies_ (bidirectional, peer-of-peer
 > navigation, materialization-on-event)? Owned → FK + nested URL.
 > Allied → register a peer query and let the factory emit the route.
 > Materialization (creating missing peers when one is added) stays
@@ -694,6 +695,7 @@ or F.
 ## Critical files to be modified
 
 **Created:**
+
 - `app/common/requirements/__init__.py`
 - `app/common/requirements/protocol.py` (moved)
 - `app/common/requirements/registry.py` (moved)
@@ -707,7 +709,7 @@ or F.
 - `app/common/requirements/tests/test_aggregator.py` (moved)
 - `app/requirement_triggers/__init__.py`
 - `app/requirement_triggers/models.py` (moved)
-- `app/requirement_triggers/schemas.py` (WACodeRequirementTrigger* schemas only)
+- `app/requirement_triggers/schemas.py` (WACodeRequirementTrigger\* schemas only)
 - `app/requirement_triggers/services.py` (hash_template_params only)
 - `app/requirement_triggers/router.py` (moved + import updates)
 - `app/requirement_triggers/README.md`
@@ -718,9 +720,11 @@ or F.
 - `app/deliverables/requirement_adapter.py` (moved from project_requirements/adapters)
 
 **Deleted:**
+
 - `app/project_requirements/` (entire directory) once moves are complete
 
 **Modified (import updates):**
+
 - `app/main.py` — side-effect imports, router includes (also Option C
   router mounting if accepted)
 - `app/cprs/service.py`, `app/cprs/models.py`, `app/cprs/router.py`

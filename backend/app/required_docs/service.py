@@ -6,8 +6,8 @@ from sqlalchemy.orm import selectinload
 
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import DocumentType, EmployeeRoleType, RequirementEvent
-from app.project_requirements.models import WACodeRequirementTrigger
-from app.project_requirements.registry import register_requirement_type
+from app.requirement_triggers.models import WACodeRequirementTrigger
+from app.common.requirements import register_requirement_type
 from app.required_docs.models import ProjectDocumentRequirement
 from app.time_entries.models import TimeEntry
 

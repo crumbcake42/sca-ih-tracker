@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.common.enums import DocumentType, EmployeeRoleType
 from app.database import AuditMixin, Base
-from app.project_requirements.protocol import DismissibleMixin
+from app.common.requirements import DismissibleMixin
 
 
 class ProjectDocumentRequirement(Base, AuditMixin, DismissibleMixin):

@@ -6,7 +6,7 @@ from app.deliverables.models import (
     ProjectBuildingDeliverable,
     ProjectDeliverable,
 )
-from app.project_requirements.registry import register_requirement_type
+from app.common.requirements import register_requirement_type
 from app.projects.services import _DERIVABLE_SCA_STATUSES
 
 

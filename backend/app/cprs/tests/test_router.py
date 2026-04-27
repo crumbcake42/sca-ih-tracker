@@ -1,5 +1,5 @@
 """
-Router tests for /projects/{id}/contractor-payment-records and /contractor-payment-records/{id}.
+Router tests for /projects/{id}/cprs and /cprs/{id}.
 """
 
 from datetime import datetime
@@ -52,7 +52,7 @@ class TestListContractorPaymentRecords:
         await _seed_cpr(db_session, project.id, contractor1.id)
         await _seed_cpr(db_session, project.id, contractor2.id)
 
-        resp = await auth_client.get(f"/projects/{project.id}/contractor-payment-records")
+        resp = await auth_client.get(f"/projects/{project.id}/cprs")
         assert resp.status_code == 200
         assert len(resp.json()) == 2
 
@@ -71,7 +71,7 @@ class TestListContractorPaymentRecords:
             dismissal_reason="Not needed",
         )
 
-        resp = await auth_client.get(f"/projects/{project.id}/contractor-payment-records")
+        resp = await auth_client.get(f"/projects/{project.id}/cprs")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
@@ -91,7 +91,7 @@ class TestListContractorPaymentRecords:
         )
 
         resp = await auth_client.get(
-            f"/projects/{project.id}/contractor-payment-records?include_dismissed=true"
+            f"/projects/{project.id}/cprs?include_dismissed=true"
         )
         assert resp.status_code == 200
         assert len(resp.json()) == 2
@@ -99,14 +99,14 @@ class TestListContractorPaymentRecords:
     async def test_returns_404_for_unknown_project(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        resp = await auth_client.get("/projects/99999/contractor-payment-records")
+        resp = await auth_client.get("/projects/99999/cprs")
         assert resp.status_code == 404
 
     async def test_unauthenticated_returns_401(
         self, client: AsyncClient, db_session: AsyncSession
     ):
         project = await _seed_project(db_session)
-        resp = await client.get(f"/projects/{project.id}/contractor-payment-records")
+        resp = await client.get(f"/projects/{project.id}/cprs")
         assert resp.status_code == 401
 
 
@@ -119,7 +119,7 @@ class TestCreateContractorPaymentRecord:
         await _seed_project_contractor_link(db_session, project.id, contractor.id)
 
         resp = await auth_client.post(
-            f"/projects/{project.id}/contractor-payment-records",
+            f"/projects/{project.id}/cprs",
             json={"project_id": project.id, "contractor_id": contractor.id},
         )
         assert resp.status_code == 201
@@ -135,7 +135,7 @@ class TestCreateContractorPaymentRecord:
         contractor = await seed_contractor(db_session)
 
         resp = await auth_client.post(
-            f"/projects/{project.id}/contractor-payment-records",
+            f"/projects/{project.id}/cprs",
             json={"project_id": project.id + 1, "contractor_id": contractor.id},
         )
         assert resp.status_code == 422
@@ -148,7 +148,7 @@ class TestCreateContractorPaymentRecord:
         # No link created
 
         resp = await auth_client.post(
-            f"/projects/{project.id}/contractor-payment-records",
+            f"/projects/{project.id}/cprs",
             json={"project_id": project.id, "contractor_id": contractor.id},
         )
         assert resp.status_code == 422
@@ -158,7 +158,7 @@ class TestCreateContractorPaymentRecord:
     ):
         contractor = await seed_contractor(db_session)
         resp = await auth_client.post(
-            "/projects/99999/contractor-payment-records",
+            "/projects/99999/cprs",
             json={"project_id": 99999, "contractor_id": contractor.id},
         )
         assert resp.status_code == 404
@@ -173,7 +173,7 @@ class TestUpdateContractorPaymentRecord:
         record = await _seed_cpr(db_session, project.id, contractor.id)
 
         resp = await auth_client.patch(
-            f"/contractor-payment-records/{record.id}",
+            f"/cprs/{record.id}",
             json={"rfp_saved_at": "2025-12-01T00:00:00"},
         )
         assert resp.status_code == 200
@@ -184,7 +184,7 @@ class TestUpdateContractorPaymentRecord:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         resp = await auth_client.patch(
-            "/contractor-payment-records/99999",
+            "/cprs/99999",
             json={"rfp_saved_at": "2025-12-01T00:00:00"},
         )
         assert resp.status_code == 404
@@ -202,7 +202,7 @@ class TestUpdateContractorPaymentRecord:
         )
 
         resp = await auth_client.patch(
-            f"/contractor-payment-records/{record.id}",
+            f"/cprs/{record.id}",
             json={"rfa_submitted_at": "2025-12-01T00:00:00"},
         )
         assert resp.status_code == 200
@@ -227,7 +227,7 @@ class TestUpdateContractorPaymentRecord:
         record = await _seed_cpr(db_session, project.id, contractor.id)
 
         resp = await auth_client.patch(
-            f"/contractor-payment-records/{record.id}",
+            f"/cprs/{record.id}",
             json={"rfa_submitted_at": "2025-12-01T00:00:00"},
         )
         assert resp.status_code == 200
@@ -249,7 +249,7 @@ class TestDismissContractorPaymentRecord:
         record = await _seed_cpr(db_session, project.id, contractor.id)
 
         resp = await auth_client.post(
-            f"/contractor-payment-records/{record.id}/dismiss",
+            f"/cprs/{record.id}/dismiss",
             json={"dismissal_reason": "Not applicable to this project"},
         )
         assert resp.status_code == 200
@@ -272,7 +272,7 @@ class TestDismissContractorPaymentRecord:
         )
 
         resp = await auth_client.post(
-            f"/contractor-payment-records/{record.id}/dismiss",
+            f"/cprs/{record.id}/dismiss",
             json={"dismissal_reason": "Again"},
         )
         assert resp.status_code == 422
@@ -285,7 +285,7 @@ class TestDismissContractorPaymentRecord:
         record = await _seed_cpr(db_session, project.id, contractor.id)
 
         resp = await auth_client.post(
-            f"/contractor-payment-records/{record.id}/dismiss",
+            f"/cprs/{record.id}/dismiss",
             json={"dismissal_reason": "   "},
         )
         assert resp.status_code == 422
@@ -299,7 +299,7 @@ class TestDeleteContractorPaymentRecord:
         contractor = await seed_contractor(db_session)
         record = await _seed_cpr(db_session, project.id, contractor.id)
 
-        resp = await auth_client.delete(f"/contractor-payment-records/{record.id}")
+        resp = await auth_client.delete(f"/cprs/{record.id}")
         assert resp.status_code == 204
 
     async def test_delete_rfa_submitted_returns_422(
@@ -314,7 +314,7 @@ class TestDeleteContractorPaymentRecord:
             rfa_submitted_at=datetime(2025, 11, 1),
         )
 
-        resp = await auth_client.delete(f"/contractor-payment-records/{record.id}")
+        resp = await auth_client.delete(f"/cprs/{record.id}")
         assert resp.status_code == 422
 
     async def test_delete_rfp_submitted_returns_422(
@@ -329,11 +329,11 @@ class TestDeleteContractorPaymentRecord:
             rfp_submitted_at=datetime(2025, 11, 15),
         )
 
-        resp = await auth_client.delete(f"/contractor-payment-records/{record.id}")
+        resp = await auth_client.delete(f"/cprs/{record.id}")
         assert resp.status_code == 422
 
     async def test_delete_unknown_returns_404(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        resp = await auth_client.delete("/contractor-payment-records/99999")
+        resp = await auth_client.delete("/cprs/99999")
         assert resp.status_code == 404
