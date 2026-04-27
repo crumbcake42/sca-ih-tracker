@@ -123,6 +123,12 @@ class EmployeeRoleType(StrEnum):
     MOLD_PROJECT_MANAGER_B = "Mold Project Manager Level B"
 
 
+class DocumentType(StrEnum):
+    DAILY_LOG = "daily_log"
+    REOCCUPANCY_LETTER = "reoccupancy_letter"
+    MINOR_LETTER = "minor_letter"
+
+
 class RequirementEvent(StrEnum):
     """Events that can trigger requirement materialization or recalculation.
     Defined in Session A; first dispatch wiring is Session B."""

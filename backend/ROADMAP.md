@@ -556,14 +556,16 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
   - `app/project_requirements/registry.py` extended — `register_requirement_type(name, events=[...])` declares per-handler event subscriptions; `handlers_for_event(event)` queries them
   - User-managed migration for the new table
 
-- [ ] **Session C — Silo 1: `project_document_requirements`**
-  - `app/required_docs/` module scaffold (init, models.py shell, schemas.py shell, services.py shell, router/, tests/, README)
-  - Model + schema + router + service for Silo 1
-  - Add `DocumentType` enum to `app/common/enums.py`
-  - Add `requires_daily_log: bool` to role type config + admin CRUD
-  - Materialization on `TIME_ENTRY_CREATED`; recalc on `is_saved` toggle
-  - Per-silo dismissal endpoint
-  - User-managed migration
+- [x] **Session C — Silo 1: `project_document_requirements`** ✓ COMPLETE
+  - `app/required_docs/` module (models, schemas, service, router, tests, README)
+  - `DocumentType` enum added to `app/common/enums.py` (`DAILY_LOG`, `REOCCUPANCY_LETTER`, `MINOR_LETTER`)
+  - `ROLES_REQUIRING_DAILY_LOG` silo-owned mapping in `service.py` (no admin CRUD — pure code)
+  - Materializers: `TIME_ENTRY_CREATED`, `WA_CODE_ADDED`, `WA_CODE_REMOVED` (Decision #6 conditional delete)
+  - Partial unique index prevents duplicate active rows; dismissed rows allow re-materialization
+  - `ProjectDocumentHandler` in `service.py` registered in requirement registry (separate from ORM model to avoid circular import)
+  - Dispatch wired in `app/time_entries/router.py` and `app/lab_results/service.py`
+  - 50 new tests (643 total, all passing)
+  - User-managed migration (pending)
 
 - [ ] **Session D — Silo 2: `contractor_payment_records`**
   - Model + schema + router + service for CPR; `ManualTerminalMixin` applied

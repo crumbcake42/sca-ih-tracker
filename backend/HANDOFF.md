@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-26
+# Session Handoff — 2026-04-27
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,87 +6,97 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 6.5 Session B complete.** `WACodeRequirementTrigger` model, admin CRUD (`/requirement-triggers/`), `dispatch_requirement_event` entry point, and event-subscription registry extension are all live. 32 new tests, all green. Full suite: 593 passing.
+**Phase 6.5 Session C complete.** Silo 1 (`project_document_requirements`) is fully implemented: model, schemas, service, router, 50 tests, all passing. Full suite: 643 passing.
 
-**Next: Session C — Silo 1: `project_document_requirements`.** See ROADMAP.md Phase 6.5 Session C.
+**Next: Session D — Silo 2: `contractor_payment_records`.** See ROADMAP.md Phase 6.5 Session D.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 6.5 Session B — trigger config + dispatch
+### Phase 6.5 Session C — Silo 1: `project_document_requirements`
 
 **Files created:**
-- `app/project_requirements/models.py` — `WACodeRequirementTrigger` model (`wa_code_id`, `requirement_type_name`, `template_params` JSON, `template_params_hash` String(64), `AuditMixin`); unique on `(wa_code_id, requirement_type_name, template_params_hash)`
-- `app/project_requirements/services.py` — `hash_template_params(params) -> str` (sha256 of canonical JSON); `dispatch_requirement_event(project_id, event, payload, db)` — routes to registered handlers subscribed to that event
-- `app/project_requirements/router.py` — admin CRUD at `/requirement-triggers/`; POST (body includes `wa_code_id`), GET (optional `?wa_code_id=` filter), DELETE `/{trigger_id}`; validates `requirement_type_name` against registry → 422; detects duplicates via hash → 409; `PROJECT_EDIT` permission on writes
-- `app/project_requirements/tests/test_models.py` — 6 model tests: round-trip, unique constraint, boundary cases
-- `app/project_requirements/tests/test_hash.py` — 8 tests: hash determinism, key-order independence, list-order sensitivity
-- `app/project_requirements/tests/test_dispatch.py` — 5 tests: subscribed handler called, unsubscribed skipped, noop on no subscribers, multiple handlers, exception propagates
-- `app/project_requirements/tests/test_router.py` — 13 tests: full CRUD coverage incl. duplicate hash detection, unauthenticated rejection
+- `app/required_docs/__init__.py` — imports `service` for side-effect registration of `ProjectDocumentHandler`
+- `app/required_docs/models.py` — `ProjectDocumentRequirement` ORM model; columns: `project_id`, `document_type` (SQLEnum), `is_required`, `is_saved`, `is_placeholder`, `employee_id`, `date`, `school_id`, `file_id`, `expected_role_type`, `wa_code_trigger_id`, `notes`, plus `DismissibleMixin` + `AuditMixin`; partial unique index on `(project_id, document_type, employee_id, date, school_id) WHERE dismissed_at IS NULL`; composite index on `(project_id, is_saved, dismissed_at)`; properties: `requirement_key`, `label`, `is_dismissed`, `is_fulfilled()`
+- `app/required_docs/schemas.py` — `ProjectDocumentRequirementCreate`, `ProjectDocumentRequirementUpdate`, `ProjectDocumentRequirementDismiss`, `ProjectDocumentRequirementRead`; uses `@computed_field` for `label`, `is_fulfilled`, `is_dismissed`; uses `from datetime import date as DateField` to avoid Python 3.14 annotation shadowing
+- `app/required_docs/service.py` — `ROLES_REQUIRING_DAILY_LOG = {ACM_AIR_TECH: [DAILY_LOG], ACM_PROJECT_MONITOR: [DAILY_LOG]}`; `materialize_for_time_entry`, `materialize_for_wa_code_added`, `cleanup_for_wa_code_removed`; `ProjectDocumentHandler` class registered via `@register_requirement_type("project_document", events=[TIME_ENTRY_CREATED, WA_CODE_ADDED, WA_CODE_REMOVED])`
+- `app/required_docs/router.py` — two routers: `projects_doc_router` (prefix `/projects`) and `doc_req_router` (prefix `/document-requirements`); endpoints: list, manual POST, PATCH, dismiss POST, DELETE (guarded: 422 unless `is_placeholder=True AND is_saved=False`)
+- `app/required_docs/README.md` — module docs
+- `app/required_docs/tests/__init__.py`, `test_protocol.py` (11), `test_models.py` (5), `test_dispatch.py` (13), `test_router.py` (17), `test_aggregator.py` (4)
 
 **Files modified:**
-- `app/project_requirements/registry.py` — `RequirementTypeRegistry` extended: `_events: dict[RequirementEvent, list[type]]`, `register()` now accepts `events` list, `handlers_for_event(event)` added, `clear()` also clears `_events`; `register_requirement_type(name, events=None)` decorator updated; existing deliverable adapters unaffected (events defaults to `None`)
-- `app/project_requirements/schemas.py` — added `WACodeRequirementTriggerCreate` (with `wa_code_id`) and `WACodeRequirementTriggerRead`
-- `app/main.py` — added `import app.project_requirements` (populates registry on startup) and `app.include_router(requirement_triggers_router)`
-- `backend/ROADMAP.md` — added locked decisions #11 (module ownership) and #12 (reverse inference flow + WA code selection rule); corrected Session B bullet (module path, URL shape)
+- `app/common/enums.py` — added `DocumentType(StrEnum)` with `DAILY_LOG`, `REOCCUPANCY_LETTER`, `MINOR_LETTER`
+- `app/main.py` — `import app.required_docs  # noqa` + `include_router` for both required_docs routers
+- `app/time_entries/router.py` — `dispatch_requirement_event(project_id, TIME_ENTRY_CREATED, {time_entry_id: entry.id}, db)` called before `db.commit()` in `create_time_entry`
+- `app/lab_results/service.py` — same dispatch call before final commit in `quick_add_batch`
+- `backend/ROADMAP.md` — Session C checkbox ticked
 
 ### Key decisions locked this session
 
-- **Module ownership (Decision #11):** `WACodeRequirementTrigger` lives in `app/project_requirements/`, not `app/wa_codes/`. The table is load-bearing for both forward dispatch and future reverse inference; putting it in `wa_codes` would create a circular dependency.
-- **Flat URL `/requirement-triggers/`:** Router owns its own namespace in `main.py`. Nested URL `/wa-codes/{id}/requirement-triggers` was rejected because it would require cross-module router inclusion (`wa_codes/__init__.py` importing from `project_requirements`) — a pattern violation.
-- **Module router boundary:** Each module's `router/__init__.py` only composes routers from within that module. Cross-module router inclusion is not allowed — if a new endpoint's URL appears to belong to another module's prefix, the fix is to choose a different URL, not to import the foreign router. All top-level router registration happens in `app/main.py`. Violation that was caught and reverted this session: an early draft put `app/project_requirements/router.py` inside `app/wa_codes/router/__init__.py` because the URL started with `/wa-codes/`. Correct fix was a flat URL (`/requirement-triggers/`) registered directly in `main.py`.
-- **Reverse inference flow (Decision #12, deferred):** When a requirement is fulfilled, the system infers which WA code to add (lexicographically smallest `code` among candidates). Needs a new `RequirementEvent` value and a handler in `project_requirements` calling into `work_auths`. Documented but not implemented.
-- **Dispatcher error policy:** Fail loud — first raising handler aborts dispatch; caller owns the transaction.
-- **Event subscription:** Handlers declare `events=[...]` in `@register_requirement_type(name, events=[...])` decorator. Single `handle_event(project_id, event, payload, db)` classmethod per handler.
+- **`ProjectDocumentHandler` separate from ORM model (Decision #13):** Handler class lives in `service.py`, not `models.py`. This avoids circular imports: `service.py` imports `ProjectDocumentRequirement` from `models.py`; `models.py` imports nothing from `service.py`. `__init__.py` imports `service` for the side-effect of registering the handler.
+- **Silo-owned mapping:** `ROLES_REQUIRING_DAILY_LOG` is a `dict[EmployeeRoleType, list[DocumentType]]` constant in `service.py`. No DB table, no admin CRUD — adding roles is a code change. Chosen because the mapping is tied to the time-entry domain, not to employee role admin.
+- **Single `DAILY_LOG` type:** No per-role-kind variants. Drift handling (early end, missing pages, missing license checklists) covered by blocking notes in `app/notes/`.
+- **`is_saved` is the only fulfillment signal:** No overlap-check or `EXPECTED` time-entry status in Silo 1.
+- **WA code production dispatch pending:** `ProjectDocumentHandler` subscribes to `WA_CODE_ADDED` / `WA_CODE_REMOVED` and the materializers are tested. But the production firing of those events from `app/work_auths/` is deferred to a future session — only `TIME_ENTRY_CREATED` is wired in production today.
+- **Decision #6 (conditional de-materialization):** On `WA_CODE_REMOVED`, rows are deleted only if pristine (`is_saved=False AND dismissed_at IS NULL AND file_id IS NULL`). Saved, dismissed, or file-attached rows are kept with `wa_code_trigger_id=NULL` (via ON DELETE SET NULL).
+- **`@computed_field` for schema derived fields:** `label`, `is_fulfilled`, `is_dismissed` in `ProjectDocumentRequirementRead` use `@computed_field` + `@property` to avoid Pydantic reading `is_fulfilled` as a bound method instead of a return value.
 
 ### Migration needed (user generates)
 
-New table: `wa_code_requirement_triggers`
+New table: `project_document_requirements`
 
 ```sql
-CREATE TABLE wa_code_requirement_triggers (
+CREATE TABLE project_document_requirements (
     id INTEGER PRIMARY KEY,
-    wa_code_id INTEGER NOT NULL REFERENCES wa_codes(id) ON DELETE CASCADE,
-    requirement_type_name VARCHAR NOT NULL,
-    template_params JSON NOT NULL,
-    template_params_hash VARCHAR(64) NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    document_type VARCHAR NOT NULL,  -- 'daily_log' | 'reoccupancy_letter' | 'minor_letter'
+    is_required BOOLEAN NOT NULL DEFAULT 1,
+    is_saved BOOLEAN NOT NULL DEFAULT 0,
+    is_placeholder BOOLEAN NOT NULL DEFAULT 0,
+    employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+    date DATE,
+    school_id INTEGER REFERENCES schools(id) ON DELETE SET NULL,
+    file_id INTEGER,
+    expected_role_type VARCHAR,
+    wa_code_trigger_id INTEGER REFERENCES wa_code_requirement_triggers(id) ON DELETE SET NULL,
+    notes TEXT,
+    dismissal_reason TEXT,
+    dismissed_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    dismissed_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    updated_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT uq_wa_code_requirement_trigger
-        UNIQUE (wa_code_id, requirement_type_name, template_params_hash)
+    updated_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE INDEX ix_wa_code_requirement_triggers_wa_code_id
-    ON wa_code_requirement_triggers (wa_code_id);
+CREATE INDEX ix_project_document_requirements_project_id
+    ON project_document_requirements (project_id);
+CREATE INDEX ix_project_document_requirements_document_type
+    ON project_document_requirements (document_type);
+CREATE INDEX ix_project_document_requirements_employee_id
+    ON project_document_requirements (employee_id);
+CREATE INDEX ix_project_document_requirements_date
+    ON project_document_requirements (date);
+CREATE INDEX ix_project_document_requirements_school_id
+    ON project_document_requirements (school_id);
+CREATE INDEX ix_proj_doc_req_status
+    ON project_document_requirements (project_id, is_saved, dismissed_at);
+-- Partial unique index (SQLite 3.8+)
+CREATE UNIQUE INDEX ix_uq_proj_doc_req_active
+    ON project_document_requirements (project_id, document_type, employee_id, date, school_id)
+    WHERE dismissed_at IS NULL;
 ```
 
----
-
-## Next Steps — Session C scope
-
-**Implement Silo 1: `project_document_requirements`.**
-
-Per ROADMAP.md Phase 6.5 Session C:
-- `app/required_docs/` module scaffold
-- `DocumentType` enum in `app/common/enums.py`
-- Model + schema + router + service for `project_document_requirements`
-- `TIME_ENTRY_CREATED` event handler: auto-creates `DAILY_LOG` row when employee role's `requires_daily_log=True`
-- Register adapter in `app/project_requirements/adapters/`
-- Role-type schema: add `requires_daily_log: bool` (admin-toggleable)
-- `time_entries.status` gains `EXPECTED` value
+The alembic migration should use `Index("ix_uq_proj_doc_req_active", ..., unique=True, sqlite_where=text("dismissed_at IS NULL"))`.
 
 ---
 
-## Test seed migration (parallel track)
+## Session B carry-over (still pending)
 
-Carried over. 13 test files still use local `_seed_*` helpers (see Session A HANDOFF for full list). Two known-broken files need debugging before migration:
-- `app/notes/tests/test_notes_router.py`
-- `app/projects/tests/test_hygienist_links.py`
+**Migration from Session B still pending (user generates):** `wa_code_requirement_triggers` table — see Session B HANDOFF for exact DDL. This is a prerequisite for the Session C migration (FK dependency: `wa_code_trigger_id` references it).
 
 ---
 
 ## Frontend cross-side notes
 
-Nothing for FE until Session F. After Session F lands, regen the OpenAPI client — new schemas include `WACodeRequirementTriggerCreate`, `WACodeRequirementTriggerRead`, plus Session C–E silo schemas.
+Nothing for FE until Session F. After Session F lands, regen the OpenAPI client — new schemas include `WACodeRequirementTriggerCreate`, `WACodeRequirementTriggerRead`, plus Silo 1–3 schemas.

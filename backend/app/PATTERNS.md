@@ -311,6 +311,40 @@ Every `create_readonly_router`-backed `GET /` endpoint accepts column-filter que
 
 ---
 
+## 16. `@computed_field` for ORM-method-derived Pydantic fields
+
+When a Pydantic `Read` schema includes a field computed from an ORM model method (not a column), use `@computed_field` + `@property`. If the field is declared as a plain type annotation (`is_fulfilled: bool`), Pydantic's `from_attributes=True` reads `obj.is_fulfilled` and gets the bound method object, which fails validation with `bool_type` error.
+
+```python
+from pydantic import BaseModel, ConfigDict, computed_field
+
+class MyRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    is_saved: bool  # plain column → fine as a direct annotation
+
+    @computed_field
+    @property
+    def is_fulfilled(self) -> bool:  # ORM method → must be computed_field
+        return self.is_saved
+
+    @computed_field
+    @property
+    def is_dismissed(self) -> bool:
+        return self.dismissed_at is not None
+```
+
+**Python 3.14 `date` field shadowing:** If a schema field is named `date` with annotation `date | None`, Python 3.14's annotation evaluation sees `date` as the default value `None` in the class namespace, not the `datetime.date` type. Fix with an import alias:
+
+```python
+from datetime import date as DateField
+
+class MySchema(BaseModel):
+    date: DateField | None = None  # not `date: date | None`
+```
+
+---
+
 ## 14. Guarded DELETE
 
 Use `create_guarded_delete_router` from `app/common/factories.py` for any reference entity that needs a guarded DELETE plus a typed `/connections` view. The factory generates a named `{ModelName}Connections` Pydantic schema (typed in OpenAPI) and emits `GET /{id}/connections` + `DELETE /{id}`.

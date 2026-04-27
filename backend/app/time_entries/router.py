@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.enums import SampleBatchStatus, TimeEntryStatus
+from app.common.enums import RequirementEvent, SampleBatchStatus, TimeEntryStatus
+from app.project_requirements.services import dispatch_requirement_event
 from app.database import get_db
 from app.employees.models import Employee
 from app.lab_results.models import SampleBatch
@@ -94,6 +95,12 @@ async def create_time_entry(
     await db.flush()
     await ensure_deliverables_exist(body.project_id, db)
     await recalculate_deliverable_sca_status(body.project_id, db)
+    await dispatch_requirement_event(
+        project_id=body.project_id,
+        event=RequirementEvent.TIME_ENTRY_CREATED,
+        payload={"time_entry_id": entry.id},
+        db=db,
+    )
     await db.commit()
     await db.refresh(entry)
     return entry
