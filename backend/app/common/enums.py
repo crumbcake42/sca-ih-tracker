@@ -121,3 +121,15 @@ class EmployeeRoleType(StrEnum):
     MOLD_FIELD_TECH = "Mold Field Technician"
     MOLD_PROJECT_MANAGER_A = "Mold Project Manager Level A"
     MOLD_PROJECT_MANAGER_B = "Mold Project Manager Level B"
+
+
+class RequirementEvent(StrEnum):
+    """Events that can trigger requirement materialization or recalculation.
+    Defined in Session A; first dispatch wiring is Session B."""
+
+    WA_CODE_ADDED = "wa_code_added"
+    WA_CODE_REMOVED = "wa_code_removed"
+    RFA_RESOLVED = "rfa_resolved"
+    TIME_ENTRY_CREATED = "time_entry_created"
+    BATCH_CREATED = "batch_created"
+    CONTRACTOR_LINKED = "contractor_linked"

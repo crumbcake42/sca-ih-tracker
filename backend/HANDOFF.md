@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-25
+# Session Handoff — 2026-04-26
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,113 +6,87 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 1.8 Sessions A + B are done.** `create_guarded_delete_router` factory is live and all six router modules have been migrated. Six new `*Connections` schemas now appear in OpenAPI with full typing. Next: Session C — docs + FE handoff note.
+**Phase 6.5 Session B complete.** `WACodeRequirementTrigger` model, admin CRUD (`/requirement-triggers/`), `dispatch_requirement_event` entry point, and event-subscription registry extension are all live. 32 new tests, all green. Full suite: 593 passing.
 
-13 test files still need migration to `tests/seeds/` (see Next Steps).
+**Next: Session C — Silo 1: `project_document_requirements`.** See ROADMAP.md Phase 6.5 Session C.
 
 ---
 
 ## What Was Done This Session
 
-### Phase 1.8 Session B — Migrated six router modules to use `create_guarded_delete_router`
+### Phase 6.5 Session B — trigger config + dispatch
 
-For each of the six modules, deleted the hand-rolled `_get_*_references` helper and both `GET /{id}/connections` + `DELETE /{id}` endpoints, then replaced them with `router.include_router(create_guarded_delete_router(...))`. All 532 tests pass unchanged.
+**Files created:**
+- `app/project_requirements/models.py` — `WACodeRequirementTrigger` model (`wa_code_id`, `requirement_type_name`, `template_params` JSON, `template_params_hash` String(64), `AuditMixin`); unique on `(wa_code_id, requirement_type_name, template_params_hash)`
+- `app/project_requirements/services.py` — `hash_template_params(params) -> str` (sha256 of canonical JSON); `dispatch_requirement_event(project_id, event, payload, db)` — routes to registered handlers subscribed to that event
+- `app/project_requirements/router.py` — admin CRUD at `/requirement-triggers/`; POST (body includes `wa_code_id`), GET (optional `?wa_code_id=` filter), DELETE `/{trigger_id}`; validates `requirement_type_name` against registry → 422; detects duplicates via hash → 409; `PROJECT_EDIT` permission on writes
+- `app/project_requirements/tests/test_models.py` — 6 model tests: round-trip, unique constraint, boundary cases
+- `app/project_requirements/tests/test_hash.py` — 8 tests: hash determinism, key-order independence, list-order sensitivity
+- `app/project_requirements/tests/test_dispatch.py` — 5 tests: subscribed handler called, unsubscribed skipped, noop on no subscribers, multiple handlers, exception propagates
+- `app/project_requirements/tests/test_router.py` — 13 tests: full CRUD coverage incl. duplicate hash detection, unauthenticated rejection
 
-Files modified:
-- `app/contractors/router/base.py`
-- `app/hygienists/router/base.py`
-- `app/schools/router/base.py`
-- `app/employees/router/base.py`
-- `app/deliverables/router/base.py`
-- `app/wa_codes/router/base.py`
+**Files modified:**
+- `app/project_requirements/registry.py` — `RequirementTypeRegistry` extended: `_events: dict[RequirementEvent, list[type]]`, `register()` now accepts `events` list, `handlers_for_event(event)` added, `clear()` also clears `_events`; `register_requirement_type(name, events=None)` decorator updated; existing deliverable adapters unaffected (events defaults to `None`)
+- `app/project_requirements/schemas.py` — added `WACodeRequirementTriggerCreate` (with `wa_code_id`) and `WACodeRequirementTriggerRead`
+- `app/main.py` — added `import app.project_requirements` (populates registry on startup) and `app.include_router(requirement_triggers_router)`
+- `backend/ROADMAP.md` — added locked decisions #11 (module ownership) and #12 (reverse inference flow + WA code selection rule); corrected Session B bullet (module path, URL shape)
 
-Stale imports cleaned up per file (`func`, `assert_deletable`, and in `deliverables/base.py` also `Depends`, `HTTPException`, `AsyncSession`, `get_db`, `select` — that file had no remaining direct endpoint code).
+### Key decisions locked this session
 
-Non-obvious: `deliverables/router/base.py` is now purely factory composition — no `Depends`/`HTTPException`/`AsyncSession`/`get_db` needed in that file at all.
+- **Module ownership (Decision #11):** `WACodeRequirementTrigger` lives in `app/project_requirements/`, not `app/wa_codes/`. The table is load-bearing for both forward dispatch and future reverse inference; putting it in `wa_codes` would create a circular dependency.
+- **Flat URL `/requirement-triggers/`:** Router owns its own namespace in `main.py`. Nested URL `/wa-codes/{id}/requirement-triggers` was rejected because it would require cross-module router inclusion (`wa_codes/__init__.py` importing from `project_requirements`) — a pattern violation.
+- **Module router boundary:** Each module's `router/__init__.py` only composes routers from within that module. Cross-module router inclusion is not allowed — if a new endpoint's URL appears to belong to another module's prefix, the fix is to choose a different URL, not to import the foreign router. All top-level router registration happens in `app/main.py`. Violation that was caught and reverted this session: an early draft put `app/project_requirements/router.py` inside `app/wa_codes/router/__init__.py` because the URL started with `/wa-codes/`. Correct fix was a flat URL (`/requirement-triggers/`) registered directly in `main.py`.
+- **Reverse inference flow (Decision #12, deferred):** When a requirement is fulfilled, the system infers which WA code to add (lexicographically smallest `code` among candidates). Needs a new `RequirementEvent` value and a handler in `project_requirements` calling into `work_auths`. Documented but not implemented.
+- **Dispatcher error policy:** Fail loud — first raising handler aborts dispatch; caller owns the transaction.
+- **Event subscription:** Handlers declare `events=[...]` in `@register_requirement_type(name, events=[...])` decorator. Single `handle_event(project_id, event, payload, db)` classmethod per handler.
+
+### Migration needed (user generates)
+
+New table: `wa_code_requirement_triggers`
+
+```sql
+CREATE TABLE wa_code_requirement_triggers (
+    id INTEGER PRIMARY KEY,
+    wa_code_id INTEGER NOT NULL REFERENCES wa_codes(id) ON DELETE CASCADE,
+    requirement_type_name VARCHAR NOT NULL,
+    template_params JSON NOT NULL,
+    template_params_hash VARCHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    updated_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT uq_wa_code_requirement_trigger
+        UNIQUE (wa_code_id, requirement_type_name, template_params_hash)
+);
+CREATE INDEX ix_wa_code_requirement_triggers_wa_code_id
+    ON wa_code_requirement_triggers (wa_code_id);
+```
 
 ---
 
-### From prior session — Reverted EmployeeRoleType table → StrEnum
+## Next Steps — Session C scope
 
-Files reverted:
-- `app/employees/models.py` — dropped `EmployeeRoleType` class; restored `EmployeeRole.role_type` as `SQLEnum(EmployeeRoleType)`.
-- `app/employees/schemas.py` — dropped `EmployeeRoleTypeRead/Create/Update`; `EmployeeRoleBase.role_type: EmployeeRoleType`.
-- `app/employees/router/__init__.py` — dropped `role_types_router` export.
-- `app/main.py` — removed `role_types_router` registration.
-- `app/employees/router/base.py` — dropped FK validation and selectinload chain; overlap check uses `role_type` enum.
-- `app/employees/tests/test_roles.py` — rewritten to use the StrEnum.
-- `app/employees/tests/test_schemas.py` — `_make_role` uses the StrEnum.
-- `tests/seeds/employees.py` — dropped `seed_role_type`; `seed_employee_role` accepts a StrEnum (default `ACM_AIR_TECH`).
-- `tests/seeds/__init__.py` — removed `seed_role_type` export.
-- `app/scripts/db.py` — `seed_employee_roles` coerces CSV `role_type` into the enum directly; removed the `employee_role_types.csv` entry from `seed_files`.
-- `app/employees/README.md` — restored StrEnum guidance.
+**Implement Silo 1: `project_document_requirements`.**
 
-Files deleted:
-- `app/employees/router/role_types.py`
-- `data/seed/employee_role_types.csv`
-
-### Phase 1.8 Session A — `create_guarded_delete_router` factory
-
-Files modified/created:
-- `app/common/factories/create_guarded_delete_router.py` — new file. `create_guarded_delete_router(*, model, not_found_detail, refs, path_param_name)`. `refs` is `list[tuple[selectable, fk_col, label]]`. Generates a named `{ModelName}Connections` Pydantic schema via `pydantic.create_model` and emits typed `GET /{id}/connections` + `DELETE /{id}`.
-- `app/common/factories/__init__.py` — updated to export the new factory.
-- `app/common/tests/test_guarded_delete_factory.py` — new file. 9 tests: zero counts, ref counting, 404/204/409 on GET and DELETE, plus 3 OpenAPI schema checks that `ContractorConnections` is named, integer-typed, and referenced in the route's response schema.
-- `app/PATTERNS.md` §14 — replaced hand-rolled example with factory usage; kept TOCTOU and CASCADE guard notes.
-
-Non-obvious:
-- FastAPI resolves path params by function argument name. The factory overrides `__signature__` on inner handlers to rename `entity_id` → `path_param_name` for OpenAPI; then wraps each handler so that when FastAPI calls `wrapper(contractor_id=123, db=...)`, the wrapper translates to `impl(entity_id=123, db=...)` before dispatching.
-- No callers changed yet — the six hand-rolled `_get_*_references` helpers and their endpoints are still live. Session B migrates them.
+Per ROADMAP.md Phase 6.5 Session C:
+- `app/required_docs/` module scaffold
+- `DocumentType` enum in `app/common/enums.py`
+- Model + schema + router + service for `project_document_requirements`
+- `TIME_ENTRY_CREATED` event handler: auto-creates `DAILY_LOG` row when employee role's `requires_daily_log=True`
+- Register adapter in `app/project_requirements/adapters/`
+- Role-type schema: add `requires_daily_log: bool` (admin-toggleable)
+- `time_entries.status` gains `EXPECTED` value
 
 ---
 
-## Next Steps
+## Test seed migration (parallel track)
 
-### Step 0 — Regenerate the migrations and dev DB
-
-Wipe `migrations/versions/`, drop the dev DB, then run your normal alembic init + autogen flow, then `just seed`.
-
-### Step 1 — Resume the `tests/seeds/` migration
-
-13 test files still use local `_seed_*` helpers:
-
-- `app/employees/tests/test_roles.py` (could now adopt `seed_employee` + `seed_employee_role`)
-- `app/employees/tests/test_router.py`
-- `app/hygienists/tests/test_router.py`
-- `app/notes/tests/test_notes_router.py` ← previous migration attempt broke tests; needs debugging
-- `app/projects/tests/test_hygienist_links.py` ← previous migration attempt broke tests; needs debugging
-- `app/projects/tests/test_manager_assignments.py`
-- `app/projects/tests/test_project_status.py`
-- `app/work_auths/tests/test_deliverable_integration.py`
-- `app/work_auths/tests/test_rfas.py`
-- `app/work_auths/tests/test_wa_codes.py`
-- `app/work_auths/tests/test_work_auths.py`
-- `app/projects/tests/test_project_closure.py` — local `_seed_employee` was missing `display_name`; replace with `seed_employee`.
-- `app/projects/tests/test_projects_service.py` — same.
-
-Replace local `_seed_*` helpers with imports from `tests.seeds`. The default `seed_employee_role()` returns an `ACM_AIR_TECH` role; pass an explicit `role_type=` only when the test cares.
-
-### Step 2 — Commit staged migrations
-
-6 test files (per the previous handoff) were staged but never committed. Verify they still pass and commit:
-
-```
-git commit -m "Migrate test files to use shared tests/seeds package"
-```
-
-### Session C — Docs + cross-side FE handoff (next)
-
-- HANDOFF.md + ROADMAP.md checkmarks (this session handles HANDOFF; update ROADMAP Session B boxes too)
-- `frontend/HANDOFF.md` note: regen OpenAPI client — six new `*Connections` schemas are now typed; the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed
+Carried over. 13 test files still use local `_seed_*` helpers (see Session A HANDOFF for full list). Two known-broken files need debugging before migration:
+- `app/notes/tests/test_notes_router.py`
+- `app/projects/tests/test_hygienist_links.py`
 
 ---
 
 ## Frontend cross-side notes
 
-- The previously-queued FE OpenAPI regen for `EmployeeRoleType` is **not needed** — the API shape is back to its original form.
-- **After Session B lands:** Six new `*Connections` schemas appear in OpenAPI. Regen the FE client; the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can then be removed.
-
----
-
-## After Phase 1.8: Phase 6.5
-
-Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see `ROADMAP.md`). Revisit before implementing any placeholder promotion logic.
+Nothing for FE until Session F. After Session F lands, regen the OpenAPI client — new schemas include `WACodeRequirementTriggerCreate`, `WACodeRequirementTriggerRead`, plus Session C–E silo schemas.

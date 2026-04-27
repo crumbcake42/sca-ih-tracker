@@ -3,9 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import app.project_requirements  # noqa: F401 — populates the requirement type registry on startup
+
 from app.contractors.router import router as contractors_router
 from app.database import Base, engine
 from app.deliverables.router import router as deliverables_router
+from app.project_requirements.router import router as requirement_triggers_router
 from app.employees.router import router as employees_router
 from app.hygienists.router import router as hygienists_router
 from app.lab_results.router import router as lab_results_router
@@ -52,6 +55,7 @@ app.include_router(hygienists_router)
 app.include_router(projects_router)
 app.include_router(schools_router)
 app.include_router(time_entries_router)
+app.include_router(requirement_triggers_router)
 app.include_router(wa_codes_router)
 app.include_router(work_auths_router)
 app.include_router(auth_router)
