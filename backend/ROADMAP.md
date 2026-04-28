@@ -500,9 +500,10 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 7. **Trigger registration is developer-defined throughout.** Both materialization triggers and recalc fan-out are per-type code registrations; admin-managed triggers are over-flexibility.
 8. **No polymorphic parent table.** Each requirement type stays in its own table; the protocol is enforced at the Python layer. Avoids JTI/STI tradeoff per PATTERNS.md §4.
 9. **File upload infrastructure stays deferred.** `is_saved=True` + `file_id IS NULL` remains a valid permanent state. Each silo gets a nullable `file_id` column ready to wire later.
-10. **`wa_code_requirement_triggers` (new admin config) covers the three new silos; existing `deliverable_wa_code_triggers` is unchanged.** Deliverables join the registry via a read-only adapter; Stage 3 (unify trigger tables, fold deliverables natively) is deferred until growth justifies.
-11. **`WACodeRequirementTrigger` model lives in `app/requirement_triggers/`, not `app/wa_codes/`** *(path renamed during Session E0a refactor; was `app/project_requirements/` in Sessions A–D)*. The table is load-bearing for both directions: forward (WA code added → materialize requirements) and reverse (requirement fulfilled → infer which WA code to add). Putting the model in `wa_codes` would create a circular dependency once the reverse flow is implemented. The `wa_codes` module never imports from `requirement_triggers` (or the contract layer).
-12. **Reverse inference flow (deferred — not Session B).** When a requirement of a given type is saved/fulfilled on a project, the system queries `wa_code_requirement_triggers` for WA codes that include that requirement type, then adds the one with the lexicographically smallest `code` to the project (status: `PENDING_WA`). Adding that WA code then fires `WA_CODE_ADDED`, cascading its other triggers. A new `RequirementEvent` value is needed for the triggering condition (e.g. `REQUIRED_DOCUMENT_SAVED`). The handler lives in `project_requirements` and calls into `work_auths` for the WA code addition — an accepted cross-domain call at the service layer.
+10. ~~**`wa_code_requirement_triggers` (new admin config)…**~~ _Superseded by Decision #13 (2026-04-28)._
+11. ~~**`WACodeRequirementTrigger` model lives in `app/requirement_triggers/`…**~~ _Superseded by Decision #13 (2026-04-28)._
+12. ~~**Reverse inference flow (deferred — not Session B).**~~ _Superseded by Decision #13 (2026-04-28). Reverse inference is cancelled; causality is captured via `source_ref`/`root_ref` provenance columns for UI explainability, not via a query-on-fulfill flow._
+13. **`wa_code_requirement_triggers` table is deprecated; trigger rules move to code (2026-04-28).** Decisions #10–12 are superseded. The admin-editable trigger rows are replaced by code-only handler configuration, consistent with Decision #7. Trigger rules change with regulatory requirements (a deploy-time concern), not with individual project data (a runtime concern). Per-row lookups were brittle to schema drift; the handler pattern (`ROLES_REQUIRING_DAILY_LOG` in `required_docs/service.py`) is the canonical replacement — a code-level dict keyed on wa_code attribute or sample type. Refactor plan: Phase 6.8 (R-1 audit → R-2 provenance schema → R-3 handler conversion → R-4 new events + cascade discipline). Full detail: `~/.claude/plans/what-s-next-cozy-sunset.md`.
 
 **Architecture (post-E0 refactor — see Session E0a/E0b below):**
 
@@ -798,6 +799,21 @@ forward; extraction at that point is a refactor, not a redesign.
 - Cluster-level closure rollup. The existing aggregator
   (`get_unfulfilled_requirements_for_project`) already gives one
   unfulfilled list per project, which is what closure gates need.
+
+---
+
+### Phase 6.8 — Requirement-Rule Refactor (chained semantics, bundled materialization)
+
+**Decision #13 drives this phase.** Replace the `wa_code_requirement_triggers` admin-config table with code-only handler rules. Add provenance columns to all materialized requirement tables. Establish cascade discipline across the event dispatch system.
+
+Full plan: `~/.claude/plans/what-s-next-cozy-sunset.md`.
+
+- [ ] **R-1 — Audit & deprecation design** _(BE, design-only)_ — inventory every `WACodeRequirementTrigger` consumer; design code-only replacement; answer whether per-wa-code data derives from wa_code attributes or needs an in-code config dict; write R-3 implementation spec to `backend/HANDOFF.md`.
+- [ ] **R-2 — Provenance schema** _(BE)_ — add `source_ref` + `root_ref` (JSON) to all six materialized-requirement tables; user generates migration; existing rows backfill `source_ref={type:"legacy"}`.
+- [ ] **R-3 — Handler conversion** _(BE)_ — replace `materialize_for_wa_code_added`/`cleanup_for_wa_code_removed`'s DB reads with the R-1 code-only mapping; drop `wa_code_requirement_triggers` table, CRUD endpoints, schemas, `hash_template_params`, `wa_code_trigger_id` FK; keep `GET /requirement-types` (pure registry introspection, consumed by R-5).
+- [ ] **R-4 — New events + cascade discipline** _(BE)_ — add `DAILY_LOG_CREATED`, `WORK_AUTH_CREATED`, `LAB_SAMPLE_CREATED`, `WA_CODE_STATE_CHANGED` to `RequirementEvent`; wire emissions; audit every handler for idempotency; extend `test_registry_coverage.py`.
+- [ ] **R-5 — FE Requirements Catalog** _(FE, gated on R-3)_ — read-only `/admin/requirements-catalog` page from `GET /requirement-types`; replaces Session 2.4b.
+- [ ] **R-6 — FE "Why this?" affordance** _(FE, gated on R-2)_ — per-unfulfilled-requirement expand → `source_ref`/`root_ref` breadcrumb chain in close-flow dialog + project detail unfulfilled list.
 
 ---
 

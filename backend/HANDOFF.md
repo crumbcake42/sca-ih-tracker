@@ -168,3 +168,40 @@ The FE regenerated the OpenAPI client against this branch and audited the result
 5. **Duplicated requirement-triggers namespace.** SDK has both `createRequirementTriggerRequirementTriggersPost` (`/requirement-triggers`) and `createRequirementTriggerWaCodesRequirementTriggersPost` (`/wa-codes/requirement-triggers`). **Decision (2026-04-27): drop the `/wa-codes/requirement-triggers` re-mount** — remove `router.include_router(requirement_triggers_router)` from `app/wa_codes/router/__init__.py:15`. Canonical path stays `/requirement-triggers/...` (where all existing tests already point). See ROADMAP.md §Phase 6.6 Session C.
 
 6. **Deliverables blocker description in `frontend/HANDOFF.md` is wrong.** It claims the create surface should be "name, description, internal_status, sca_status," but `internal_status` / `sca_status` live on `ProjectDeliverable` / `ProjectBuildingDeliverable`, not the catalog `Deliverable`. The catalog has only `name`, `description`, `level`. Confirm what the Deliverables admin should manage before scoping the create/update payload.
+
+---
+
+## 2026-04-28 — Coordinator session: requirement-trigger architecture decision
+
+- Caught design drift on queued Session 2.4b: planning a wa_code-only admin form for triggers, but requirements are also triggered by lab samples / time entries / contractor links via the separate hardcoded `dispatch_requirement_event` mechanism — the system has two parallel trigger sources, only one of which was admin-editable.
+- Walked three test cases (sample-first, daily-log-first, work-auth-first) under "chained semantics, bundled materialization": handlers declare creation-time cascades in code, requirement rows materialize flat for hot-path queries, `source_ref`/`root_ref` provenance enables cold-path "Why this?" explainers.
+- User committed to the synthesis. Session 2.4b is cancelled (no FE admin CRUD for triggers).
+- Wrote multi-session refactor plan at `~/.claude/plans/what-s-next-cozy-sunset.md` — R-1 audit → R-2 provenance schema → R-3 handler conversion + drop `wa_code_requirement_triggers` table → R-4 new events + cascade discipline → R-5 FE Requirements Catalog → R-6 FE "Why this?" affordance.
+- Scoped R-1. Branch `be/refactor/requirement-rules` created (umbrella for R-1 through R-4). R-1 stub appended below.
+
+Frontend pickup: Session 2.4b is cancelled. Replacement work is R-5 (Requirements Catalog, read-only) + R-6 (Why-this affordance), both gated on BE R-2/R-3. Remove the 2.4b queue entry from `frontend/HANDOFF.md` on the next FE session's `/wrap`.
+
+---
+
+## 2026-04-28 — Coordinator queued: Requirement-rule audit & deprecation design (R-1)
+
+**Scope:** Design-only session producing a written deprecation plan for the `wa_code_requirement_triggers` table. In: inventory every consumer of `WACodeRequirementTrigger`, design the code-only replacement for each (likely an in-code mapping similar to `ROLES_REQUIRING_DAILY_LOG`), determine whether per-wa-code data can derive from wa_code attributes or needs a new code-level config dict, document the answer back into this HANDOFF as the R-3 implementation spec. Out: any code changes, any migration, any endpoint removal.
+
+**Files likely to touch:**
+
+- `backend/HANDOFF.md` (append design note as the R-3 spec)
+- READ-ONLY: `backend/app/requirement_triggers/{models,router,services,schemas}.py`
+- READ-ONLY: `backend/app/required_docs/{models,service}.py`
+- READ-ONLY: `backend/app/wa_codes/models.py`
+- READ-ONLY: `backend/app/common/requirements/{registry,protocol,dispatcher}.py`
+
+**Gotchas / non-obvious:**
+
+- `WACodeRequirementTrigger` rows are *not* dispatch metadata — they're a per-wa-code lookup table read inside `materialize_for_wa_code_added` (`required_docs/service.py:82-129`). The deprecation design must replace the lookup, not just the table.
+- `ROLES_REQUIRING_DAILY_LOG` (`required_docs/service.py:22-25`) is the existing pattern to mirror for code-only mappings.
+- `GET /requirement-types` is pure registry introspection (no DB read) and is **kept** — Session R-5 (FE catalog page) consumes it. Do not propose removing it.
+- The full multi-session refactor plan (R-1 through R-6, "chained semantics, bundled materialization") lives at `~/.claude/plans/what-s-next-cozy-sunset.md`. Read it for the architectural context before starting R-1.
+
+**Acceptance:** `backend/HANDOFF.md` contains a new dated entry titled "R-3 Implementation Spec: code-only WA-code → document-type mapping" with: (a) every current call site of `WACodeRequirementTrigger` listed and addressed, (b) the proposed in-code replacement (config dict or derivation rule, cite file paths), (c) explicit answer to "can this derive from wa_code attributes?" with the wa_code model fields that support or block derivation. User reviews the entry; R-2 does not start until R-1 is approved.
+
+**Branch:** `be/refactor/requirement-rules` (umbrella for R-1 through R-4). **Delegation:** dedicated session (`tracker-be`). **Commit header:** `Phase 6.8 Session A: requirement-rule audit + R-3 implementation spec`.

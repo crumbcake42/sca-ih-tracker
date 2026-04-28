@@ -158,6 +158,8 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 
 ## 2026-04-28 — Coordinator queued: Dynamic requirement-trigger create form
 
+**Superseded 2026-04-28:** Session 2.4b cancelled — trigger rules moved to code (no admin CRUD). Replacement: R-5 (Requirements Catalog, read-only) + R-6 ("Why this?" affordance), gated on BE R-2/R-3. See `backend/HANDOFF.md` R-1 queue entry.
+
 **Scope:** Replace any free-text `requirement_type_name` input with a select sourced from `GET /requirement-types`, and conditionally render a `template_params` form derived from each type's `template_params_schema`. In: create form, list integration, validation. Out: edit/delete of triggers (existing surface).
 
 **Files likely to touch:**
