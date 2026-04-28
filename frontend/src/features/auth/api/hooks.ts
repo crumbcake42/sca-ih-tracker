@@ -40,7 +40,11 @@ export function useLogin() {
 }
 
 export function useLogout() {
-  return useAuthStore((s) => s.clearAuth);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  return () => {
+    clearAuth();
+    window.location.href = "/login";
+  };
 }
 
 export function useCurrentUser() {

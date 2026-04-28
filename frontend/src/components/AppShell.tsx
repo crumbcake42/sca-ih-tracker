@@ -8,10 +8,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/auth/store";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useLogout } from "@/features/auth/api/hooks";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.clearAuth);
+  const logout = useLogout();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -54,7 +55,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={logout}
                   className="flex items-center gap-1.5"
                 >
                   <SignInIcon size={15} />

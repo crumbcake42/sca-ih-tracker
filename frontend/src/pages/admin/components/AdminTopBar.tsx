@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthStore } from "@/auth/store";
 import { useAdminShellStore } from "@/lib/admin-shell-state";
+import { useLogout } from "@/features/auth/api/hooks";
 
 export function AdminTopBar() {
   const user = useAuthStore((s) => s.user);
-  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const logout = useLogout();
   const pageTitle = useAdminShellStore((s) => s.pageTitle);
   const pageActions = useAdminShellStore((s) => s.pageActions);
 
@@ -32,7 +33,7 @@ export function AdminTopBar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={clearAuth}
+          onClick={logout}
           className="flex items-center gap-1.5"
         >
           <SignOutIcon size={15} />
