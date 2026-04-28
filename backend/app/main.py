@@ -7,12 +7,12 @@ import app.deliverables  # noqa: F401 — populates the deliverable requirement 
 import app.required_docs  # noqa: F401 — registers ProjectDocumentHandler in the requirement registry
 import app.cprs  # noqa: F401 — registers ContractorPaymentRecordHandler in the requirement registry
 
-from app.cprs.router import cpr_router, projects_cpr_router
+from app.cprs.router import cpr_router
 from app.contractors.router import router as contractors_router
 from app.database import Base, engine
 from app.deliverables.router import router as deliverables_router
 from app.requirement_triggers.router import router as requirement_triggers_router
-from app.required_docs.router import doc_req_router, projects_doc_router
+from app.required_docs.router import doc_req_router
 from app.employees.router import router as employees_router
 from app.hygienists.router import router as hygienists_router
 from app.lab_results.router import router as lab_results_router
@@ -60,9 +60,7 @@ app.include_router(projects_router)
 app.include_router(schools_router)
 app.include_router(time_entries_router)
 app.include_router(requirement_triggers_router)
-app.include_router(projects_doc_router)
 app.include_router(doc_req_router)
-app.include_router(projects_cpr_router)
 app.include_router(cpr_router)
 app.include_router(wa_codes_router)
 app.include_router(work_auths_router)

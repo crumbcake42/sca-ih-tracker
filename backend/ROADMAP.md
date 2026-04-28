@@ -513,11 +513,11 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 - New `wa_code_requirement_triggers` admin config table (extends today's `deliverable_wa_code_triggers` pattern; replaces the earlier `wa_code_expected_entities` proposal).
 - `get_unfulfilled_requirements_for_project()` walks the registry; existing `get_blocking_notes_for_project()` (Phase 3.6) stays untouched and is consumed alongside.
 
-**Router pattern (post-E0b):** Each project-scoped silo router file exports two `APIRouter` objects:
-- An item router (`prefix="/<resource>"`) for PATCH/DELETE/dismiss + future Phase-6.7 peer routes
-- A no-prefix under-project sub-router whose routes use `/{project_id}/<resource>` paths; `app/projects/router.py` mounts it (mirrors how `wa_codes/router/__init__.py` mounts `requirement_triggers_router`)
+**Router pattern (post-E0b-refactor):** URL namespace owns the code. Routes under `/projects/...` live in `app/projects/router/`. Routes under `/<silo>/...` live in `app/<silo>/router.py`. `app/projects/router/__init__.py` imports only from within `app/projects/router/`.
+- Project-scoped ops (`GET /projects/{id}/<resource>`, `POST /projects/{id}/<resource>`) → `app/projects/router/<resource>.py`, router with `prefix="/{project_id}/<resource>"`
+- Item-scoped ops (`PATCH/<DELETE>/dismiss on `/<resource>/{id}`) → `app/<silo>/router.py` with `prefix="/<resource>"`
 
-`main.py` includes only the item routers (and `projects_router`); the under-project sub-routers are reached transitively through `projects_router`. Child modules never declare `prefix="/projects"` themselves.
+`main.py` includes only the item routers (and `projects_router`); project-scoped ops are reached transitively through `projects_router`. Child modules may import models/schemas/service from their own module into `app/projects/router/<resource>.py` — only the router definition moves.
 
 **Silo behaviour:**
 
@@ -594,9 +594,9 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 
 ---
 
-**Pre-Session-E refactor stack (E0a → E0b → E0c → E0d).** Two reviews on 2026-04-27 produced this stack. The first review (path-finalization) surfaced module-layering and router-pattern problems in the post-Session-D state. The second (architecture evaluation, plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`) surfaced four protocol/schema cleanup items and gutted the speculative Phase 6.7 framework. All four sub-sessions complete with a green test suite before Session E lands silo 3. New memory entries: `feedback_module_organization.md`, `feedback_lateral_vs_hierarchical.md`. Migrations only in E0d (drop `is_required` columns).
+**Pre-Session-E refactor stack (E0a → E0b → E0b-refactor → E0c → E0d).** Two reviews on 2026-04-27 produced this stack. The first review (path-finalization) surfaced module-layering and router-pattern problems in the post-Session-D state. The second (architecture evaluation, plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`) surfaced four protocol/schema cleanup items and gutted the speculative Phase 6.7 framework. E0b landed the correct mounting point but kept project-scoped routes inside child modules (wrong); E0b-refactor corrects that by moving them into `app/projects/router/`. All sub-sessions complete with a green test suite before Session E lands silo 3. New memory entries: `feedback_module_organization.md`, `feedback_lateral_vs_hierarchical.md`. Migrations only in E0d (drop `is_required` columns).
 
-- [ ] **Session E0a — Module split refactor (Refactor 1)**
+- [x] **Session E0a — Module split refactor (Refactor 1)**
   - Create `app/common/requirements/` with `protocol.py`, `registry.py`, `dispatcher.py` (renamed from `services.py`), `aggregator.py`, `schemas.py` (UnfulfilledRequirement only), README.md
   - Create `app/requirement_triggers/` (renamed from `app/project_requirements/`) with `models.py`, `schemas.py` (WACodeRequirementTrigger* only), `services.py` (hash_template_params only), `router.py`, README.md
   - Move `app/project_requirements/adapters/deliverables.py` → `app/deliverables/requirement_adapter.py`; `app/deliverables/__init__.py` gains side-effect import
@@ -606,12 +606,18 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
   - Verify: zero matches for `app.project_requirements` in repo; full test suite green (currently 693 tests)
   - User-managed migration: NONE (pure code reorganization)
 
-- [ ] **Session E0b — Router pattern refactor (Refactor 2: Option C)**
-  - `app/cprs/router.py` — split into `cpr_router` (prefix `/cprs`, item-scoped) + `cpr_under_project_router` (no prefix, routes use `/{project_id}/cprs`)
-  - `app/required_docs/router.py` — split into `doc_req_router` (prefix `/document-requirements`, item-scoped) + `doc_under_project_router` (no prefix, routes use `/{project_id}/document-requirements`)
-  - `app/projects/router.py` — `include_router(cpr_under_project_router)` and `include_router(doc_under_project_router)`
-  - `app/main.py` — drop `projects_cpr_router` and `projects_doc_router` includes; keep only the item routers
-  - `app/PATTERNS.md` — new entry documenting the project-scoped child-router pattern (collection sub-router mounted by parent; child never declares parent prefix)
+- [x] **Session E0b — Router pattern refactor (Refactor 2)** ✓ COMPLETE (partial — see E0b-refactor)
+  - Moved under-project sub-routers out of `main.py`; mounted via `app/projects/router/__init__.py`. URLs unchanged; 693 tests passing.
+  - **Pattern error:** project-scoped routes left inside child modules (`app/cprs/router.py`, `app/required_docs/router.py`) rather than colocated in `app/projects/router/`. Corrected in E0b-refactor.
+
+- [ ] **Session E0b-refactor — Router pattern correction (move project-scoped routes into projects module)**
+  - `app/projects/router/cprs.py` (new) — `router = APIRouter(prefix="/{project_id}/cprs", tags=["CPRs"])`; receives the two routes moved from `cpr_under_project_router`
+  - `app/projects/router/required_docs.py` (new) — `router = APIRouter(prefix="/{project_id}/document-requirements", tags=["document-requirements"])`; receives the two routes moved from `doc_under_project_router`
+  - `app/cprs/router.py` — remove `cpr_under_project_router`; item-only router remains
+  - `app/required_docs/router.py` — remove `doc_under_project_router`; item-only router remains
+  - `app/projects/router/__init__.py` — drop external imports; add local imports from `./cprs` and `./required_docs`
+  - `app/PATTERNS.md` — #17 already corrected (2026-04-27 session)
+  - Add note to `app/cprs/README.md` and `app/required_docs/README.md`: project-scoped list/create endpoints live in `app/projects/router/`
   - Verify: URLs unchanged (OpenAPI diff is zero); full test suite green
   - User-managed migration: NONE
 
@@ -636,11 +642,11 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 - [ ] **Session E — Silo 3: `dep_filings`** (single module, lands on E0a–E0d paths)
   - `app/dep_filings/` module containing `DEPFilingForm` (admin config) + `ProjectDEPFiling` (instance) — single module mirrors `lab_results/` precedent
   - Admin form CRUD endpoints under `/dep-filings/forms` (use `create_readonly_router` + `create_guarded_delete_router` factories)
-  - Two routers per Option C: `dep_filing_router` (prefix `/dep-filings`, item ops + admin form CRUD) + `dep_filing_under_project_router` (no prefix; routes use `/{project_id}/dep-filings`)
+  - Item router in `app/dep_filings/router.py` (`prefix="/dep-filings"`) for item ops + admin form CRUD; mounted in `main.py`
+  - Project-scoped ops (`GET /{project_id}/dep-filings`, `POST /{project_id}/dep-filings`) in `app/projects/router/dep_filings.py` (`prefix="/{project_id}/dep-filings"`); mounted in `app/projects/router/__init__.py`
   - Manager UX endpoint: POST `/{project_id}/dep-filings` `{form_ids: [...]}` materializes rows
-  - Per-silo dismissal endpoint
+  - Per-silo dismissal endpoint on item router
   - **No `is_required` column** (per E0d outcome); `ProjectDEPFiling` does not have it from day one
-  - `app/projects/router.py` mounts the under-project sub-router; `main.py` includes only the item router
   - User-managed migration
 
 - [ ] **Session E2 — Silo 4: `lab_reports`** (retires `sample_batches.is_report`; planned 2026-04-27, plan ref: `../.claude/plans/i-want-to-revisit-refactored-valley.md`)
@@ -651,7 +657,8 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
   - Wire dispatch in two places (mirror `TIME_ENTRY_CREATED` placement at `app/time_entries/router.py:98` and `app/lab_results/service.py:253`):
     - `app/lab_results/router/batches.py` POST `/batches/` after the batch is added and `time_entry_id` resolves to a `project_id`
     - `app/lab_results/service.py` `quick_add_batch` in the same transactional region as the existing `TIME_ENTRY_CREATED` dispatch
-  - Two routers per Option C: `lab_report_router` (prefix `/lab-reports`, item ops: PATCH `/save`, POST `/dismiss`, POST `/undismiss`) + `lab_report_under_project_router` (no prefix; `GET /{project_id}/lab-reports`); `app/projects/router.py` mounts the under-project sub-router
+  - Item router in `app/lab_reports/router.py` (`prefix="/lab-reports"`) for item ops: PATCH `/save`, POST `/dismiss`, POST `/undismiss`; mounted in `main.py`
+  - Project-scoped op (`GET /{project_id}/lab-reports`) in `app/projects/router/lab_reports.py` (`prefix="/{project_id}/lab-reports"`); mounted in `app/projects/router/__init__.py`
   - Drop `is_report` from `SampleBatch` model + Read/Create/Update/QuickAdd schemas + tests at `app/lab_results/tests/test_batches.py:124,424` (which become "POST creates a `LabReportRequirement` row")
   - **No backfill** — no production data to preserve. Existing batches do not retroactively get requirement rows
   - Aggregator integration: `get_unfulfilled_requirements_for_project` picks up the new handler automatically (no aggregator changes); add a coverage test asserting unsaved rows surface

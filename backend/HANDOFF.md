@@ -8,13 +8,19 @@ This file captures decisions made and work completed in the most recent session.
 
 **Phase 6.5 Session D complete** (Silo 2 / `cprs`). Full suite: 693 passing.
 
+**Session E0a complete** (module split refactor). `app/project_requirements/` deleted; `app/common/requirements/` + `app/requirement_triggers/` in place; zero `app.project_requirements` references remain. Test count unchanged.
+
+**Session E0b complete** (router pattern refactor). Under-project sub-routers now mount inside `app/projects/router/__init__.py`. URLs unchanged; 693 passing. **Pattern error:** project-scoped routes were left inside child modules — corrected by E0b-refactor (see below). PATTERNS.md entry #17 rewritten to reflect the correct rule.
+
+**Session E0b-refactor complete** (router code move). Project-scoped list/create routes for CPRs and required docs moved out of child modules and into `app/projects/router/cprs.py` + `app/projects/router/required_docs.py`. Child module router files now export item-level ops only. 693 passing.
+
 **Three reviews on 2026-04-27**, no code written:
 
 1. **Path-finalization review** — surfaced module-layering (`app/project_requirements/` mixes contract with specific config) and router-pattern (`/projects` prefix declared from inside child modules) problems. Produced Sessions E0a + E0b. Plan: `../.claude/plans/review-the-current-phase-cached-wilkes.md`.
 2. **Architecture evaluation** — confirmed the `ProjectRequirement` abstraction is worth keeping, gutted the speculative Phase 6.7 framework, and surfaced four protocol/schema hygiene items. Produced Sessions E0c + E0d. Plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
 3. **Lab-report silo design** — proposed retiring the standalone `SampleBatch.is_report` boolean by modeling the typed lab report as a per-batch `ProjectRequirement` materialized on `BATCH_CREATED`. Produced Session E2 (Silo 4 `lab_reports`). Plan: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 
-**Next: Session E0a → E0b → E0c → E0d → {E, E2 — independent} → F.** The four E0 refactor sub-sessions must each complete with a green test suite before silo work (E and/or E2) starts. Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
+**Next: E0c → E0d → {E, E2 — independent} → F.** The remaining E0 sub-sessions must each complete with a green test suite before silo work (E and/or E2) starts. Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
 
 > Plans + key memory entries for the E0a–F + E2 arc are checkpointed in `../.claude/{plans,memory}/` so this context travels across machines. See `../.claude/README.md`.
 
@@ -85,6 +91,19 @@ The peer-query factory alone makes individual edges typed and consistent, but ad
 
 Full spec in ROADMAP.md Phase 6.7 → "Admin-introspection layer".
 
+### Pattern correction (2026-04-27 follow-up session)
+
+**Problem:** PATTERNS.md #17 (written in E0b) documented the CPR export pattern (`cpr_under_project_router` living in `app/cprs/`) as canonical — directly contradicting the manager/hygienist pattern already established in `app/projects/router/`. Any new silo session reading #17 would reproduce the wrong pattern.
+
+**Rule clarified:** URL namespace owns the code. Routes under `/projects/...` belong in `app/projects/router/`. `app/projects/router/__init__.py` must not import from outside `app/projects/`. Project-scoped ops for child modules go in `app/projects/router/<resource>.py`; item-level ops stay in `app/<silo>/router.py`.
+
+**Drawback acknowledged:** modules with both item ops and project-scoped ops now have code split across two directories. Mitigated by a one-liner in each child module's README pointing to `app/projects/router/<resource>.py`.
+
+**Files changed (no code, documentation only):**
+- `app/PATTERNS.md` — #17 rewritten
+- `HANDOFF.md` — E0b-refactor block added; "Next" sequence updated
+- `ROADMAP.md` — router pattern description rewritten; E0b marked complete with error noted; E0b-refactor session added; Session E and E2 router references updated
+
 ### Memory entries created (Part A)
 
 - `feedback_module_organization.md` — domain-based organization with strict hierarchy; child modules never declare parent URL prefix
@@ -152,74 +171,27 @@ Plan reference: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 
 ---
 
-## Next Session — Session E0a (Module Split Refactor)
+## PREREQUISITE — Session E0b-refactor (Router Pattern Fix)
 
-**Scope:** Pure code reorganization. No migrations. No router pattern changes (that's E0b).
+**Must land before E0c.** E0b established the right mounting point (`app/projects/router/__init__.py`) but left project-scoped CPR and required-docs routes defined inside their own child modules — violating the rule that the URL namespace owns the code. PATTERNS.md #17 has been corrected; the code must follow.
 
-**Files to create:**
+**What to move:**
 
-- `app/common/requirements/__init__.py`
-- `app/common/requirements/protocol.py` (move from `app/project_requirements/protocol.py`)
-- `app/common/requirements/registry.py` (move from `app/project_requirements/registry.py`)
-- `app/common/requirements/dispatcher.py` (rename + scope from `app/project_requirements/services.py` — keep only `dispatch_requirement_event`)
-- `app/common/requirements/aggregator.py` (move from `app/project_requirements/aggregator.py`)
-- `app/common/requirements/schemas.py` (UnfulfilledRequirement only — split from `app/project_requirements/schemas.py`)
-- `app/common/requirements/README.md`
-- `app/common/requirements/tests/__init__.py`
-- `app/common/requirements/tests/test_protocol.py` (move)
-- `app/common/requirements/tests/test_dispatch.py` (move)
-- `app/common/requirements/tests/test_aggregator.py` (move; if it covers the deliverable adapter specifically, split that into `app/deliverables/tests/test_requirement_adapter.py`)
-- `app/requirement_triggers/__init__.py`
-- `app/requirement_triggers/models.py` (move from `app/project_requirements/models.py`)
-- `app/requirement_triggers/schemas.py` (WACodeRequirementTrigger\* only — split from `app/project_requirements/schemas.py`)
-- `app/requirement_triggers/services.py` (hash_template_params only — split from `app/project_requirements/services.py`)
-- `app/requirement_triggers/router.py` (move; update internal imports)
-- `app/requirement_triggers/README.md`
-- `app/requirement_triggers/tests/__init__.py`
-- `app/requirement_triggers/tests/test_models.py` (move)
-- `app/requirement_triggers/tests/test_router.py` (move)
-- `app/requirement_triggers/tests/test_hash.py` (move)
-- `app/deliverables/requirement_adapter.py` (move from `app/project_requirements/adapters/deliverables.py`)
+- `app/cprs/router.py`: remove `cpr_under_project_router`; its two routes (`GET /{project_id}/cprs`, `POST /{project_id}/cprs`) move to a new file `app/projects/router/cprs.py` with `router = APIRouter(prefix="/{project_id}/cprs", tags=["CPRs"])`.
+- `app/required_docs/router.py`: remove `doc_under_project_router`; its two routes move to `app/projects/router/required_docs.py` with `router = APIRouter(prefix="/{project_id}/document-requirements", tags=["document-requirements"])`.
+- `app/projects/router/__init__.py`: remove the two external imports (`from app.cprs.router import cpr_under_project_router`, `from app.required_docs.router import doc_under_project_router`); add imports from the new local files.
 
-**Files to delete:** `app/project_requirements/` directory (entire — including `adapters/`)
+Both new `app/projects/router/*.py` files may still import models, schemas, and service functions from `app/cprs/` and `app/required_docs/` — only the router definition moves.
 
-**Files to modify (import updates only):**
+**URLs are unchanged.** Verify with the full test suite green before proceeding to E0c.
 
-- `app/main.py` — top-of-file side-effect imports + `include_router` (rename project_requirements → requirement_triggers)
-- `app/cprs/service.py` — `from app.common.requirements import register_requirement_type`
-- `app/cprs/models.py` — `from app.common.requirements import DismissibleMixin, ManualTerminalMixin`
-- `app/required_docs/service.py` — registry from common; `WACodeRequirementTrigger` from triggers module
-- `app/required_docs/models.py` — `DismissibleMixin` from common
-- `app/lab_results/service.py` — `dispatch_requirement_event` from `app.common.requirements.dispatcher`
-- `app/time_entries/router.py` — same dispatcher import
-- `app/projects/services.py` — `dispatch_requirement_event` + `get_unfulfilled_requirements_for_project`
-- `app/wa_codes/router/__init__.py` — `from app.requirement_triggers.router import router as requirement_triggers_router`
-- `app/deliverables/__init__.py` — gain side-effect import of `requirement_adapter`
-
-**Verification:**
-
-1. `git mv` where possible to preserve history
-2. Global grep for `app.project_requirements` — must return zero results
-3. `.venv/Scripts/python.exe -m pytest app/ -v` — full suite green (currently 693 tests; no test logic changes, only import path updates)
-4. OpenAPI URL set unchanged (frontend client regen should be a no-op)
+Note the split in `app/cprs/README.md` and `app/required_docs/README.md` once done: project-scoped list/create endpoints live in `app/projects/router/cprs.py` / `app/projects/router/required_docs.py`.
 
 ---
 
-## Then Session E0b — Router Pattern (Option C)
+## Next Session — Session E0c (Protocol & Schema Hygiene)
 
-After E0a lands cleanly:
-
-- Split `app/cprs/router.py` into `cpr_router` (item) + `cpr_under_project_router` (no prefix)
-- Split `app/required_docs/router.py` into `doc_req_router` (item) + `doc_under_project_router` (no prefix)
-- `app/projects/router.py` adds `include_router(cpr_under_project_router)` and `include_router(doc_under_project_router)`
-- `app/main.py` drops `projects_cpr_router` and `projects_doc_router` includes
-- `app/PATTERNS.md` gains entry #17 documenting the project-scoped child-router pattern
-
-URLs unchanged; OpenAPI diff zero; full test suite green.
-
----
-
-## Then Session E0c — Protocol & Schema Hygiene (pure code; no migration)
+## Session E0c — Protocol & Schema Hygiene (pure code; no migration)
 
 After E0b lands cleanly. Each bullet below is its own building step per `feedback_session_segmentation.md` — commit and run tests between each.
 

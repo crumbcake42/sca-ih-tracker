@@ -38,6 +38,10 @@ When PATCH sets `rfa_submitted_at` or `rfp_submitted_at` and the current value i
 
 `is_fulfilled()` returns `True` iff `rfp_saved_at IS NOT NULL`. SCA's post-save RFP review is intentionally not tracked (per locked decision in ROADMAP.md §6.5).
 
+## Router split
+
+Item-level ops (`PATCH /{cpr_id}`, `POST /{cpr_id}/dismiss`, `DELETE /{cpr_id}`) are in `app/cprs/router.py`. Project-scoped list/create ops (`GET /projects/{project_id}/cprs`, `POST /projects/{project_id}/cprs`) live in `app/projects/router/cprs.py` and are mounted transitively through `projects_router`.
+
 ## Before you modify
 
 - Adding a new stage field requires a migration (user-managed) and an update to `ContractorPaymentRecordUpdate` and `ContractorPaymentRecordRead`.

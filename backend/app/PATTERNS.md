@@ -345,6 +345,49 @@ class MySchema(BaseModel):
 
 ---
 
+## 17. Project-scoped child router
+
+**URL namespace owns the code.** Any route whose path starts with `/<domain>/` must live in `app/<domain>/router/`. `app/projects/router/__init__.py` must not import from outside `app/projects/`.
+
+When a child module exposes both **item-scoped ops** (`PATCH/DELETE/dismiss` on `/{resource}/{id}`) and **project-scoped ops** (`GET/POST` on `/projects/{project_id}/{resource}`):
+
+- **Item ops** stay in `app/{resource}/router.py` with `prefix="/{resource}"` — mounted directly in `main.py`.
+- **Project-scoped ops** live in `app/projects/router/{resource}.py` with `prefix="/{project_id}/{resource}"` on the constructor — mounted inside `app/projects/router/__init__.py` alongside the other projects sub-routers.
+
+```python
+# app/cprs/router.py — item ops only
+router = APIRouter(prefix="/cprs", tags=["CPRs"])
+
+@router.patch("/{cpr_id}", ...)
+@router.delete("/{cpr_id}", ...)
+
+# app/projects/router/cprs.py — project-scoped ops
+from app.cprs.models import ContractorPaymentRecord   # OK: read-only model import
+
+router = APIRouter(prefix="/{project_id}/cprs", tags=["CPRs"])
+
+@router.get("/", ...)
+@router.post("/", ...)
+
+# app/projects/router/__init__.py — only wires its own sub-routers
+from .cprs import router as CprsRouter
+
+router = APIRouter(prefix="/projects", ...)
+router.include_router(CprsRouter)                     # resolves to /projects/{project_id}/cprs
+
+# app/main.py
+from app.cprs.router import router as cprs_router
+
+app.include_router(cprs_router)                       # resolves to /cprs/{cpr_id}
+app.include_router(projects_router)                   # resolves to /projects/...
+```
+
+**Tradeoff to be aware of:** reading all CPR API behaviour requires looking in two places — `app/cprs/router.py` for item ops and `app/projects/router/cprs.py` for project ops. Note this split in the child module's README.
+
+See also: PATTERNS.md #6 (prefix on the constructor, not in `include_router()`).
+
+---
+
 ## 14. Guarded DELETE
 
 Use `create_guarded_delete_router` from `app/common/factories.py` for any reference entity that needs a guarded DELETE plus a typed `/connections` view. The factory generates a named `{ModelName}Connections` Pydantic schema (typed in OpenAPI) and emits `GET /{id}/connections` + `DELETE /{id}`.

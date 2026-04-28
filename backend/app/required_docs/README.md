@@ -22,6 +22,10 @@ This module does **not** own: drift detection (log ends a day early, missing pag
 
 **Caller owns the transaction.** None of the `materialize_*` or `cleanup_*` functions call `db.flush()` or `db.commit()`. The router endpoints commit; the dispatch handlers are always called within the router's transaction.
 
+## Router split
+
+Item-level ops (`PATCH /{req_id}`, `POST /{req_id}/dismiss`, `DELETE /{req_id}`) are in `app/required_docs/router.py`. Project-scoped list/create ops (`GET /projects/{project_id}/document-requirements`, `POST /projects/{project_id}/document-requirements`) live in `app/projects/router/required_docs.py` and are mounted transitively through `projects_router`.
+
 ## Before you modify
 
 - If you add a new `DocumentType` value: update the `label` property on the model, add a handler branch if the dispatch logic differs, and document what event triggers it.
