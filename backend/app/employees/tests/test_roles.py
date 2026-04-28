@@ -19,7 +19,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import EmployeeRoleType
 from app.employees.models import Employee, EmployeeRole
-
 from tests.seeds import seed_employee, seed_employee_role
 
 # ---------------------------------------------------------------------------

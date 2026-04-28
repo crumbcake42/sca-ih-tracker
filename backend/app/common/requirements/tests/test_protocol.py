@@ -3,21 +3,21 @@ Contract tests for the ProjectRequirement protocol, registry, and mixins.
 No database required — all assertions are structural/behavioural.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from app.common.enums import SCADeliverableStatus
-from app.deliverables.requirement_adapter import (
-    BuildingDeliverableRequirementAdapter,
-    DeliverableRequirementAdapter,
-)
 from app.common.requirements import (
     DismissibleMixin,
     ManualTerminalMixin,
     ProjectRequirement,
+    RequirementTypeRegistry,
 )
-from app.common.requirements import RequirementTypeRegistry
-
+from app.deliverables.requirement_adapter import (
+    BuildingDeliverableRequirementAdapter,
+    DeliverableRequirementAdapter,
+)
 
 # ---------------------------------------------------------------------------
 # validate_template_params: deliverable adapters

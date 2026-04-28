@@ -23,18 +23,17 @@ from app.lab_results.models import (
 from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
-
 from tests.seeds import (
     seed_employee,
-    seed_school,
-    seed_project,
     seed_employee_role,
-    seed_time_entry,
-    seed_sample_type,
-    seed_sample_subtype,
-    seed_sample_unit_type,
-    seed_sample_turnaround_option,
+    seed_project,
     seed_sample_required_role,
+    seed_sample_subtype,
+    seed_sample_turnaround_option,
+    seed_sample_type,
+    seed_sample_unit_type,
+    seed_school,
+    seed_time_entry,
 )
 
 BASE = "/lab-results/batches"

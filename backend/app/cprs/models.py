@@ -1,14 +1,14 @@
 
 from datetime import datetime
-from typing import ClassVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
-from sqlalchemy import ForeignKey, Index, Integer, Text, text
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import ForeignKey, Index, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enums import CPRStageStatus
-from app.database import AuditMixin, Base
 from app.common.requirements import DismissibleMixin, ManualTerminalMixin
+from app.database import AuditMixin, Base
 
 if TYPE_CHECKING:
     from app.contractors.models import Contractor

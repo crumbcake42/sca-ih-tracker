@@ -17,15 +17,13 @@ from app.common.enums import (
 )
 from app.employees.models import Employee, EmployeeRole
 from app.notes.models import Note
-
-
 from tests.seeds import (
-    seed_school,
+    seed_blocking_note,
     seed_project,
-    seed_time_entry,
     seed_sample_batch,
     seed_sample_type,
-    seed_blocking_note,
+    seed_school,
+    seed_time_entry,
 )
 
 # ---------------------------------------------------------------------------

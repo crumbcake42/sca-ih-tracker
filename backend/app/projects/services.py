@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,8 +9,8 @@ from app.common.enums import (
     NoteEntityType,
     NoteType,
     ProjectStatus,
-    RFAStatus,
     RequirementEvent,
+    RFAStatus,
     SampleBatchStatus,
     SCADeliverableStatus,
     TimeEntryStatus,
@@ -31,6 +33,8 @@ from app.time_entries.models import TimeEntry
 from app.wa_codes.models import WACode
 from app.work_auths.models import RFA, WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
 
+if TYPE_CHECKING:
+    from app.projects.schemas import ProjectStatusRead
 
 async def process_project_import(db: AsyncSession, project_data: dict):
     # 1. Handle the Project itself (Create or Update)

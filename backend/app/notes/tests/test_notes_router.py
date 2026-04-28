@@ -12,9 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import NoteEntityType, NoteType
-
-from tests.seeds import seed_school, seed_project, seed_note
-
+from tests.seeds import seed_note, seed_project, seed_school
 
 # ---------------------------------------------------------------------------
 # GET /notes/{entity_type}/{entity_id}

@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.common.enums import RequirementEvent
 from app.common.requirements import registry
+from app.database import get_db
 from app.requirement_triggers.models import WACodeRequirementTrigger
 from app.requirement_triggers.schemas import (
     WACodeRequirementTriggerCreate,

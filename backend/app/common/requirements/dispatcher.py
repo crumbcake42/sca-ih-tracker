@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import RequirementEvent
+
 from .registry import registry
 
 

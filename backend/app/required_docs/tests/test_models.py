@@ -15,6 +15,7 @@ from app.common.enums import DocumentType
 from app.required_docs.models import ProjectDocumentRequirement
 from tests.seeds import seed_employee, seed_project, seed_school
 
+
 async def _seed_project(db):
     school = await seed_school(db)
     return await seed_project(db, school)

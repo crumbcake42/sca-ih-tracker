@@ -6,8 +6,9 @@ registry (per README guidance). Monkeypatches dispatcher.registry so the dispatc
 sees the isolated test registry without touching the global.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from app.common.enums import RequirementEvent
 from app.common.requirements import RequirementTypeRegistry

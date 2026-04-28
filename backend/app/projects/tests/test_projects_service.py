@@ -34,24 +34,23 @@ from app.projects.services import (
     recalculate_deliverable_sca_status,
 )
 from app.schools.models import School
-
 from tests.seeds import (
-    seed_employee,
-    seed_school,
-    seed_project,
-    seed_work_auth,
-    seed_wa_code,
-    seed_work_auth_project_code,
-    seed_work_auth_building_code,
-    seed_employee_role,
-    seed_time_entry,
-    seed_sample_type,
-    seed_sample_batch,
+    seed_blocking_note,
     seed_deliverable,
     seed_deliverable_with_trigger,
-    seed_project_deliverable,
+    seed_employee,
+    seed_employee_role,
+    seed_project,
     seed_project_building_deliverable,
-    seed_blocking_note,
+    seed_project_deliverable,
+    seed_sample_batch,
+    seed_sample_type,
+    seed_school,
+    seed_time_entry,
+    seed_wa_code,
+    seed_work_auth,
+    seed_work_auth_building_code,
+    seed_work_auth_project_code,
 )
 
 # if TYPE_CHECKING:
@@ -1002,11 +1001,12 @@ class TestDeriveProjectStatus:
             db_session, project, deliv_b, sca_status=SCADeliverableStatus.APPROVED
         )
 
-        result = await derive_project_status(project.id, db_session)
+        await derive_project_status(project.id, db_session)
+
+        from sqlalchemy import select as _sel
 
         from app.common.enums import TimeEntryStatus
         from app.time_entries.models import TimeEntry as TE
-        from sqlalchemy import select as _sel
 
         te = (
             await db_session.execute(_sel(TE).where(TE.project_id == project.id))

@@ -9,22 +9,22 @@ DELETE /time-entries/{id}
 """
 
 from datetime import date, datetime
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import SampleBatchStatus, TimeEntryStatus
 from app.lab_results.models import SampleBatch
 from app.time_entries.models import TimeEntry
-
 from tests.seeds import (
-    DT_START,
     DT_END,
-    seed_school,
-    seed_project,
+    DT_START,
     seed_employee,
     seed_employee_role,
-    seed_time_entry,
+    seed_project,
     seed_sample_type,
+    seed_school,
+    seed_time_entry,
 )
 
 # ---------------------------------------------------------------------------

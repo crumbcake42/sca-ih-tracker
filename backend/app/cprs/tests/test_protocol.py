@@ -10,9 +10,9 @@ from datetime import datetime
 import pytest
 
 from app.common.enums import CPRStageStatus
+from app.common.requirements import ManualTerminalMixin, ProjectRequirement
 from app.cprs.models import ContractorPaymentRecord
 from app.cprs.service import ContractorPaymentRecordHandler
-from app.common.requirements import ManualTerminalMixin, ProjectRequirement
 
 
 def _make_record(**overrides) -> ContractorPaymentRecord:

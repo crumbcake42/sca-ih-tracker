@@ -6,9 +6,9 @@ from sqlalchemy.orm import selectinload
 
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import DocumentType, EmployeeRoleType, RequirementEvent
-from app.requirement_triggers.models import WACodeRequirementTrigger
 from app.common.requirements import register_requirement_type
 from app.required_docs.models import ProjectDocumentRequirement
+from app.requirement_triggers.models import WACodeRequirementTrigger
 from app.time_entries.models import TimeEntry
 
 # Maps employee role types to the document types that a time entry of that role triggers.

@@ -1,7 +1,7 @@
 from .aggregator import get_unfulfilled_requirements_for_project
 from .dispatcher import dispatch_requirement_event
-from .protocol import ProjectRequirement, DismissibleMixin, ManualTerminalMixin
-from .registry import register_requirement_type, RequirementTypeRegistry, registry
+from .protocol import DismissibleMixin, ManualTerminalMixin, ProjectRequirement
+from .registry import RequirementTypeRegistry, register_requirement_type, registry
 
 __all__ = ["get_unfulfilled_requirements_for_project", 
 "dispatch_requirement_event", 

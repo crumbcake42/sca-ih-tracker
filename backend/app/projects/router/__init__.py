@@ -9,7 +9,6 @@ from .hygienist import router as ProjectHygienistRouter
 from .manager import router as ProjectManagerRouter
 from .required_docs import router as RequiredDocsRouter
 
-
 router = APIRouter(
     prefix="/projects", tags=["Projects"], dependencies=[Depends(get_current_user)]
 )

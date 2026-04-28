@@ -1,12 +1,12 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.requirements import register_requirement_type
 from app.deliverables.models import (
     Deliverable,
     ProjectBuildingDeliverable,
     ProjectDeliverable,
 )
-from app.common.requirements import register_requirement_type
 from app.projects.services import _DERIVABLE_SCA_STATUSES
 
 

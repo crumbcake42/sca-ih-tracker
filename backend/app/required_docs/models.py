@@ -6,8 +6,8 @@ from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.common.enums import DocumentType, EmployeeRoleType
-from app.database import AuditMixin, Base
 from app.common.requirements import DismissibleMixin
+from app.database import AuditMixin, Base
 
 
 class ProjectDocumentRequirement(Base, AuditMixin, DismissibleMixin):

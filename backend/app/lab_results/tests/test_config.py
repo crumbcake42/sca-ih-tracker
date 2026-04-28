@@ -27,7 +27,6 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import EmployeeRoleType
-
 from tests.seeds import seed_sample_type, seed_wa_code
 
 BASE = "/lab-results/config/sample-types"

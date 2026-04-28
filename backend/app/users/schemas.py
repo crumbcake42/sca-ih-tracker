@@ -1,6 +1,8 @@
 from datetime import datetime
-from app.common.enums import UserRole
+
 from pydantic import BaseModel, ConfigDict, EmailStr
+
+from app.common.enums import UserRole
 
 
 class PermissionSchema(BaseModel):

@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.enums import SCADeliverableStatus, WACodeLevel
 from app.common.requirements import get_unfulfilled_requirements_for_project
 from app.projects.services import _DERIVABLE_SCA_STATUSES, derive_project_status
-
 from tests.seeds import (
     seed_deliverable,
     seed_project,

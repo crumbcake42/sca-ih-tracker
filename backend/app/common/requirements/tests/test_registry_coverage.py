@@ -10,11 +10,10 @@ mode before it reaches production (where the materializer would silently no-op).
 """
 
 import app.cprs  # noqa: F401 — side-effect: registers ContractorPaymentRecordHandler
-import app.required_docs  # noqa: F401 — side-effect: registers ProjectDocumentHandler
 import app.deliverables.requirement_adapter  # noqa: F401 — side-effect: registers deliverable adapters
-
-from app.database import Base
+import app.required_docs  # noqa: F401 — side-effect: registers ProjectDocumentHandler
 from app.common.requirements import registry
+from app.database import Base
 
 
 def test_every_model_with_requirement_type_classvar_is_registered():

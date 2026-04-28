@@ -17,9 +17,7 @@ Key behaviours under test:
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-from tests.seeds import seed_school, seed_project, seed_user, seed_user_role
-
+from tests.seeds import seed_project, seed_school, seed_user, seed_user_role
 
 # ---------------------------------------------------------------------------
 # POST /projects/{id}/manager/

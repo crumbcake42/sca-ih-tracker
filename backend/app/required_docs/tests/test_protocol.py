@@ -9,8 +9,6 @@ from datetime import date
 
 import pytest
 
-import pytest
-
 from app.common.enums import DocumentType
 from app.common.requirements import ProjectRequirement
 from app.required_docs.models import ProjectDocumentRequirement

@@ -6,8 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import ProjectStatus
-
-from tests.seeds import seed_school, seed_project
+from tests.seeds import seed_project, seed_school
 
 
 class TestGetProjectStatus:
