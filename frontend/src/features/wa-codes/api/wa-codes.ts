@@ -5,8 +5,8 @@ export {
   getWaCodeWaCodesIdentifierGetQueryKey as getWaCodeQueryKey,
   createWaCodeWaCodesPostMutation as createWaCodeMutation,
   updateWaCodeWaCodesWaCodeIdPatchMutation as updateWaCodeMutation,
-  deleteWaCodeWaCodesWaCodeIdDeleteMutation as deleteWaCodeMutation,
-  getWaCodeConnectionsWaCodesWaCodeIdConnectionsGetOptions as getWaCodeConnectionsOptions,
-  getWaCodeConnectionsWaCodesWaCodeIdConnectionsGetQueryKey as getWaCodeConnectionsQueryKey,
+  wrapperWaCodesWaCodeIdDeleteMutation as deleteWaCodeMutation,
+  wrapperWaCodesWaCodeIdConnectionsGetOptions as getWaCodeConnectionsOptions,
+  wrapperWaCodesWaCodeIdConnectionsGetQueryKey as getWaCodeConnectionsQueryKey,
   importBatchWaCodesBatchImportPostMutation as importBatchWaCodesMutation,
 } from "@/api/generated/@tanstack/react-query.gen";

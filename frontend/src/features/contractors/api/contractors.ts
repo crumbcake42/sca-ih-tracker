@@ -5,8 +5,8 @@ export {
   getContractorContractorsContractorIdGetQueryKey as getContractorQueryKey,
   createContractorContractorsPostMutation as createContractorMutation,
   updateContractorContractorsContractorIdPatchMutation as updateContractorMutation,
-  deleteContractorContractorsContractorIdDeleteMutation as deleteContractorMutation,
-  getContractorConnectionsContractorsContractorIdConnectionsGetOptions as getContractorConnectionsOptions,
-  getContractorConnectionsContractorsContractorIdConnectionsGetQueryKey as getContractorConnectionsQueryKey,
+  wrapperContractorsContractorIdDeleteMutation as deleteContractorMutation,
+  wrapperContractorsContractorIdConnectionsGetOptions as getContractorConnectionsOptions,
+  wrapperContractorsContractorIdConnectionsGetQueryKey as getContractorConnectionsQueryKey,
   importBatchContractorsBatchImportPostMutation as importBatchContractorsMutation,
 } from "@/api/generated/@tanstack/react-query.gen";

@@ -5,7 +5,7 @@ export {
   getHygienistHygienistsHygienistIdGetQueryKey as getHygienistQueryKey,
   createHygienistHygienistsPostMutation as createHygienistMutation,
   updateHygienistHygienistsHygienistIdPatchMutation as updateHygienistMutation,
-  deleteHygienistHygienistsHygienistIdDeleteMutation as deleteHygienistMutation,
-  getHygienistConnectionsHygienistsHygienistIdConnectionsGetOptions as getHygienistConnectionsOptions,
-  getHygienistConnectionsHygienistsHygienistIdConnectionsGetQueryKey as getHygienistConnectionsQueryKey,
+  wrapperHygienistsHygienistIdDeleteMutation as deleteHygienistMutation,
+  wrapperHygienistsHygienistIdConnectionsGetOptions as getHygienistConnectionsOptions,
+  wrapperHygienistsHygienistIdConnectionsGetQueryKey as getHygienistConnectionsQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";

@@ -19,7 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import type { WaCode, WaCodeLevel, WaCodeConnections } from "@/api/generated/types.gen";
+import type {
+  WaCode,
+  WaCodeLevel,
+  WaCodeConnections,
+} from "@/api/generated/types.gen";
 import { useEntityForm } from "@/hooks/useEntityForm";
 import {
   createWaCodeMutation,
