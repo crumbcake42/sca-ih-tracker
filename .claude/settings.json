@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Session start — run /brief before doing any work. (For cross-machine pickup with memory-sync, use /gmorning instead.)'"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Context compaction approaching — run /note first to capture this session in HANDOFF.'"
+          }
+        ]
+      }
+    ]
+  }
+}
