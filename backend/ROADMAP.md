@@ -699,11 +699,10 @@ The 2026-04-27 FE regen audit (see `HANDOFF.md` §"FE regen drift to address") s
 
 **Sessions** (each scoped for context focus; resume from `HANDOFF.md`):
 
-- [ ] **Session A — Contract polish on existing surfaces** (Items 1, 2, 6)
-  - **Close 409 documentation.** `app/projects/schemas.py` — add `BlockingIssuesDetail`, `UnfulfilledRequirementsDetail`, `CloseConflictResponse(detail: BlockingIssuesDetail | UnfulfilledRequirementsDetail | str)` (the wrapper matches FastAPI's actual `{"detail": ...}` body shape). `app/projects/router/base.py:134` — add `responses={409: {"model": CloseConflictResponse, "description": "..."}}` to the close decorator. No runtime change; existing `app/projects/tests/test_project_closure.py` continues to pass unchanged.
-  - **Deliverables CRUD.** `app/deliverables/schemas.py` — add `DeliverableUpdate` (all fields optional). `app/deliverables/router/base.py` — add `POST /` (status 201, `_ensure_name_unique` helper, 409 on dup, `created_by_id=current_user.id`) and `PATCH /{deliverable_id}` (`exclude_unset=True`, immutable-`level` 422, name re-uniqueness, `updated_by_id=current_user.id`); both gated by `Depends(PermissionChecker(PermissionName.PROJECT_EDIT))`.
-  - **Cross-side note.** Append a section to `frontend/HANDOFF.md` clarifying that the catalog `Deliverable` has only `name`, `description`, `level` — `internal_status`/`sca_status` live on `ProjectDeliverable`/`ProjectBuildingDeliverable`, not the catalog. New `POST/PATCH /deliverables/` manage exactly the three catalog fields.
-  - Tests: deliverables POST 201/409/422; PATCH 200/404/422-immutable-level/409-dup-name; permission 403; close-endpoint OpenAPI smoke test (optional). ~8 new tests.
+- [x] **Session A — Contract polish on existing surfaces** (Items 1, 2, 6) ✓ COMPLETE (2026-04-28)
+  - **Close 409 documentation.** `app/projects/schemas.py` — added `CloseProjectConflictDetail(blocking_issues?: list[BlockingIssue] | None, unfulfilled_requirements?: list[UnfulfilledRequirement] | None)`. Single schema with both keys optional (no discriminated union — no precedent in codebase). `app/projects/router/base.py` — added `responses={409: {"model": CloseProjectConflictDetail, "description": "..."}}` to the close decorator. No runtime change.
+  - **Deliverables CRUD.** `app/deliverables/schemas.py` — added `DeliverableUpdate` (all fields optional). `app/deliverables/router/base.py` — added `_ensure_name_unique` helper, `POST /` (201), `PATCH /{deliverable_id}` (immutable-`level` 422, name re-uniqueness, `updated_by_id`); both gated by `PROJECT_EDIT`. **Deviation from ROADMAP:** dup-name returns **422 not 409** — matches the existing `employees`/`wa_codes` pattern. 7 new tests.
+  - **Cross-side note.** Updated `frontend/HANDOFF.md`: corrected field list (catalog `Deliverable` has only `name`/`description`/`level`), marked items 1 and 2 resolved.
   - User-managed migration: NONE.
 
 - [ ] **Session B — Undismiss symmetry** (Item 3)

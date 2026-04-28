@@ -20,6 +20,12 @@ class DeliverableCreate(DeliverableBase):
     pass
 
 
+class DeliverableUpdate(BaseModel):
+    name: OptionalField[str] = None
+    description: OptionalField[str] = None
+    level: OptionalField[WACodeLevel] = None
+
+
 class Deliverable(DeliverableBase):
     id: int
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)

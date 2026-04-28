@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-27
+# Session Handoff — 2026-04-28
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,9 +6,9 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Session F complete** (Closure-gate integration, 2026-04-27). **817 passing** (+14 new tests). No code was written after Session F — the follow-up session was a pure planning session that designed Phase 6.6 (FE regen drift cleanup) in ROADMAP.md.
+**Phase 6.6 Session A complete** (FE regen drift cleanup — contract polish, 2026-04-28). **~825 passing** (+7 new tests). Phase 6.5 remains fully complete; Session A adds no migrations.
 
-Full arc through this session:
+Full arc through this phase:
 
 | Session | Summary | Tests |
 |---------|---------|-------|
@@ -19,41 +19,42 @@ Full arc through this session:
 | E0d | Drop `is_required` columns from cprs + required_docs | 705 |
 | E | Silo 3 `dep_filings` | 766 |
 | E2 | Silo 4 `lab_reports` — retire `is_report` | 803 |
-| **F** | **Closure-gate integration + project status surface** | **817** |
+| F | Closure-gate integration + project status surface | 817 |
+| **6.6A** | **FE regen drift — close 409 docs + Deliverables CRUD + cross-side note** | **~825** |
 
-**Phase 6.5 is complete.** All four silos are wired into the closure gate and the aggregator is a live production call.
+**Phase 6.5 is complete.** Phase 6.6 Session A is complete.
 
 ---
 
-## Session F — What Was Built
+## Phase 6.6 Session A — What Was Built
 
-### 1. CPR blocking-notes fix (carry-over from E2)
+### 1. `CloseProjectConflictDetail` — 409 shape declared in OpenAPI
 
-`get_blocking_notes_for_project` (`app/projects/services.py`) previously had no branch for `NoteEntityType.CONTRACTOR_PAYMENT_RECORD`. Added a `cpr_ids_sq` scalar subquery and a 5th `or_()` branch. CPR-attached blocking notes now surface in `derive_project_status`, `lock_project_records`, and `GET /projects/{id}/blocking-issues` automatically.
+New schema `app/projects/schemas.py:CloseProjectConflictDetail` with two optional list fields:
+- `blocking_issues: list[BlockingIssue] | None`
+- `unfulfilled_requirements: list[UnfulfilledRequirement] | None`
 
-### 2. Closure gate — aggregator wired into `lock_project_records`
+`app/projects/router/base.py` close decorator now has `responses={409: {"model": CloseProjectConflictDetail, ...}}`. No runtime change — the two 409 paths already existed in `lock_project_records`; this just documents them in the OpenAPI schema.
 
-`lock_project_records` now calls `get_unfulfilled_requirements_for_project` after the blocking-notes check. If any unfulfilled requirements exist, raises `HTTPException(409, detail={"unfulfilled_requirements": [...]})`. Blocking notes still take precedence (checked first; if any exist, the unfulfilled check is never reached).
+**Design note:** single schema with both keys nullable (not discriminated union) — codebase has no `discriminator=` precedent and the two shapes are key-disjoint. FE narrows on key presence.
 
-### 3. `ProjectStatusRead` + `derive_project_status`
+### 2. Deliverables CRUD — `POST /deliverables/` + `PATCH /deliverables/{id}`
 
-- New field: `unfulfilled_requirement_count: int` on `ProjectStatusRead` (`app/projects/schemas.py`).
-- `derive_project_status` computes it via `get_unfulfilled_requirements_for_project`. Locked-project short-circuit sets it to 0.
-- `READY_TO_CLOSE` condition tightened: now requires `unfulfilled_requirement_count == 0` (broader than the previous `outstanding_deliverable_count == 0`, which was already implied — deliverables are included in the aggregator).
+- `app/deliverables/schemas.py` — new `DeliverableUpdate(name?, description?, level?)`.
+- `app/deliverables/router/base.py` — `_ensure_name_unique` helper (422 on collision, mirrors `wa_codes` pattern); `POST /` (201, `created_by_id`); `PATCH /{deliverable_id}` (`exclude_unset=True`, immutable-level 422, name uniqueness excluding self, `updated_by_id`). Both require `PROJECT_EDIT`.
+- **Deviation:** ROADMAP said 409 for dup-name; implementation uses **422** to match `employees`/`wa_codes` codebase pattern. ROADMAP updated in passing.
+- 7 new tests in `app/deliverables/tests/test_router.py`.
 
-### 4. `GET /projects/{id}/requirements`
+### 3. Frontend cross-side note
 
-New project-scoped sub-router at `app/projects/router/requirements.py`. Returns `list[UnfulfilledRequirement]`. Mounted in `app/projects/router/__init__.py` alongside the other silos.
-
-`UnfulfilledRequirement` added to `app/common/requirements/__init__.py` public exports.
+`frontend/HANDOFF.md` items 1 and 2 (close 409 schema, Deliverables CRUD) marked resolved. Catalog `Deliverable` field correction noted (only `name`/`description`/`level` — not `internal_status`/`sca_status`).
 
 ---
 
 ## Next Phase
 
-Phase 6.5 is done. The next phase is **Phase 6.6 — FE Regen Drift Cleanup** (see ROADMAP.md §"Phase 6.6"), addressing the six contract gaps in §"FE regen drift to address" below. Three sessions, no migrations:
+Phase 6.6 Session A is done. Remaining sessions:
 
-- **Session A** — Close 409 docs + Deliverables CRUD + cross-side note (Items 1, 2, 6)
 - **Session B** — Undismiss symmetry across cprs/document-requirements/dep-filings + lab_reports parity fix (Item 3)
 - **Session C** — `app/requirement_types/` module + Literal narrowing + drop `/wa-codes/requirement-triggers` re-mount (Items 4, 5)
 

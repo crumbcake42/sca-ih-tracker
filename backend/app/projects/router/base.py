@@ -135,6 +135,15 @@ async def get_blocking_issues(project_id: int, db: AsyncSession = Depends(get_db
     "/{project_id}/close",
     status_code=status.HTTP_200_OK,
     response_model=schemas.ProjectStatusRead,
+    responses={
+        409: {
+            "model": schemas.CloseProjectConflictDetail,
+            "description": (
+                "Project cannot be closed — either blocking notes or "
+                "unfulfilled requirements exist, or the project is already locked."
+            ),
+        }
+    },
 )
 async def close_project(
     project_id: int,

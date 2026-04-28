@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.common.enums import ProjectStatus
+from app.common.requirements import UnfulfilledRequirement
 from app.notes.schemas import BlockingIssue
 
 PROJECT_NUMBER_REGEX = r"^\d{2}-\d{3}-\d{4}([:;]\d{2,})?$"
@@ -64,6 +65,18 @@ class ProjectStatusRead(BaseModel):
     unconfirmed_time_entry_count: int
     unfulfilled_requirement_count: int
     blocking_issues: list[BlockingIssue]
+
+
+class CloseProjectConflictDetail(BaseModel):
+    """409 detail shape for POST /projects/{project_id}/close.
+
+    Exactly one of the two lists is populated per response — never both.
+    Blocking notes are checked first; if any exist, unfulfilled requirements
+    aren't checked (see app/projects/services.py:549-563).
+    """
+
+    blocking_issues: list[BlockingIssue] | None = None
+    unfulfilled_requirements: list[UnfulfilledRequirement] | None = None
 
 
 class Project(ProjectBase):

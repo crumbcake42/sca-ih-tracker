@@ -415,3 +415,31 @@ router.include_router(
 **TOCTOU note:** The connections endpoint result is stale by the time DELETE fires. The DELETE handler always re-runs the reference checks regardless of what the connections endpoint returned.
 
 **Guard even when CASCADE is set:** If a FK has `ondelete=CASCADE`, the guard still checks it. Silently wiping related rows on delete is destructive; the guard forces an explicit unlink first.
+
+---
+
+## 18. Documenting structured non-default error responses in OpenAPI
+
+FastAPI only includes the `response_model` schema in the OpenAPI spec by default. Any 409 (or other non-422/200) response whose `detail` is a structured dict (not a plain string) is invisible to the generated client unless explicitly declared.
+
+Use the `responses=` argument on the route decorator to register a Pydantic model for each structured error shape:
+
+```python
+@router.post(
+    "/{project_id}/close",
+    status_code=200,
+    response_model=ProjectStatusRead,
+    responses={
+        409: {
+            "model": CloseProjectConflictDetail,
+            "description": "Blocking notes or unfulfilled requirements exist.",
+        }
+    },
+)
+```
+
+**When to use:** Any time a route raises `HTTPException(status_code=4xx, detail=<dict>)` whose shape the FE needs to branch on. Plain-string details (e.g. `"Project not found"`) do not need this — only structured dicts.
+
+**Schema design:** Prefer a single schema with optional keys over a `Union` discriminated union. The codebase has no `discriminator=` precedent and key-disjoint shapes are easier for FE callers to narrow on key presence. Both keys should be `list[T] | None = None`.
+
+**`responses={}` is documentation only** — it does not change runtime behavior. The `HTTPException` detail is serialized as-is; FastAPI does not validate it against the declared `model`. Keep the schema in sync with the actual `detail` structure manually.
