@@ -1,5 +1,19 @@
 # Session Handoff — Frontend
 
+## 2026-04-28 — Post-regen cleanup pass (items 6, 7, 10)
+
+- Verified all 6 generated-client confirmation items from the Phase 6.6 regen: `CloseProjectConflictDetail`, `DeliverableCreate`/`Update`, all 4 undismiss functions, `requirement_type_name` Literal union, `RequirementTypeInfo`, and duplicate wa-codes trigger function gone.
+- Updated `frontend/CLAUDE.md` note 3: "four entity types" → "five entity types"; added `contractor_payment_record` to the list.
+- Item 7 (NoteType switch for `cpr_stage_regression`): no-op — `NoteItem.tsx` uses `note.note_type !== null` boolean check, which already covers the new type.
+- Removed `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx`; replaced with typed `WaCodeConnections | undefined` signature and simplified body.
+- Branch: `fe/feature/post-regen-cleanup`. ROADMAP re-sequence deferred per user.
+
+**Next:** Session 2.3e — Deliverables admin CRUD (branch `fe/feature/deliverables-admin`).
+
+**Blockers:** none.
+
+---
+
 ## Backend Phase 6.6 complete — drift items resolved (2026-04-28)
 
 All five backend gaps surfaced in the Session F regen audit are now shipped and the regen has landed (commit `5dc2ff4`). The inline `RESOLVED` markers in the drift section below have the per-item detail; this entry is the consolidated FE pickup view.

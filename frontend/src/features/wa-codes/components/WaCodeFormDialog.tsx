@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import type { WaCode, WaCodeLevel } from "@/api/generated/types.gen";
+import type { WaCode, WaCodeLevel, WaCodeConnections } from "@/api/generated/types.gen";
 import { useEntityForm } from "@/hooks/useEntityForm";
 import {
   createWaCodeMutation,
@@ -64,18 +64,9 @@ function toBody(values: FormValues) {
   };
 }
 
-/** Returns true if the connections response indicates any linked records exist. */
-function hasConnections(data: unknown): boolean {
+function hasConnections(data: WaCodeConnections | undefined): boolean {
   if (!data) return false;
-  if (Array.isArray(data)) return data.length > 0;
-  // Backend returns an object of counts; treat any count > 0 as "in use".
-  // Response is typed unknown pending a proper backend response model.
-  if (typeof data === "object" && data !== null) {
-    return Object.values(data as Record<string, unknown>).some(
-      (v) => typeof v === "number" && v > 0,
-    );
-  }
-  return Boolean(data);
+  return Object.values(data).some((v) => v > 0);
 }
 
 interface Props {

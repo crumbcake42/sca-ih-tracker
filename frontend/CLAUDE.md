@@ -24,7 +24,7 @@ Read `ROADMAP.md` fully before building any screen. Key things that the OpenAPI 
 
 1. **Auth is form-encoded** — `POST /auth/token` uses `application/x-www-form-urlencoded`, not JSON
 2. **Project status is derived** — comes from `GET /projects/{id}/status`, not a column; don't build a status column in list views until Phase 7 dashboard endpoints land
-3. **Notes are polymorphic** — one `<NotesPanel entityType="…" entityId={…} />` serves all four entity types (`project` | `time_entry` | `deliverable` | `sample_batch`)
+3. **Notes are polymorphic** — one `<NotesPanel entityType="…" entityId={…} />` serves all five entity types (`project` | `time_entry` | `deliverable` | `sample_batch` | `contractor_payment_record`)
 4. **Deliverables have two status tracks** — `internal_status` (5 values) and `sca_status` (6 values); first three `sca_status` values are backend-derived and must render read-only
 5. **Time entry 422 on overlap** — the form must parse the conflicting `time_entry_id` from the 422 body and offer a link to it, not a generic error toast
 6. **Closure returns 409 with blocking issues** — render the `blocking_issues[]` payload inline in the close dialog with deep links, not a generic toast
