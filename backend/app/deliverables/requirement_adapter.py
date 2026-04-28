@@ -32,10 +32,6 @@ class DeliverableRequirementAdapter:
         return self._row.project_id
 
     @property
-    def requirement_key(self) -> str:
-        return str(self._row.deliverable_id)
-
-    @property
     def label(self) -> str:
         return self._deliverable.name
 
@@ -69,8 +65,6 @@ class BuildingDeliverableRequirementAdapter:
     Read-only adapter satisfying ``ProjectRequirement`` for ``ProjectBuildingDeliverable`` rows.
 
     Same fulfilled predicate as ``DeliverableRequirementAdapter``.
-    ``requirement_key`` encodes ``f"{deliverable_id}:{school_id}"`` to distinguish
-    per-school rows for the same deliverable template.
     """
 
     requirement_type = "building_deliverable"
@@ -85,10 +79,6 @@ class BuildingDeliverableRequirementAdapter:
     @property
     def project_id(self) -> int:
         return self._row.project_id
-
-    @property
-    def requirement_key(self) -> str:
-        return f"{self._row.deliverable_id}:{self._row.school_id}"
 
     @property
     def label(self) -> str:

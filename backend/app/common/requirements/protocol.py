@@ -17,7 +17,6 @@ class ProjectRequirement(Protocol):
 
     project_id: int
     requirement_type: str
-    requirement_key: str
     label: str
     is_dismissable: bool
     is_dismissed: bool

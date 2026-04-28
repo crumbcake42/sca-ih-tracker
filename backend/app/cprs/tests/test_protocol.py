@@ -53,10 +53,6 @@ class TestContractorPaymentRecordProtocol:
         assert undismissed.is_dismissed is False
         assert dismissed.is_dismissed is True
 
-    def test_requirement_key_is_contractor_id_string(self):
-        record = _make_record(contractor_id=42)
-        assert record.requirement_key == "42"
-
     def test_label_uses_contractor_relationship_when_loaded(self):
         from app.contractors.models import Contractor
 

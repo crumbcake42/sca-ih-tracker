@@ -55,19 +55,6 @@ class TestProjectRequirementProtocol:
         assert undismissed.is_dismissed is False
         assert dismissed.is_dismissed is True
 
-    def test_requirement_key_encodes_tuple(self):
-        req = _make_req(employee_id=10, date=date(2025, 11, 30), school_id=5)
-        key = req.requirement_key
-        assert "daily_log" in key
-        assert "10" in key
-        assert "2025-11-30" in key
-        assert "5" in key
-
-    def test_requirement_key_uses_placeholder_for_nulls(self):
-        req = _make_req(employee_id=None, date=None, school_id=None)
-        key = req.requirement_key
-        assert "_" in key
-
     def test_label_daily_log_includes_date(self):
         req = _make_req(date=date(2025, 11, 30))
         assert "Daily Log" in req.label

@@ -56,14 +56,9 @@ class TestProjectRequirementProtocol:
         adapter = self._make_deliverable_adapter()
         assert adapter.project_id == 1
         assert adapter.requirement_type == "deliverable"
-        assert adapter.requirement_key == "2"
         assert adapter.label == "Test Report"
         assert adapter.is_dismissable is False
         assert adapter.is_dismissed is False
-
-    def test_building_adapter_requirement_key_encodes_school(self):
-        adapter = self._make_building_adapter()
-        assert adapter.requirement_key == "2:3"
 
     def test_fulfilled_when_sca_status_is_manual_terminal(self):
         row = MagicMock()

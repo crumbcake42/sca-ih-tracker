@@ -64,10 +64,6 @@ class ContractorPaymentRecord(Base, AuditMixin, DismissibleMixin, ManualTerminal
     )
 
     @property
-    def requirement_key(self) -> str:
-        return str(self.contractor_id)
-
-    @property
     def label(self) -> str:
         if self.contractor is not None:
             return f"CPR — {self.contractor.name}"

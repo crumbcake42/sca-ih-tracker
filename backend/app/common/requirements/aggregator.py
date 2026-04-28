@@ -23,7 +23,6 @@ async def get_unfulfilled_requirements_for_project(
                 UnfulfilledRequirement(
                     requirement_type=req.requirement_type,
                     project_id=req.project_id,
-                    requirement_key=req.requirement_key,
                     label=req.label,
                     is_dismissed=req.is_dismissed,
                     is_dismissable=req.is_dismissable,

@@ -50,7 +50,6 @@ class TestDeliverableAdapterPredicate:
         if sca_status in _UNFULFILLED:
             assert len(reqs) == 1
             assert reqs[0].requirement_type == "deliverable"
-            assert reqs[0].requirement_key == str(deliv.id)
             assert reqs[0].label == deliv.name
             assert reqs[0].is_dismissed is False
             assert reqs[0].is_dismissable is False
@@ -73,7 +72,6 @@ class TestDeliverableAdapterPredicate:
         if sca_status in _UNFULFILLED:
             assert len(reqs) == 1
             assert reqs[0].requirement_type == "building_deliverable"
-            assert reqs[0].requirement_key == f"{deliv.id}:{school.id}"
         else:
             assert len(reqs) == 0, f"Expected fulfilled for {sca_status}"
 
@@ -134,22 +132,3 @@ class TestAggregatorEquivalence:
         reqs = await get_unfulfilled_requirements_for_project(project.id, db_session)
         assert reqs == []
 
-    async def test_requirement_keys_are_unique_within_project(
-        self, db_session: AsyncSession
-    ):
-        school = await seed_school(db_session)
-        project = await seed_project(db_session, school)
-
-        # Two project-level deliverables, same status
-        d1 = await seed_deliverable(db_session, level=WACodeLevel.PROJECT)
-        d2 = await seed_deliverable(db_session, level=WACodeLevel.PROJECT)
-        await seed_project_deliverable(
-            db_session, project, d1, sca_status=SCADeliverableStatus.OUTSTANDING
-        )
-        await seed_project_deliverable(
-            db_session, project, d2, sca_status=SCADeliverableStatus.PENDING_WA
-        )
-
-        reqs = await get_unfulfilled_requirements_for_project(project.id, db_session)
-        keys = [(r.requirement_type, r.requirement_key) for r in reqs]
-        assert len(keys) == len(set(keys)), "Duplicate (type, key) pairs in aggregator output"

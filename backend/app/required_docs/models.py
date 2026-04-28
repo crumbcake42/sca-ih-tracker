@@ -62,11 +62,6 @@ class ProjectDocumentRequirement(Base, AuditMixin, DismissibleMixin):
     )
 
     @property
-    def requirement_key(self) -> str:
-        date_str = self.date.isoformat() if self.date else "_"
-        return f"{self.document_type}:{self.employee_id or '_'}:{date_str}:{self.school_id or '_'}"
-
-    @property
     def label(self) -> str:
         if self.document_type == DocumentType.DAILY_LOG:
             date_str = self.date.isoformat() if self.date else "pending"
