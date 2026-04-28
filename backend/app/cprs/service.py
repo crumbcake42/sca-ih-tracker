@@ -137,6 +137,13 @@ class ContractorPaymentRecordHandler:
     has_manual_terminals: ClassVar[bool] = True
 
     @classmethod
+    def validate_template_params(cls, params: dict) -> None:
+        if params:
+            raise ValueError(
+                f"contractor_payment_record trigger accepts no template_params, got {set(params.keys())}"
+            )
+
+    @classmethod
     async def handle_event(
         cls, project_id: int, event: RequirementEvent, payload: dict, db: AsyncSession
     ) -> None:

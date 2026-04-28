@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.common.enums import RequirementEvent
 from app.common.requirements import registry
 from app.requirement_triggers.models import WACodeRequirementTrigger
 from app.requirement_triggers.schemas import (
@@ -49,12 +50,26 @@ async def create_requirement_trigger(
     await _get_wa_code_or_404(payload.wa_code_id, db)
 
     try:
-        registry.get(payload.requirement_type_name)
+        handler = registry.get(payload.requirement_type_name)
     except KeyError:
         raise HTTPException(
             status_code=422,
             detail=f"Unknown requirement type: '{payload.requirement_type_name}'.",
         )
+
+    if handler not in registry.handlers_for_event(RequirementEvent.WA_CODE_ADDED):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Requirement type '{payload.requirement_type_name}' does not subscribe "
+                f"to WA_CODE_ADDED and cannot be used as a WA code trigger."
+            ),
+        )
+
+    try:
+        handler.validate_template_params(payload.template_params)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
     params_hash = hash_template_params(payload.template_params)
 

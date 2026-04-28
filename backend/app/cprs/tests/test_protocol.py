@@ -7,8 +7,11 @@ and that class-level attributes match the required values.
 
 from datetime import datetime
 
+import pytest
+
 from app.common.enums import CPRStageStatus
 from app.cprs.models import ContractorPaymentRecord
+from app.cprs.service import ContractorPaymentRecordHandler
 from app.common.requirements import ManualTerminalMixin, ProjectRequirement
 
 
@@ -79,3 +82,12 @@ class TestContractorPaymentRecordProtocol:
         record.rfa_internal_status = CPRStageStatus.APPROVED
         assert record.rfa_internal_status == CPRStageStatus.APPROVED
         assert record.rfa_internal_status == "approved"
+
+
+class TestContractorPaymentRecordHandlerValidateTemplateParams:
+    def test_empty_params_accepted(self):
+        ContractorPaymentRecordHandler.validate_template_params({})
+
+    def test_any_params_raise(self):
+        with pytest.raises(ValueError, match="contractor_payment_record"):
+            ContractorPaymentRecordHandler.validate_template_params({"key": "value"})

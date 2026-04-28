@@ -43,6 +43,13 @@ class DeliverableRequirementAdapter:
         return self._row.sca_status not in _DERIVABLE_SCA_STATUSES
 
     @classmethod
+    def validate_template_params(cls, params: dict) -> None:
+        if params:
+            raise ValueError(
+                f"deliverable trigger accepts no template_params, got {set(params.keys())}"
+            )
+
+    @classmethod
     async def get_unfulfilled_for_project(
         cls, project_id: int, db: AsyncSession
     ) -> list["DeliverableRequirementAdapter"]:
@@ -90,6 +97,13 @@ class BuildingDeliverableRequirementAdapter:
 
     def is_fulfilled(self) -> bool:
         return self._row.sca_status not in _DERIVABLE_SCA_STATUSES
+
+    @classmethod
+    def validate_template_params(cls, params: dict) -> None:
+        if params:
+            raise ValueError(
+                f"building_deliverable trigger accepts no template_params, got {set(params.keys())}"
+            )
 
     @classmethod
     async def get_unfulfilled_for_project(

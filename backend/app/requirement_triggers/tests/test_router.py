@@ -18,8 +18,8 @@ from tests.seeds import seed_wa_code
 def _trigger_payload(wa_code_id: int, **overrides) -> dict:
     defaults = dict(
         wa_code_id=wa_code_id,
-        requirement_type_name="deliverable",
-        template_params={},
+        requirement_type_name="project_document",
+        template_params={"document_type": "daily_log"},
     )
     return {**defaults, **overrides}
 
@@ -58,8 +58,8 @@ class TestCreateRequirementTrigger:
         assert response.status_code == 201
         data = response.json()
         assert data["wa_code_id"] == wa_code.id
-        assert data["requirement_type_name"] == "deliverable"
-        assert data["template_params"] == {}
+        assert data["requirement_type_name"] == "project_document"
+        assert data["template_params"] == {"document_type": "daily_log"}
         assert "id" in data
 
     async def test_created_by_id_stamped(
@@ -96,24 +96,9 @@ class TestCreateRequirementTrigger:
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
         wa_code = await seed_wa_code(db_session)
-        payload = _trigger_payload(wa_code.id, template_params={"x": 1})
+        payload = _trigger_payload(wa_code.id)
         await auth_client.post("/requirement-triggers/", json=payload)
         response = await auth_client.post("/requirement-triggers/", json=payload)
-        assert response.status_code == 409
-
-    async def test_duplicate_different_key_order_returns_409(
-        self, auth_client: AsyncClient, db_session: AsyncSession
-    ):
-        wa_code = await seed_wa_code(db_session)
-        await auth_client.post(
-            "/requirement-triggers/",
-            json=_trigger_payload(wa_code.id, template_params={"a": 1, "b": 2}),
-        )
-        # Same params, different key order — should hash identically → 409
-        response = await auth_client.post(
-            "/requirement-triggers/",
-            json=_trigger_payload(wa_code.id, template_params={"b": 2, "a": 1}),
-        )
         assert response.status_code == 409
 
     async def test_unauthenticated_returns_4xx(self, client: AsyncClient, db_session: AsyncSession):
@@ -122,6 +107,72 @@ class TestCreateRequirementTrigger:
             "/requirement-triggers/", json=_trigger_payload(wa_code.id)
         )
         assert response.status_code in (401, 403)
+
+    async def test_non_wa_code_handler_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        wa_code = await seed_wa_code(db_session)
+        response = await auth_client.post(
+            "/requirement-triggers/",
+            json=_trigger_payload(
+                wa_code.id,
+                requirement_type_name="contractor_payment_record",
+                template_params={},
+            ),
+        )
+        assert response.status_code == 422
+        assert "WA_CODE_ADDED" in response.json()["detail"]
+
+    async def test_deliverable_handler_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        wa_code = await seed_wa_code(db_session)
+        response = await auth_client.post(
+            "/requirement-triggers/",
+            json=_trigger_payload(
+                wa_code.id,
+                requirement_type_name="deliverable",
+                template_params={},
+            ),
+        )
+        assert response.status_code == 422
+
+    async def test_invalid_document_type_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        wa_code = await seed_wa_code(db_session)
+        response = await auth_client.post(
+            "/requirement-triggers/",
+            json=_trigger_payload(
+                wa_code.id,
+                template_params={"document_type": "safety_report"},
+            ),
+        )
+        assert response.status_code == 422
+        assert "safety_report" in response.json()["detail"]
+
+    async def test_extra_template_params_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        wa_code = await seed_wa_code(db_session)
+        response = await auth_client.post(
+            "/requirement-triggers/",
+            json=_trigger_payload(
+                wa_code.id,
+                template_params={"document_type": "daily_log", "extra": "field"},
+            ),
+        )
+        assert response.status_code == 422
+
+    async def test_missing_document_type_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        wa_code = await seed_wa_code(db_session)
+        response = await auth_client.post(
+            "/requirement-triggers/",
+            json=_trigger_payload(wa_code.id, template_params={}),
+        )
+        assert response.status_code == 422
 
 
 # ---------------------------------------------------------------------------

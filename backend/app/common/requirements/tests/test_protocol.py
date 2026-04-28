@@ -20,6 +20,29 @@ from app.common.requirements import RequirementTypeRegistry
 
 
 # ---------------------------------------------------------------------------
+# validate_template_params: deliverable adapters
+# ---------------------------------------------------------------------------
+
+
+class TestDeliverableAdapterValidateTemplateParams:
+    def test_empty_params_accepted(self):
+        DeliverableRequirementAdapter.validate_template_params({})
+
+    def test_any_params_raise(self):
+        with pytest.raises(ValueError, match="deliverable"):
+            DeliverableRequirementAdapter.validate_template_params({"x": 1})
+
+
+class TestBuildingDeliverableAdapterValidateTemplateParams:
+    def test_empty_params_accepted(self):
+        BuildingDeliverableRequirementAdapter.validate_template_params({})
+
+    def test_any_params_raise(self):
+        with pytest.raises(ValueError, match="building_deliverable"):
+            BuildingDeliverableRequirementAdapter.validate_template_params({"x": 1})
+
+
+# ---------------------------------------------------------------------------
 # Protocol: runtime isinstance checks
 # ---------------------------------------------------------------------------
 

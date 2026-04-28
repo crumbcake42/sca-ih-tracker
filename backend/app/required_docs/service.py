@@ -182,6 +182,20 @@ class ProjectDocumentHandler:
     is_dismissable: ClassVar[bool] = True
 
     @classmethod
+    def validate_template_params(cls, params: dict) -> None:
+        if set(params.keys()) != {"document_type"}:
+            raise ValueError(
+                f"project_document trigger requires exactly {{'document_type'}}, got {set(params.keys())}"
+            )
+        try:
+            DocumentType(params["document_type"])
+        except ValueError:
+            valid = [e.value for e in DocumentType]
+            raise ValueError(
+                f"Unknown document_type '{params['document_type']}'. Valid values: {valid}"
+            )
+
+    @classmethod
     async def handle_event(
         cls, project_id: int, event: RequirementEvent, payload: dict, db: AsyncSession
     ) -> None:

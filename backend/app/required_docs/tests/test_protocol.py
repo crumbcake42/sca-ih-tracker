@@ -9,9 +9,12 @@ from datetime import date
 
 import pytest
 
+import pytest
+
 from app.common.enums import DocumentType
 from app.common.requirements import ProjectRequirement
 from app.required_docs.models import ProjectDocumentRequirement
+from app.required_docs.service import ProjectDocumentHandler
 
 
 def _make_req(**overrides) -> ProjectDocumentRequirement:
@@ -71,3 +74,29 @@ class TestProjectRequirementProtocol:
     def test_label_minor_letter(self):
         req = _make_req(document_type=DocumentType.MINOR_LETTER, employee_id=None, date=None, school_id=None)
         assert req.label == "Minor Letter"
+
+
+class TestProjectDocumentHandlerValidateTemplateParams:
+    def test_valid_daily_log(self):
+        ProjectDocumentHandler.validate_template_params({"document_type": "daily_log"})
+
+    def test_valid_reoccupancy_letter(self):
+        ProjectDocumentHandler.validate_template_params({"document_type": "reoccupancy_letter"})
+
+    def test_unknown_document_type_raises(self):
+        with pytest.raises(ValueError, match="safety_report"):
+            ProjectDocumentHandler.validate_template_params({"document_type": "safety_report"})
+
+    def test_extra_key_raises(self):
+        with pytest.raises(ValueError, match="document_type"):
+            ProjectDocumentHandler.validate_template_params(
+                {"document_type": "daily_log", "extra": "field"}
+            )
+
+    def test_missing_document_type_raises(self):
+        with pytest.raises(ValueError):
+            ProjectDocumentHandler.validate_template_params({})
+
+    def test_empty_string_document_type_raises(self):
+        with pytest.raises(ValueError):
+            ProjectDocumentHandler.validate_template_params({"document_type": ""})
