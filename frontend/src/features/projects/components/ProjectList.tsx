@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import type {
   ColumnDef,
   PaginationState,
@@ -21,6 +22,15 @@ const columns: ColumnDef<Project>[] = [
   {
     accessorKey: "name",
     header: "Name",
+    cell: ({ row }) => (
+      <Link
+        to="/projects/$projectId"
+        params={{ projectId: String(row.original.id) }}
+        className="text-primary underline-offset-2 hover:underline"
+      >
+        {row.original.name}
+      </Link>
+    ),
   },
   {
     accessorKey: "school_ids",

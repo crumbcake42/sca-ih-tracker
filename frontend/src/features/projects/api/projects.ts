@@ -1,4 +1,11 @@
 export {
   getProjectsProjectsGetOptions as listProjectsOptions,
   getProjectsProjectsGetQueryKey as listProjectsQueryKey,
+  getProjectByIdProjectsProjectIdGetOptions as getProjectOptions,
+  getProjectByIdProjectsProjectIdGetQueryKey as getProjectQueryKey,
+  getProjectStatusProjectsProjectIdStatusGetOptions as getProjectStatusOptions,
+  getProjectStatusProjectsProjectIdStatusGetQueryKey as getProjectStatusQueryKey,
+  closeProjectProjectsProjectIdClosePostMutation as closeProjectMutation,
+  listProjectRequirementsProjectsProjectIdRequirementsGetOptions as listProjectRequirementsOptions,
+  listProjectRequirementsProjectsProjectIdRequirementsGetQueryKey as listProjectRequirementsQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";

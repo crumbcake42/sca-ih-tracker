@@ -1,5 +1,43 @@
 # Session Handoff — Frontend
 
+## 2026-04-28 — Session 2.4a: close-flow dual-detail 409 + project detail surface
+
+**Done:**
+
+- Added 5 new wrappers to `features/projects/api/projects.ts`: `getProjectOptions/QueryKey`, `getProjectStatusOptions/QueryKey`, `closeProjectMutation`, `listProjectRequirementsOptions/QueryKey`.
+- `CloseProjectDialog` (`features/projects/close/`) — handles both 409 shapes: `blocking_issues[]` rendered as a deep-link list; `unfulfilled_requirements[]` grouped by type with a disabled Dismiss stub (stub labelled for Session 2.5). Re-check button re-fires the mutation after user resolves conflicts. Clears conflict state on dialog close.
+- `ProjectStatusBadge` (`features/projects/status/`) — fetches `GET /projects/{id}/status`; renders derived status label plus four `CountBadge`s (pending RFAs, outstanding deliverables, unconfirmed time entries, unfulfilled requirements); destructive variant when count > 0.
+- `ProjectDetail` (`features/projects/components/`) — back-link, status badge row, "Close project" button (hidden when `status === "locked"`), detail card (name, project number, school count), `CloseProjectDialog` wired.
+- Pages + routes: `pages/projects/index.tsx` (`ProjectsListPage`), `pages/projects/detail.tsx` (`ProjectDetailPage`), `pages/projects/loader.ts` (`prefetchProject` pre-fetches project + status); routes `_authenticated/projects/index.tsx` (with `validateSearch`) and `_authenticated/projects/$projectId.tsx` (with loader). Route tree regenerated.
+- `ProjectList.tsx` — project name cell now links to `/projects/$projectId`.
+
+**Next:** Dedicated session — fix employee-role-types admin (see Blockers).
+
+**Blockers:**
+- `EmployeeRoleFormDialog` and the admin employee-role-types surface are broken. Backend commit `68e33c0` reverted `EmployeeRoleType` from a DB table back to a `StrEnum`, removing all `/employee-role-types/` CRUD endpoints. Generated `EmployeeRole.role_type` is now the enum string directly (no `role_type_id`). Fix: (A) drop `listEmployeeRoleTypesOptions()` from `EmployeeRoleFormDialog`, replace `role_type_id` with `role_type: EmployeeRoleType` enum select populated from the static literal; (B) convert admin employee-role-types list to a read-only enum reference table, delete dead `EmployeeRoleTypeFormDialog`, `EmployeeRoleTypeDetail`, detail route, and `employeeRoleTypes.ts` barrel. **Branch:** `fe/fix/employee-role-type-enum` (not yet created).
+
+---
+
+## 2026-04-28 — API barrel audit + wrapper-rename fix
+
+**Done:**
+
+- Audited all 9 feature API barrel files against the current `@tanstack/react-query.gen.ts`.
+- Found 12 broken re-export source names across 4 barrels: the session F regen changed backend delete/connections operation IDs from descriptive names (e.g. `deleteEmployeeEmployeesEmployeeIdDelete`) to generic `wrapper*` names (`wrapperEmployeesEmployeeIdDelete`). Fixed all 12 in-place; public alias names (`deleteEmployeeMutation`, `getContractorConnectionsOptions`, etc.) are unchanged, so no consumer code needs updating.
+  - `employees.ts`: `deleteEmployeeMutation`, `getEmployeeConnectionsOptions/QueryKey`
+  - `contractors.ts`: `deleteContractorMutation`, `getContractorConnectionsOptions/QueryKey`
+  - `hygienists.ts`: `deleteHygienistMutation`, `getHygienistConnectionsOptions/QueryKey`
+  - `wa-codes.ts`: `deleteWaCodeMutation`, `getWaCodeConnectionsOptions/QueryKey`
+- Found `employeeRoleTypes.ts` barrel is **entirely broken** — all 7 re-exported function names (CRUD + connections for `/employee-role-types/`) are absent from the generated client after the session F regen. The backend either dropped these endpoints from the schema or they never made it into the most recent regen. Consumers: `EmployeeRoleTypeFormDialog.tsx`, `EmployeeRoleTypeDetail.tsx`, `EmployeeRoleFormDialog.tsx`, `pages/admin/employee-role-types/index.tsx`, `loader.ts`. **Backend must re-expose `/employee-role-types/` CRUD in its OpenAPI schema and the client must be regenerated before these pages work.**
+
+**Backend pickup needed:** Re-confirm `/employee-role-types/` CRUD endpoints (`GET`, `GET /{id}`, `POST`, `PATCH /{id}`, `DELETE /{id}`) are mounted and included in the OpenAPI schema. After they're confirmed, regenerate the frontend client (`pnpm dlx @hey-api/openapi-ts`) and update `employeeRoleTypes.ts` barrel with the new generated names.
+
+**Next:** Resume close-flow dual-detail 409 work (branch `fe/feature/close-flow-409-dual-detail`). Run `pnpm tsc --noEmit` first to confirm the 12 wrapper-rename fixes resolved those type errors (the employee-role-types gap will still show errors until backend is fixed).
+
+**Blockers:** `employeeRoleTypes.ts` barrel — backend gap. Session 2.3e (Deliverables admin) still needs backend to ship.
+
+---
+
 ## 2026-04-28 — Post-regen cleanup pass (items 6, 7, 10)
 
 - Verified all 6 generated-client confirmation items from the Phase 6.6 regen: `CloseProjectConflictDetail`, `DeliverableCreate`/`Update`, all 4 undismiss functions, `requirement_type_name` Literal union, `RequirementTypeInfo`, and duplicate wa-codes trigger function gone.
@@ -52,6 +90,7 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 **Scope:** Build the Deliverables admin slice mirroring 2.3a–d. In: list page, create dialog, edit dialog, sidebar entry, API wrappers off the new `POST /deliverables/` and `PATCH /deliverables/{id}`. Out: `ProjectDeliverable` / `ProjectBuildingDeliverable` per-project rows (different surface).
 
 **Files likely to touch:**
+
 - `frontend/src/features/deliverables/api/` (new wrappers)
 - `frontend/src/features/deliverables/components/`
 - `frontend/src/pages/admin/deliverables.tsx` (or current admin page convention)
@@ -59,6 +98,7 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 - Sidebar / admin dashboard entry
 
 **Gotchas / non-obvious:**
+
 - Catalog `Deliverable` has **only** `name`, `description`, `level`. No `internal_status`/`sca_status` on the catalog (those live on `ProjectDeliverable`/`ProjectBuildingDeliverable`).
 - `level` is immutable after creation — disable the field on edit; PATCH returns 422 if you try to change it.
 - Duplicate `name` returns 422 — map to a `name` field-level error, not a generic toast (codebase pattern).
@@ -75,11 +115,13 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 **Scope:** Update the project close dialog to handle both 409 detail shapes (`blocking_issues[]` and `unfulfilled_requirements[]`) inline with deep links. Add `unfulfilled_requirement_count` to the project status badge surface. Out: building the four silo UIs the unfulfilled-requirements list links into (separate scope).
 
 **Files likely to touch:**
+
 - `frontend/src/features/projects/close/` (close dialog)
 - `frontend/src/features/projects/status/` (status badge)
 - API wrappers if a `getProjectRequirementsOptions` helper is missing
 
 **Gotchas / non-obvious:**
+
 - `CloseProjectConflictDetail` has both keys optional; **exactly one** is populated per response (blocking notes checked first). Narrow on key presence — there is no discriminator.
 - Per `frontend/CLAUDE.md` §6, render the payload **inline** in the dialog with deep links, not a generic toast.
 - `UnfulfilledRequirement.is_dismissable` controls whether a "dismiss" affordance shows; `is_dismissed` controls list filtering downstream.
@@ -87,7 +129,7 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 
 **Acceptance:** Close dialog renders both 409 shapes with deep links; badge displays `unfulfilled_requirement_count` from `ProjectStatusRead`; the count and dialog stay in sync after dismiss/undismiss.
 
-**Branch:** `fe/feature/close-flow-409-dual-detail` (not yet created). **Delegation:** dedicated session (`tracker-fe`). **Commit header:** `Session 2.4a: close-flow dual-detail 409 + unfulfilled-req badge` *(session number provisional — confirm during ROADMAP re-sequence)*.
+**Branch:** `fe/feature/close-flow-409-dual-detail` (not yet created). **Delegation:** dedicated session (`tracker-fe`). **Commit header:** `Session 2.4a: close-flow dual-detail 409 + unfulfilled-req badge` _(session number provisional — confirm during ROADMAP re-sequence)_.
 
 ---
 
@@ -96,11 +138,13 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 **Scope:** Replace any free-text `requirement_type_name` input with a select sourced from `GET /requirement-types`, and conditionally render a `template_params` form derived from each type's `template_params_schema`. In: create form, list integration, validation. Out: edit/delete of triggers (existing surface).
 
 **Files likely to touch:**
+
 - `frontend/src/features/requirement-triggers/api/` (new `listRequirementTypesOptions` wrapper)
 - `frontend/src/features/requirement-triggers/components/` (create form)
 - Possibly a small `src/lib/json-schema-form.ts` helper if no equivalent exists yet
 
 **Gotchas / non-obvious:**
+
 - `template_params_schema` is **non-empty only for `project_document`** (expects `{ document_type: DocumentType }` with `extra="forbid"`). For the other five handlers it's `{}` — render no params input.
 - `requirement_type_name` is now a generated Literal union, not `string`. Use the generated type as the source of truth — do not hand-roll the list of names.
 - `display_name` is `null` for every handler today; fall back to `name` until handlers start setting it.
@@ -108,7 +152,7 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 
 **Acceptance:** Create form lists all six handler names from `GET /requirement-types`; selecting `project_document` shows a `document_type` select; selecting any other type shows no params input; submission posts valid `template_params` (either `{}` or `{ document_type }`); form rejects unknown keys before submit.
 
-**Branch:** `fe/feature/requirement-trigger-form` (not yet created). **Delegation:** dedicated session (`tracker-fe`). **Commit header:** `Session 2.4b: dynamic requirement-trigger create form` *(session number provisional)*.
+**Branch:** `fe/feature/requirement-trigger-form` (not yet created). **Delegation:** dedicated session (`tracker-fe`). **Commit header:** `Session 2.4b: dynamic requirement-trigger create form` _(session number provisional)_.
 
 ---
 
@@ -117,12 +161,14 @@ All five backend gaps surfaced in the Session F regen audit are now shipped and 
 **Scope:** Knock out the FE-side drift items 6–10 from the Session F regen audit. In: doc fixes, switch-case extension, cast removal, ROADMAP re-sequence proposal. Out: any code generation or new feature work.
 
 **Files likely to touch:**
+
 - `frontend/CLAUDE.md` (notes polymorphic-types count: 4 → 5; add `contractor_payment_record`)
 - Wherever `NoteType` is switched on (icons/labels/system-badge) — add a branch for `'cpr_stage_regression'`
 - `frontend/src/features/wa-codes/components/WaCodeFormDialog.tsx` (remove `hasConnections(unknown)` cast — `WaCodeConnections` is now typed)
 - `frontend/ROADMAP.md` (re-sequence: silo UIs + close-flow now unblocked; Session 2.3e no longer the only logical next step)
 
 **Gotchas / non-obvious:**
+
 - The new `NoteType.cpr_stage_regression` is **system-generated** — render with the system badge and hide manual edit/resolve controls (per `frontend/CLAUDE.md` system-row convention).
 - `NotesPanel` may also need wiring for CPR row entityType — confirm during the cleanup whether it's already there or part of a future silo UI.
 - ROADMAP re-sequence is a proposal, not a unilateral edit — agent should produce a diff and stop for review.
