@@ -62,6 +62,7 @@ class ProjectStatusRead(BaseModel):
     pending_rfa_count: int
     outstanding_deliverable_count: int
     unconfirmed_time_entry_count: int
+    unfulfilled_requirement_count: int
     blocking_issues: list[BlockingIssue]
 
 

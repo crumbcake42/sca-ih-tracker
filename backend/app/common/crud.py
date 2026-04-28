@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any, Protocol, TypeVar
 
 from fastapi import HTTPException
-from sqlalchemy import func, select, ColumnElement
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped
 

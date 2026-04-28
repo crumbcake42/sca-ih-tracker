@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.enums import SampleBatchStatus
+from app.common.enums import RequirementEvent, SampleBatchStatus
+from app.common.requirements.dispatcher import dispatch_requirement_event
 from app.database import get_db
 from app.employees.models import Employee
 from app.lab_results.models import (
@@ -111,7 +112,6 @@ async def create_batch(
         turnaround_option_id=body.turnaround_option_id,
         time_entry_id=body.time_entry_id,
         batch_num=body.batch_num,
-        is_report=body.is_report,
         date_collected=body.date_collected,
         notes=body.notes,
         created_by_id=current_user.id,
@@ -133,6 +133,12 @@ async def create_batch(
         await ensure_deliverables_exist(time_entry.project_id, db)
         await recalculate_deliverable_sca_status(time_entry.project_id, db)
         await check_sample_type_gap_note(time_entry.project_id, db)
+        await dispatch_requirement_event(
+            project_id=time_entry.project_id,
+            event=RequirementEvent.BATCH_CREATED,
+            payload={"batch_id": batch.id},
+            db=db,
+        )
     await db.commit()
     await db.refresh(batch)
     return batch

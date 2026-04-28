@@ -19,17 +19,15 @@ from app.work_auths.models import (
     WorkAuthBuildingCode,
     WorkAuthProjectCode,
 )
-
 from tests.seeds import (
-    seed_school,
     seed_project,
-    seed_work_auth,
-    seed_wa_code,
     seed_rfa,
-    seed_work_auth_project_code,
+    seed_school,
+    seed_wa_code,
+    seed_work_auth,
     seed_work_auth_building_code,
+    seed_work_auth_project_code,
 )
-
 
 # ---------------------------------------------------------------------------
 # POST /work-auths/{wa_id}/rfas

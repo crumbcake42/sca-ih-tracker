@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import SYSTEM_USER_ID
-from app.common.enums import TimeEntryStatus
+from app.common.enums import RequirementEvent, TimeEntryStatus
+from app.common.requirements.dispatcher import dispatch_requirement_event
 from app.employees.models import Employee, EmployeeRole
 from app.lab_results.models import (
     SampleBatch,
@@ -231,7 +232,6 @@ async def quick_add_batch(
         turnaround_option_id=body.turnaround_option_id,
         time_entry_id=entry.id,
         batch_num=body.batch_num,
-        is_report=body.is_report,
         date_collected=body.date_collected,
         notes=body.notes,
         created_by_id=SYSTEM_USER_ID,
@@ -249,6 +249,18 @@ async def quick_add_batch(
     for emp_id in body.inspector_ids:
         db.add(SampleBatchInspector(batch_id=batch.id, employee_id=emp_id))
 
+    await dispatch_requirement_event(
+        project_id=entry.project_id,
+        event=RequirementEvent.TIME_ENTRY_CREATED,
+        payload={"time_entry_id": entry.id},
+        db=db,
+    )
+    await dispatch_requirement_event(
+        project_id=entry.project_id,
+        event=RequirementEvent.BATCH_CREATED,
+        payload={"batch_id": batch.id},
+        db=db,
+    )
     await db.commit()
     await db.refresh(batch)
     return batch

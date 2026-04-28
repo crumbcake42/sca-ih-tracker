@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-25
+# Session Handoff — 2026-04-27
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -6,113 +6,84 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 1.8 Sessions A + B are done.** `create_guarded_delete_router` factory is live and all six router modules have been migrated. Six new `*Connections` schemas now appear in OpenAPI with full typing. Next: Session C — docs + FE handoff note.
+**Session F complete** (Closure-gate integration, 2026-04-27). **817 passing** (+14 new tests).
 
-13 test files still need migration to `tests/seeds/` (see Next Steps).
+Full arc through this session:
 
----
+| Session | Summary | Tests |
+|---------|---------|-------|
+| D | Silo 2 `cprs` | 693 |
+| E0a | Module split: `app/common/requirements/` + `app/requirement_triggers/` | 693 |
+| E0b + E0b-refactor | Router pattern: project-scoped ops into `app/projects/router/` | 693 |
+| E0c | Protocol/schema hygiene (drop `requirement_key`, fix `@computed_field`, add `validate_template_params`, registry coverage test) | 705 |
+| E0d | Drop `is_required` columns from cprs + required_docs | 705 |
+| E | Silo 3 `dep_filings` | 766 |
+| E2 | Silo 4 `lab_reports` — retire `is_report` | 803 |
+| **F** | **Closure-gate integration + project status surface** | **817** |
 
-## What Was Done This Session
-
-### Phase 1.8 Session B — Migrated six router modules to use `create_guarded_delete_router`
-
-For each of the six modules, deleted the hand-rolled `_get_*_references` helper and both `GET /{id}/connections` + `DELETE /{id}` endpoints, then replaced them with `router.include_router(create_guarded_delete_router(...))`. All 532 tests pass unchanged.
-
-Files modified:
-- `app/contractors/router/base.py`
-- `app/hygienists/router/base.py`
-- `app/schools/router/base.py`
-- `app/employees/router/base.py`
-- `app/deliverables/router/base.py`
-- `app/wa_codes/router/base.py`
-
-Stale imports cleaned up per file (`func`, `assert_deletable`, and in `deliverables/base.py` also `Depends`, `HTTPException`, `AsyncSession`, `get_db`, `select` — that file had no remaining direct endpoint code).
-
-Non-obvious: `deliverables/router/base.py` is now purely factory composition — no `Depends`/`HTTPException`/`AsyncSession`/`get_db` needed in that file at all.
+**Phase 6.5 is complete.** All four silos are wired into the closure gate and the aggregator is a live production call.
 
 ---
 
-### From prior session — Reverted EmployeeRoleType table → StrEnum
+## Session F — What Was Built
 
-Files reverted:
-- `app/employees/models.py` — dropped `EmployeeRoleType` class; restored `EmployeeRole.role_type` as `SQLEnum(EmployeeRoleType)`.
-- `app/employees/schemas.py` — dropped `EmployeeRoleTypeRead/Create/Update`; `EmployeeRoleBase.role_type: EmployeeRoleType`.
-- `app/employees/router/__init__.py` — dropped `role_types_router` export.
-- `app/main.py` — removed `role_types_router` registration.
-- `app/employees/router/base.py` — dropped FK validation and selectinload chain; overlap check uses `role_type` enum.
-- `app/employees/tests/test_roles.py` — rewritten to use the StrEnum.
-- `app/employees/tests/test_schemas.py` — `_make_role` uses the StrEnum.
-- `tests/seeds/employees.py` — dropped `seed_role_type`; `seed_employee_role` accepts a StrEnum (default `ACM_AIR_TECH`).
-- `tests/seeds/__init__.py` — removed `seed_role_type` export.
-- `app/scripts/db.py` — `seed_employee_roles` coerces CSV `role_type` into the enum directly; removed the `employee_role_types.csv` entry from `seed_files`.
-- `app/employees/README.md` — restored StrEnum guidance.
+### 1. CPR blocking-notes fix (carry-over from E2)
 
-Files deleted:
-- `app/employees/router/role_types.py`
-- `data/seed/employee_role_types.csv`
+`get_blocking_notes_for_project` (`app/projects/services.py`) previously had no branch for `NoteEntityType.CONTRACTOR_PAYMENT_RECORD`. Added a `cpr_ids_sq` scalar subquery and a 5th `or_()` branch. CPR-attached blocking notes now surface in `derive_project_status`, `lock_project_records`, and `GET /projects/{id}/blocking-issues` automatically.
 
-### Phase 1.8 Session A — `create_guarded_delete_router` factory
+### 2. Closure gate — aggregator wired into `lock_project_records`
 
-Files modified/created:
-- `app/common/factories/create_guarded_delete_router.py` — new file. `create_guarded_delete_router(*, model, not_found_detail, refs, path_param_name)`. `refs` is `list[tuple[selectable, fk_col, label]]`. Generates a named `{ModelName}Connections` Pydantic schema via `pydantic.create_model` and emits typed `GET /{id}/connections` + `DELETE /{id}`.
-- `app/common/factories/__init__.py` — updated to export the new factory.
-- `app/common/tests/test_guarded_delete_factory.py` — new file. 9 tests: zero counts, ref counting, 404/204/409 on GET and DELETE, plus 3 OpenAPI schema checks that `ContractorConnections` is named, integer-typed, and referenced in the route's response schema.
-- `app/PATTERNS.md` §14 — replaced hand-rolled example with factory usage; kept TOCTOU and CASCADE guard notes.
+`lock_project_records` now calls `get_unfulfilled_requirements_for_project` after the blocking-notes check. If any unfulfilled requirements exist, raises `HTTPException(409, detail={"unfulfilled_requirements": [...]})`. Blocking notes still take precedence (checked first; if any exist, the unfulfilled check is never reached).
 
-Non-obvious:
-- FastAPI resolves path params by function argument name. The factory overrides `__signature__` on inner handlers to rename `entity_id` → `path_param_name` for OpenAPI; then wraps each handler so that when FastAPI calls `wrapper(contractor_id=123, db=...)`, the wrapper translates to `impl(entity_id=123, db=...)` before dispatching.
-- No callers changed yet — the six hand-rolled `_get_*_references` helpers and their endpoints are still live. Session B migrates them.
+### 3. `ProjectStatusRead` + `derive_project_status`
+
+- New field: `unfulfilled_requirement_count: int` on `ProjectStatusRead` (`app/projects/schemas.py`).
+- `derive_project_status` computes it via `get_unfulfilled_requirements_for_project`. Locked-project short-circuit sets it to 0.
+- `READY_TO_CLOSE` condition tightened: now requires `unfulfilled_requirement_count == 0` (broader than the previous `outstanding_deliverable_count == 0`, which was already implied — deliverables are included in the aggregator).
+
+### 4. `GET /projects/{id}/requirements`
+
+New project-scoped sub-router at `app/projects/router/requirements.py`. Returns `list[UnfulfilledRequirement]`. Mounted in `app/projects/router/__init__.py` alongside the other silos.
+
+`UnfulfilledRequirement` added to `app/common/requirements/__init__.py` public exports.
 
 ---
 
-## Next Steps
+## Next Phase
 
-### Step 0 — Regenerate the migrations and dev DB
+Phase 6.5 is done. The next major phase is **Phase 6.7 — Peer Dependency Navigation** (see ROADMAP.md §"Phase 6.7"). Work only when a concrete FE consumer asks for a specific lateral edge. The first candidate: `GET /time-entries/{id}/batches`.
 
-Wipe `migrations/versions/`, drop the dev DB, then run your normal alembic init + autogen flow, then `just seed`.
+---
 
-### Step 1 — Resume the `tests/seeds/` migration
+## Carry-overs (still valid)
 
-13 test files still use local `_seed_*` helpers:
+1. **`process_project_import` is the only dispatch site for `CONTRACTOR_LINKED` / `CONTRACTOR_UNLINKED`.** If a dedicated HTTP endpoint is ever added to link/unlink contractors, it must also call `dispatch_requirement_event` for both events.
 
-- `app/employees/tests/test_roles.py` (could now adopt `seed_employee` + `seed_employee_role`)
-- `app/employees/tests/test_router.py`
-- `app/hygienists/tests/test_router.py`
-- `app/notes/tests/test_notes_router.py` ← previous migration attempt broke tests; needs debugging
-- `app/projects/tests/test_hygienist_links.py` ← previous migration attempt broke tests; needs debugging
-- `app/projects/tests/test_manager_assignments.py`
-- `app/projects/tests/test_project_status.py`
-- `app/work_auths/tests/test_deliverable_integration.py`
-- `app/work_auths/tests/test_rfas.py`
-- `app/work_auths/tests/test_wa_codes.py`
-- `app/work_auths/tests/test_work_auths.py`
-- `app/projects/tests/test_project_closure.py` — local `_seed_employee` was missing `display_name`; replace with `seed_employee`.
-- `app/projects/tests/test_projects_service.py` — same.
+2. **Manual POST endpoints bypass materializer precondition checks.** `POST /projects/{id}/cprs` and `POST /projects/{id}/document-requirements` accept rows the materializer would reject. Deferred until a concrete bug surfaces.
 
-Replace local `_seed_*` helpers with imports from `tests.seeds`. The default `seed_employee_role()` returns an `ACM_AIR_TECH` role; pass an explicit `role_type=` only when the test cares.
+---
 
-### Step 2 — Commit staged migrations
+## Migrations still pending (user generates)
 
-6 test files (per the previous handoff) were staged but never committed. Verify they still pass and commit:
+- `wa_code_requirement_triggers` (from Session B)
+- `project_document_requirements` (from Session C)
+- `contractor_payment_records` (from Session D)
+- `ALTER TABLE contractor_payment_records DROP COLUMN is_required;` (from Session E0d)
+- `ALTER TABLE project_document_requirements DROP COLUMN is_required;` (from Session E0d)
+- `dep_filing_forms` + `project_dep_filings` tables (from Session E)
+- `ALTER TABLE sample_batches DROP COLUMN is_report;` (from Session E2)
+- `lab_report_requirements` table (from Session E2)
 
-```
-git commit -m "Migrate test files to use shared tests/seeds package"
-```
-
-### Session C — Docs + cross-side FE handoff (next)
-
-- HANDOFF.md + ROADMAP.md checkmarks (this session handles HANDOFF; update ROADMAP Session B boxes too)
-- `frontend/HANDOFF.md` note: regen OpenAPI client — six new `*Connections` schemas are now typed; the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed
+No new migrations in Session F.
 
 ---
 
 ## Frontend cross-side notes
 
-- The previously-queued FE OpenAPI regen for `EmployeeRoleType` is **not needed** — the API shape is back to its original form.
-- **After Session B lands:** Six new `*Connections` schemas appear in OpenAPI. Regen the FE client; the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can then be removed.
+**Regen needed now** (E0d + E + E2 + F all landed). See `frontend/HANDOFF.md` top section for the full change list.
 
----
+Key FE-impacting changes from Session F:
 
-## After Phase 1.8: Phase 6.5
-
-Phase 6.5 has an open design question — **placeholder→actual matching layer is NOT FINALIZED** (see `ROADMAP.md`). Revisit before implementing any placeholder promotion logic.
+- `ProjectStatusRead` has new `unfulfilled_requirement_count: int` field.
+- New `UnfulfilledRequirement` schema and `GET /projects/{project_id}/requirements` endpoint.
+- `POST /projects/{project_id}/close` now 409s with `{"unfulfilled_requirements": [...]}` (in addition to existing `{"blocking_issues": [...]}`). The FE close flow must handle both 409 detail shapes.

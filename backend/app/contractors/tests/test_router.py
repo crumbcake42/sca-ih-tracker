@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contractors.models import Contractor
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

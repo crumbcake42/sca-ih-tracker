@@ -20,6 +20,7 @@ async def validate_entity_exists(
     Uses db.get() — safe here because the result is never serialized; we only
     check existence. Inline imports avoid module-level circular-import risk.
     """
+    from app.cprs.models import ContractorPaymentRecord
     from app.deliverables.models import Deliverable
     from app.lab_results.models import SampleBatch
     from app.projects.models import Project
@@ -30,6 +31,7 @@ async def validate_entity_exists(
         NoteEntityType.TIME_ENTRY: TimeEntry,
         NoteEntityType.DELIVERABLE: Deliverable,
         NoteEntityType.SAMPLE_BATCH: SampleBatch,
+        NoteEntityType.CONTRACTOR_PAYMENT_RECORD: ContractorPaymentRecord,
     }
     model = model_map[entity_type]
     if not await db.get(model, entity_id):

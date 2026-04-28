@@ -18,14 +18,13 @@ from app.lab_results.models import SampleType, SampleUnitType
 from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
-
 from tests.seeds import (
-    seed_school,
     seed_employee,
     seed_employee_role,
     seed_project,
     seed_sample_type,
     seed_sample_unit_type,
+    seed_school,
 )
 
 BASE = "/lab-results/batches/quick-add"

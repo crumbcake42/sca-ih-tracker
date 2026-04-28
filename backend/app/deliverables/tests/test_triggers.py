@@ -9,8 +9,8 @@ DELETE /deliverables/{id}/triggers/{wa_code_id}
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.seeds import seed_deliverable, seed_wa_code
 from app.deliverables.models import DeliverableWACodeTrigger
+from tests.seeds import seed_deliverable, seed_wa_code
 
 # ---------------------------------------------------------------------------
 # GET /deliverables/{id}/triggers

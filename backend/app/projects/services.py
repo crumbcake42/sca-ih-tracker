@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from fastapi import HTTPException
 from sqlalchemy import func, or_, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,7 @@ from app.common.enums import (
     NoteEntityType,
     NoteType,
     ProjectStatus,
+    RequirementEvent,
     RFAStatus,
     SampleBatchStatus,
     SCADeliverableStatus,
@@ -14,7 +17,9 @@ from app.common.enums import (
     WACodeLevel,
     WACodeStatus,
 )
+from app.common.requirements import get_unfulfilled_requirements_for_project
 from app.contractors.models import Contractor
+from app.cprs.models import ContractorPaymentRecord
 from app.deliverables.models import (
     Deliverable,
     DeliverableWACodeTrigger,
@@ -30,6 +35,8 @@ from app.time_entries.models import TimeEntry
 from app.wa_codes.models import WACode
 from app.work_auths.models import RFA, WorkAuth, WorkAuthBuildingCode, WorkAuthProjectCode
 
+if TYPE_CHECKING:
+    from app.projects.schemas import ProjectStatusRead
 
 async def process_project_import(db: AsyncSession, project_data: dict):
     # 1. Handle the Project itself (Create or Update)
@@ -67,17 +74,40 @@ async def process_project_import(db: AsyncSession, project_data: dict):
 
             # If no link exists, or the contractor has changed:
             if not current_link or current_link.contractor_id != contractor.id:
+                prior_contractor_id = (
+                    current_link.contractor_id if current_link else None
+                )
                 # Set all old links to False
                 await db.execute(
                     update(ProjectContractorLink)
                     .where(ProjectContractorLink.project_id == project.id)
                     .values(is_current=False)
                 )
+                await db.flush()
+                # Fire unlink event for the displaced contractor (if any)
+                if prior_contractor_id is not None:
+                    from app.common.requirements.dispatcher import dispatch_requirement_event
+
+                    await dispatch_requirement_event(
+                        project_id=project.id,
+                        event=RequirementEvent.CONTRACTOR_UNLINKED,
+                        payload={"contractor_id": prior_contractor_id},
+                        db=db,
+                    )
                 # Create the new "Active" link
                 new_link = ProjectContractorLink(
                     project_id=project.id, contractor_id=contractor.id, is_current=True
                 )
                 db.add(new_link)
+                await db.flush()
+                from app.common.requirements.dispatcher import dispatch_requirement_event
+
+                await dispatch_requirement_event(
+                    project_id=project.id,
+                    event=RequirementEvent.CONTRACTOR_LINKED,
+                    payload={"contractor_id": contractor.id},
+                    db=db,
+                )
 
 
 _DERIVABLE_SCA_STATUSES = {
@@ -420,6 +450,7 @@ async def derive_project_status(
             pending_rfa_count=0,
             outstanding_deliverable_count=0,
             unconfirmed_time_entry_count=0,
+            unfulfilled_requirement_count=0,
             blocking_issues=[],
         )
 
@@ -463,6 +494,9 @@ async def derive_project_status(
     ).scalar_one()
     outstanding_deliverable_count = pd_count + pbd_count
 
+    unfulfilled = await get_unfulfilled_requirements_for_project(project_id, db)
+    unfulfilled_requirement_count = len(unfulfilled)
+
     time_entry_count: int = (
         await db.execute(
             select(func.count())
@@ -487,7 +521,7 @@ async def derive_project_status(
     elif time_entry_count == 0:
         status = ProjectStatus.SETUP
     elif (
-        outstanding_deliverable_count == 0
+        unfulfilled_requirement_count == 0
         and pending_rfa_count == 0
         and unconfirmed_time_entry_count == 0
     ):
@@ -502,6 +536,7 @@ async def derive_project_status(
         pending_rfa_count=pending_rfa_count,
         outstanding_deliverable_count=outstanding_deliverable_count,
         unconfirmed_time_entry_count=unconfirmed_time_entry_count,
+        unfulfilled_requirement_count=unfulfilled_requirement_count,
         blocking_issues=blocking_issues,
     )
 
@@ -509,13 +544,22 @@ async def derive_project_status(
 async def lock_project_records(project_id: int, db: AsyncSession, user_id: int) -> None:
     """
     Close a project: cascade LOCKED status to all time entries and active batches.
-    Raises 409 if any unresolved blocking notes exist on the project.
+    Raises 409 if any unresolved blocking notes or unfulfilled requirements exist.
     """
     blocking_issues = await get_blocking_notes_for_project(project_id, db)
     if blocking_issues:
         raise HTTPException(
             status_code=409,
             detail={"blocking_issues": [bi.model_dump() for bi in blocking_issues]},
+        )
+
+    unfulfilled = await get_unfulfilled_requirements_for_project(project_id, db)
+    if unfulfilled:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "unfulfilled_requirements": [u.model_dump() for u in unfulfilled],
+            },
         )
 
     await db.execute(
@@ -552,6 +596,7 @@ _ENTITY_LINK_TEMPLATES = {
     NoteEntityType.TIME_ENTRY: "/time-entries/{}",
     NoteEntityType.DELIVERABLE: "/deliverables/{}",
     NoteEntityType.SAMPLE_BATCH: "/lab-results/batches/{}",
+    NoteEntityType.CONTRACTOR_PAYMENT_RECORD: "/contractor-payment-records/{}",
 }
 
 
@@ -596,6 +641,12 @@ async def get_blocking_notes_for_project(
         .scalar_subquery()
     )
 
+    cpr_ids_sq = (
+        select(ContractorPaymentRecord.id)
+        .where(ContractorPaymentRecord.project_id == project_id)
+        .scalar_subquery()
+    )
+
     rows = (
         await db.execute(
             select(Note)
@@ -614,6 +665,8 @@ async def get_blocking_notes_for_project(
                     ),
                     (Note.entity_type == NoteEntityType.SAMPLE_BATCH)
                     & Note.entity_id.in_(sb_ids_sq),
+                    (Note.entity_type == NoteEntityType.CONTRACTOR_PAYMENT_RECORD)
+                    & Note.entity_id.in_(cpr_ids_sq),
                 ),
             )
             .order_by(Note.created_at)

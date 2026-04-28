@@ -12,8 +12,7 @@ it correctly surfaces the hygienist field via the model_validator mapping.
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.seeds import seed_school, seed_project, seed_hygienist
-
+from tests.seeds import seed_hygienist, seed_project, seed_school
 
 # ---------------------------------------------------------------------------
 # POST /projects/{id}/hygienist

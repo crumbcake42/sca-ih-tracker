@@ -3,6 +3,8 @@ from fastapi import APIRouter
 from app.common.factories import create_guarded_delete_router, create_readonly_router
 from app.deliverables.models import (
     Deliverable as DeliverableModel,
+)
+from app.deliverables.models import (
     DeliverableWACodeTrigger,
     ProjectBuildingDeliverable,
     ProjectDeliverable,

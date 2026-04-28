@@ -15,14 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.config import SYSTEM_USER_ID
 from app.common.enums import SCADeliverableStatus, WACodeStatus
 from app.deliverables.models import ProjectDeliverable
-
 from app.work_auths.models import WorkAuth, WorkAuthProjectCode
-
 from tests.seeds import (
+    seed_deliverable_with_trigger,
     seed_project,
     seed_school,
     seed_wa_code,
-    seed_deliverable_with_trigger,
 )
 
 # ---------------------------------------------------------------------------

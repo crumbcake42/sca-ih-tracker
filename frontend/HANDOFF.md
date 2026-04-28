@@ -2,7 +2,35 @@
 
 ## Backend changes pending frontend pickup
 
-**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3e (Deliverables admin). Regenerate the OpenAPI client after backend ships.
+**Session F (backend) landed (2026-04-27) — final Phase 6.5 regen. Regenerate the OpenAPI client before the next FE session.**
+
+Changes since last regen (Sessions E0d + E + E2 + F all land together):
+
+- `ProjectStatusRead` has a new field `unfulfilled_requirement_count: int`. Any component reading `ProjectStatusRead` (e.g. project close flow, status badge) should display or act on this count.
+- New `UnfulfilledRequirement` schema: `{ requirement_type, project_id, label, is_dismissed, is_dismissable }`.
+- New endpoint `GET /projects/{project_id}/requirements` → `list[UnfulfilledRequirement]`. Returns all unfulfilled, non-dismissed requirements across all silos for the project.
+- `POST /projects/{project_id}/close` now 409s with `{"unfulfilled_requirements": [...]}` in addition to the existing `{"blocking_issues": [...]}` path. The FE close flow needs to handle both 409 detail shapes.
+- CPR blocking notes now appear in `blocking_issues` responses (previously silently dropped). No FE code change needed — the `BlockingIssue` shape is unchanged.
+- `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lost `is_required` (Session E0d).
+- New Session E schemas: `DEPFilingFormRead/Create/Update`, `ProjectDEPFilingRead/Update/Dismiss`, `ProjectDEPFilingCreate`.
+- New Session E endpoints: `/dep-filings/forms/*`, `/dep-filings/{id}`, `/projects/{id}/dep-filings`.
+- `SampleBatchRead/Create/Update/QuickAdd` lose `is_report` (Session E2). Migrate any FE code reading or writing `is_report` to the new `GET /projects/{id}/lab-reports` + `PATCH /lab-reports/{id}/save` + `POST /lab-reports/{id}/dismiss` endpoints.
+- New `LabReportRequirementRead` schema; new endpoints: `GET /projects/{id}/lab-reports`, `PATCH /lab-reports/{id}/save`, `POST /lab-reports/{id}/dismiss`, `POST /lab-reports/{id}/undismiss`.
+
+---
+
+**Session E0c landed (2026-04-27) — regen OpenAPI client before next FE session.**
+
+- `UnfulfilledRequirementRead` loses `requirement_key` field. FE does not currently consume this field, so no code changes needed — just regen.
+- `ContractorPaymentRecordRead.label` value changes: now includes the contractor name (e.g. `"CPR — ACME Corp"` instead of `"CPR — Contractor #7"`). Any FE component that displays this label verbatim now shows the correct contractor name automatically after regen. No schema shape change (still `label: string`).
+- `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` schema shapes are otherwise unchanged — `label`, `is_fulfilled`, `is_dismissed` still present as same types.
+- `POST /requirement-triggers/` now rejects `requirement_type_name` values that don't subscribe to `WA_CODE_ADDED` (e.g. `"deliverable"`, `"contractor_payment_record"`). If FE has any code creating triggers with those types, update to `"project_document"` with `template_params: {"document_type": "<value>"}`.
+
+---
+
+**`*Connections` schemas now typed — regen the OpenAPI client.** Six reference entities (`Contractor`, `Hygienist`, `School`, `Employee`, `Deliverable`, `WACode`) previously returned `unknown` from their `/connections` endpoints. The backend now emits named Pydantic schemas (`ContractorConnections`, `HygienistConnections`, `SchoolConnections`, `EmployeeConnections`, `DeliverableConnections`, `WACodeConnections`) with typed integer counts. After regenerating the client, the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed.
+
+**Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
 
 **`GET /work-auths/` is now paginated** — returns `PaginatedResponseWorkAuth` (`{items, total, skip, limit}`). Any FE code reading `response.project_id` directly must migrate to `response.items[0]?.project_id` and guard empty. Not yet audited — check during Phase 3 (Session 3.4 Work Auth tab) or sooner if a consumer is found.
 

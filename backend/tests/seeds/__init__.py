@@ -1,3 +1,4 @@
+from .contractors import seed_contractor
 from .deliverables import (
     seed_deliverable,
     seed_deliverable_with_trigger,
@@ -10,11 +11,11 @@ from .lab_results import (
     seed_sample_batch,
     seed_sample_required_role,
     seed_sample_subtype,
-    seed_sample_type,
     seed_sample_turnaround_option,
+    seed_sample_type,
     seed_sample_unit_type,
 )
-from .notes import seed_note, seed_blocking_note
+from .notes import seed_blocking_note, seed_note
 from .project import seed_project
 from .school import seed_school
 from .time_entry import DT_END, DT_START, seed_time_entry
@@ -28,6 +29,8 @@ from .work_auths import (
 )
 
 __all__ = [
+    # contractors
+    "seed_contractor",
     # deliverables
     "seed_deliverable",
     "seed_deliverable_with_trigger",

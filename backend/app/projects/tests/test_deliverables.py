@@ -25,9 +25,7 @@ from app.deliverables.models import (
     ProjectBuildingDeliverable,
     ProjectDeliverable,
 )
-
-from tests.seeds import seed_school, seed_project, seed_deliverable, seed_blocking_note
-
+from tests.seeds import seed_blocking_note, seed_deliverable, seed_project, seed_school
 
 # ---------------------------------------------------------------------------
 # GET /projects/{id}/deliverables

@@ -6,8 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enums import ProjectStatus
-
-from tests.seeds import seed_school, seed_project
+from tests.seeds import seed_project, seed_school
 
 
 class TestGetProjectStatus:
@@ -31,4 +30,5 @@ class TestGetProjectStatus:
         assert body["pending_rfa_count"] == 0
         assert body["outstanding_deliverable_count"] == 0
         assert body["unconfirmed_time_entry_count"] == 0
+        assert body["unfulfilled_requirement_count"] == 0
         assert body["blocking_issues"] == []

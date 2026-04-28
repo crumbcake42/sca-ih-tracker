@@ -12,8 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.work_auths.models import WorkAuth
-
-from tests.seeds import seed_school, seed_project, seed_work_auth
+from tests.seeds import seed_project, seed_school, seed_work_auth
 
 # ---------------------------------------------------------------------------
 # Helpers

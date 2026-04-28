@@ -10,7 +10,6 @@ from app.common.guards import assert_deletable
 from app.database import get_db
 from app.database.base import Base
 
-
 ModelT = TypeVar("ModelT", bound=Base)
 
 

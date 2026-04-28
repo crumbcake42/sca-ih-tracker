@@ -34,24 +34,24 @@ from app.projects.services import (
     recalculate_deliverable_sca_status,
 )
 from app.schools.models import School
-
 from tests.seeds import (
-    seed_employee,
-    seed_school,
-    seed_project,
-    seed_work_auth,
-    seed_wa_code,
-    seed_work_auth_project_code,
-    seed_work_auth_building_code,
-    seed_employee_role,
-    seed_time_entry,
-    seed_sample_type,
-    seed_sample_batch,
+    seed_blocking_note,
+    seed_contractor,
     seed_deliverable,
     seed_deliverable_with_trigger,
-    seed_project_deliverable,
+    seed_employee,
+    seed_employee_role,
+    seed_project,
     seed_project_building_deliverable,
-    seed_blocking_note,
+    seed_project_deliverable,
+    seed_sample_batch,
+    seed_sample_type,
+    seed_school,
+    seed_time_entry,
+    seed_wa_code,
+    seed_work_auth,
+    seed_work_auth_building_code,
+    seed_work_auth_project_code,
 )
 
 # if TYPE_CHECKING:
@@ -212,6 +212,54 @@ class TestGetBlockingNotesForProject:
         result = await get_blocking_notes_for_project(project.id, db_session)
 
         assert result[0].entity_label == f"Time Entry #{entry.id}"
+
+    async def test_returns_cpr_note(self, db_session: AsyncSession):
+        from app.cprs.models import ContractorPaymentRecord
+
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school, project_number="26-666-0011")
+        contractor = await seed_contractor(db_session)
+        cpr = ContractorPaymentRecord(
+            project_id=project.id, contractor_id=contractor.id
+        )
+        db_session.add(cpr)
+        await db_session.flush()
+
+        await seed_blocking_note(
+            db_session,
+            entity_type=NoteEntityType.CONTRACTOR_PAYMENT_RECORD,
+            entity_id=cpr.id,
+        )
+
+        result = await get_blocking_notes_for_project(project.id, db_session)
+
+        assert len(result) == 1
+        assert result[0].entity_type == NoteEntityType.CONTRACTOR_PAYMENT_RECORD
+        assert result[0].entity_id == cpr.id
+        assert result[0].link == f"/contractor-payment-records/{cpr.id}"
+
+    async def test_excludes_other_projects_cpr(self, db_session: AsyncSession):
+        from app.cprs.models import ContractorPaymentRecord
+
+        school = await seed_school(db_session)
+        project_a = await seed_project(db_session, school, project_number="26-666-0012")
+        project_b = await seed_project(db_session, school, project_number="26-666-0013")
+        contractor = await seed_contractor(db_session)
+        cpr_b = ContractorPaymentRecord(
+            project_id=project_b.id, contractor_id=contractor.id
+        )
+        db_session.add(cpr_b)
+        await db_session.flush()
+
+        await seed_blocking_note(
+            db_session,
+            entity_type=NoteEntityType.CONTRACTOR_PAYMENT_RECORD,
+            entity_id=cpr_b.id,
+        )
+
+        result = await get_blocking_notes_for_project(project_a.id, db_session)
+
+        assert result == []
 
 
 # ---------------------------------------------------------------------------
@@ -1002,11 +1050,12 @@ class TestDeriveProjectStatus:
             db_session, project, deliv_b, sca_status=SCADeliverableStatus.APPROVED
         )
 
-        result = await derive_project_status(project.id, db_session)
+        await derive_project_status(project.id, db_session)
+
+        from sqlalchemy import select as _sel
 
         from app.common.enums import TimeEntryStatus
         from app.time_entries.models import TimeEntry as TE
-        from sqlalchemy import select as _sel
 
         te = (
             await db_session.execute(_sel(TE).where(TE.project_id == project.id))
@@ -1034,3 +1083,64 @@ class TestDeriveProjectStatus:
 
         result_after = await derive_project_status(project.id, db_session)
         assert result_after.has_work_auth is True
+
+    async def test_unfulfilled_requirement_count_is_zero_for_empty_project(
+        self, db_session: AsyncSession
+    ):
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school, project_number="26-666-0088")
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.unfulfilled_requirement_count == 0
+
+    async def test_unfulfilled_requirement_count_reflects_cpr(
+        self, db_session: AsyncSession
+    ):
+        from app.cprs.models import ContractorPaymentRecord
+
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school, project_number="26-666-0089")
+        contractor = await seed_contractor(db_session)
+        db_session.add(
+            ContractorPaymentRecord(project_id=project.id, contractor_id=contractor.id)
+        )
+        await db_session.flush()
+        emp = await seed_employee(db_session)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
+        entry.status = TimeEntryStatus.ENTERED
+        await db_session.flush()
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.unfulfilled_requirement_count == 1
+        assert result.status == ProjectStatus.IN_PROGRESS
+
+    async def test_ready_to_close_requires_no_unfulfilled_requirements(
+        self, db_session: AsyncSession
+    ):
+        """READY_TO_CLOSE is blocked when unfulfilled requirements exist, even if deliverable/rfa counts are zero."""
+        from datetime import datetime
+
+        from app.cprs.models import ContractorPaymentRecord
+
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school, project_number="26-666-0090")
+        contractor = await seed_contractor(db_session)
+        db_session.add(
+            ContractorPaymentRecord(project_id=project.id, contractor_id=contractor.id)
+        )
+        await db_session.flush()
+        emp = await seed_employee(db_session)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
+        entry.status = TimeEntryStatus.ENTERED
+        await db_session.flush()
+
+        result = await derive_project_status(project.id, db_session)
+
+        assert result.status == ProjectStatus.IN_PROGRESS
+        assert result.outstanding_deliverable_count == 0
+        assert result.unconfirmed_time_entry_count == 0
+        assert result.unfulfilled_requirement_count == 1

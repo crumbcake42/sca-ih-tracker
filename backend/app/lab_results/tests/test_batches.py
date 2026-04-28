@@ -23,18 +23,17 @@ from app.lab_results.models import (
 from app.projects.models import Project
 from app.schools.models import School
 from app.time_entries.models import TimeEntry
-
 from tests.seeds import (
     seed_employee,
-    seed_school,
-    seed_project,
     seed_employee_role,
-    seed_time_entry,
-    seed_sample_type,
-    seed_sample_subtype,
-    seed_sample_unit_type,
-    seed_sample_turnaround_option,
+    seed_project,
     seed_sample_required_role,
+    seed_sample_subtype,
+    seed_sample_turnaround_option,
+    seed_sample_type,
+    seed_sample_unit_type,
+    seed_school,
+    seed_time_entry,
 )
 
 BASE = "/lab-results/batches"
@@ -135,7 +134,6 @@ class TestCreateBatch:
                 sample_subtype_id=subtype.id,
                 turnaround_option_id=tat.id,
                 notes="Field notes here",
-                is_report=True,
             ),
         )
         assert response.status_code == 201
@@ -143,7 +141,30 @@ class TestCreateBatch:
         assert data["sample_subtype_id"] == subtype.id
         assert data["turnaround_option_id"] == tat.id
         assert data["notes"] == "Field notes here"
-        assert data["is_report"] is True
+
+    async def test_create_materializes_lab_report_requirement(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from sqlalchemy import select
+
+        from app.lab_reports.models import LabReportRequirement
+
+        ctx = await _make_context(db_session, sample_type_name="Lab Report Dispatch")
+
+        response = await auth_client.post(BASE + "/", json=ctx.batch_payload("BATCH-LRR-001"))
+        assert response.status_code == 201
+        batch_id = response.json()["id"]
+
+        rows = (
+            await db_session.execute(
+                select(LabReportRequirement).where(
+                    LabReportRequirement.sample_batch_id == batch_id
+                )
+            )
+        ).scalars().all()
+        assert len(rows) == 1
+        assert rows[0].project_id == ctx.project.id
+        assert rows[0].is_saved is False
 
     async def test_duplicate_batch_num_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
@@ -421,21 +442,6 @@ class TestGetBatch:
 
 
 class TestUpdateBatch:
-    async def test_patch_is_report(
-        self, auth_client: AsyncClient, db_session: AsyncSession
-    ):
-        ctx = await _make_context(db_session, sample_type_name="Patch is_report Type")
-        create = await auth_client.post(
-            BASE + "/", json=ctx.batch_payload("BATCH-P001")
-        )
-        batch_id = create.json()["id"]
-
-        response = await auth_client.patch(
-            f"{BASE}/{batch_id}", json={"is_report": True}
-        )
-        assert response.status_code == 200
-        assert response.json()["is_report"] is True
-
     async def test_patch_date_collected(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
@@ -468,7 +474,7 @@ class TestUpdateBatch:
         assert response.json()["notes"] == "Updated field note"
 
     async def test_patch_missing_returns_404(self, auth_client: AsyncClient):
-        response = await auth_client.patch(f"{BASE}/9999", json={"is_report": True})
+        response = await auth_client.patch(f"{BASE}/9999", json={"notes": "x"})
         assert response.status_code == 404
 
 

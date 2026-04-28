@@ -386,7 +386,7 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 **Data layer** (recorded per job): ✓ COMPLETE (basic CRUD — state model pending)
 
-- [x] `sample_batches` — `id`, `sample_type_id`, `sample_subtype_id` (nullable), `turnaround_option_id` (nullable), `time_entry_id` (FK, currently required — make nullable in next migration), `batch_num`, `is_report`, `date_collected`, `notes`
+- [x] `sample_batches` — `id`, `sample_type_id`, `sample_subtype_id` (nullable), `turnaround_option_id` (nullable), `time_entry_id` (FK, currently required — make nullable in next migration), `batch_num`, `is_report` *(retired in Phase 6.5 Session E2 — see Silo 4)*, `date_collected`, `notes`
 - [x] `sample_batch_units` — `id`, `batch_id` (FK), `sample_unit_type_id` (FK), `quantity` (int), `unit_rate` (Numeric, nullable)
 - [x] `sample_batch_inspectors` — M2M: `batch_id`, `employee_id` (FK)
 - [x] App-layer validation on batch create: unit type must belong to the batch's sample type (422 otherwise); employee must hold a role in `sample_type_required_roles` for the type
@@ -481,64 +481,282 @@ Two-layer design: admin-configurable type definitions (config layer) + per-job r
 
 ---
 
-### Phase 6.5 — Required Documents and Expected/Placeholder Entities
+### Phase 6.5 — `ProjectRequirement` Protocol + Closure-Gating Silos
 
-Required documents at **submission/closure** time (distinct from Phase 2's `deliverables`, which are documents sent out for SCA review). Full design in `.claude/plans/witty-brewing-bentley.md`.
+Four closure-gating silos (`project_document_requirements`, `cprs`, `project_dep_filings`, `lab_report_requirements`) ship as native implementors of a generic `ProjectRequirement` protocol introduced in this phase. The closure-gate aggregator walks one registry instead of four bespoke note sources. (Silo 4 `lab_report_requirements` was added 2026-04-27 to retire the standalone `is_report` boolean on `sample_batches` — see Session E2.)
 
-**Three data silos, distinguished by shape of tracking required:**
+Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.claude/plans/i-want-to-finish-abundant-bunny.md`.
+
+**Why the protocol now (not after the silos ship):** today's closure gate walks four bespoke note sources plus `is_locked`; adding three more silos as standalone tables means three more bespoke walks and three parallel "saved on file? / dismissed? / fulfilled?" patterns. Phase 6.5 is the cheapest moment to introduce the primitive — silos are born native to the protocol instead of being retrofitted later.
+
+**Locked design decisions** (supersede prior Phase 6.5 prose; full reasoning in `PLANNING.md` §6):
+
+1. **Notes module stays orthogonal to requirements.** Notes = "something is wrong"; requirements = "what should be true". Closure aggregator consumes both independently.
+2. **Required documents inside a deliverable are fulfilled-by-parent only** — not separately addressable in closure UI.
+3. **Dismissibility (`dismissal_reason`, `dismissed_by_id`, `dismissed_at`) lives on the requirement base** as a shared mixin.
+4. **Manual-terminal immunity is per-type**, not on the base. Not all requirement types have manual terminals.
+5. **Requirement tables carry `AuditMixin`** (per CLAUDE.md §1.2).
+6. **De-materialization on triggering WA-code removal: conditional.** Persist if the requirement has progressed past initial state (e.g. CPR with `rfa_submitted_at` set, document with `is_saved=True`); auto-remove if pristine. Mirrors `recalculate_deliverable_sca_status` skip-manual-terminals rule.
+7. **Trigger registration is developer-defined throughout.** Both materialization triggers and recalc fan-out are per-type code registrations; admin-managed triggers are over-flexibility.
+8. **No polymorphic parent table.** Each requirement type stays in its own table; the protocol is enforced at the Python layer. Avoids JTI/STI tradeoff per PATTERNS.md §4.
+9. **File upload infrastructure stays deferred.** `is_saved=True` + `file_id IS NULL` remains a valid permanent state. Each silo gets a nullable `file_id` column ready to wire later.
+10. **`wa_code_requirement_triggers` (new admin config) covers the three new silos; existing `deliverable_wa_code_triggers` is unchanged.** Deliverables join the registry via a read-only adapter; Stage 3 (unify trigger tables, fold deliverables natively) is deferred until growth justifies.
+11. **`WACodeRequirementTrigger` model lives in `app/requirement_triggers/`, not `app/wa_codes/`** *(path renamed during Session E0a refactor; was `app/project_requirements/` in Sessions A–D)*. The table is load-bearing for both directions: forward (WA code added → materialize requirements) and reverse (requirement fulfilled → infer which WA code to add). Putting the model in `wa_codes` would create a circular dependency once the reverse flow is implemented. The `wa_codes` module never imports from `requirement_triggers` (or the contract layer).
+12. **Reverse inference flow (deferred — not Session B).** When a requirement of a given type is saved/fulfilled on a project, the system queries `wa_code_requirement_triggers` for WA codes that include that requirement type, then adds the one with the lexicographically smallest `code` to the project (status: `PENDING_WA`). Adding that WA code then fires `WA_CODE_ADDED`, cascading its other triggers. A new `RequirementEvent` value is needed for the triggering condition (e.g. `REQUIRED_DOCUMENT_SAVED`). The handler lives in `project_requirements` and calls into `work_auths` for the WA code addition — an accepted cross-domain call at the service layer.
+
+**Architecture (post-E0 refactor — see Session E0a/E0b below):**
+
+- `app/common/requirements/` — contract layer: `ProjectRequirement` protocol, `DismissibleMixin`, `ManualTerminalMixin`, `RequirementTypeRegistry`, `dispatch_requirement_event`, `get_unfulfilled_requirements_for_project()`, `UnfulfilledRequirement` schema. No imports from any concrete silo.
+- `app/requirement_triggers/` — admin config: `WACodeRequirementTrigger` model + schemas + `/requirement-triggers` CRUD router + `hash_template_params` helper. The only consumer of the `wa_code_requirement_triggers` table.
+- `app/<silo>/` (`required_docs`, `cprs`, `dep_filings`) — native protocol implementors. Each silo's `__init__.py` does a side-effect import of its `service` to register its handler in the registry.
+- `app/deliverables/requirement_adapter.py` — read-only adapter for existing `ProjectDeliverable` / `ProjectBuildingDeliverable` rows; registered via `app/deliverables/__init__.py` side-effect import.
+- New `wa_code_requirement_triggers` admin config table (extends today's `deliverable_wa_code_triggers` pattern; replaces the earlier `wa_code_expected_entities` proposal).
+- `get_unfulfilled_requirements_for_project()` walks the registry; existing `get_blocking_notes_for_project()` (Phase 3.6) stays untouched and is consumed alongside.
+
+**Router pattern (post-E0b-refactor):** URL namespace owns the code. Routes under `/projects/...` live in `app/projects/router/`. Routes under `/<silo>/...` live in `app/<silo>/router.py`. `app/projects/router/__init__.py` imports only from within `app/projects/router/`.
+- Project-scoped ops (`GET /projects/{id}/<resource>`, `POST /projects/{id}/<resource>`) → `app/projects/router/<resource>.py`, router with `prefix="/{project_id}/<resource>"`
+- Item-scoped ops (`PATCH/<DELETE>/dismiss on `/<resource>/{id}`) → `app/<silo>/router.py` with `prefix="/<resource>"`
+
+`main.py` includes only the item routers (and `projects_router`); project-scoped ops are reached transitively through `projects_router`. Child modules may import models/schemas/service from their own module into `app/projects/router/<resource>.py` — only the router definition moves.
+
+**Silo behaviour:**
 
 **Silo 1 — `project_document_requirements`** (generic on/off checklist)
-- Covers DAILY_LOG, REOCCUPANCY_LETTER, MINOR_LETTER
-- Columns: `project_id`, `document_type` (enum), `is_required`, `is_saved`, nullable `employee_id` / `date` / `school_id` / `file_id`, `dismissal_reason` / `dismissed_by_id` / `dismissed_at`, `is_placeholder`, `expected_role_type` (enum, nullable), `notes` + AuditMixin
-- Daily log auto-create: on time entry insert, if the employee's role type has `requires_daily_log=True`, ensure a row exists for (project, employee, date)
-- Re-occupancy / minor letters are manual POST — the system never derives count
+- Covers `DAILY_LOG`, `REOCCUPANCY_LETTER`, `MINOR_LETTER`
+- Columns: `project_id`, `document_type` (enum), `is_required`, `is_saved`, nullable `employee_id` / `date` / `school_id` / `file_id`, `is_placeholder`, `expected_role_type` (enum, nullable), `notes` + dismissal fields (from `DismissibleMixin`) + `AuditMixin`
+- `compute_is_fulfilled() -> is_saved`
+- Materialization: `TIME_ENTRY_CREATED` event auto-creates `DAILY_LOG` row when employee role's `requires_daily_log=True`; manual POST for re-occupancy / minor letters
+- `try_match()` matches an actual document upload by `(project_id, document_type, employee_id, date, school_id)` tuple equality
 
-**Silo 2 — `contractor_payment_records`** (CPR with RFA+RFP sub-flow)
-- One row per (project, contractor). Auto-created on contractor link to a project (`is_required=true` by default; manager can dismiss)
-- Columns: `project_id`, `contractor_id`, `is_required`, RFA dates/statuses (`rfa_submitted_at`, `rfa_internal_status`+`rfa_internal_resolved_at`, `rfa_sca_status`+`rfa_sca_resolved_at`), RFP dates/statuses through saving (`rfp_submitted_at`, `rfp_internal_status`+`rfp_internal_resolved_at`, `rfp_saved_at`), dismissal audit fields, `notes` + AuditMixin
-- **`rfp_saved_at IS NOT NULL` is the closure gate.** SCA's post-save RFP review has no bearing on closure and is intentionally not tracked here
-- **History via system notes, not a history table.** When the manager re-submits an RFA/RFP after prior dates were recorded, the service writes a `create_system_note()` capturing the prior dates before clearing them. Stage regressions (approved → rejected) likewise get auto-notes. Dashboard queries like "CPRs with multiple RFA rounds" become note-text filters
+**Silo 2 — `cprs`** (CPR with RFA+RFP sub-flow)
+- One row per `(project, contractor)`. Columns: `project_id`, `contractor_id`, `is_required`, RFA dates/statuses (`rfa_submitted_at`, `rfa_internal_status`+`rfa_internal_resolved_at`, `rfa_sca_status`+`rfa_sca_resolved_at`), RFP dates/statuses through saving (`rfp_submitted_at`, `rfp_internal_status`+`rfp_internal_resolved_at`, `rfp_saved_at`), nullable `file_id`, `notes` + dismissal fields + `AuditMixin`
+- Uses `ManualTerminalMixin` for the four sub-states; `compute_is_fulfilled() -> rfp_saved_at IS NOT NULL`. SCA's post-save RFP review intentionally not tracked
+- Materialization: `CONTRACTOR_LINKED` event auto-creates one row per `(project, contractor)` with `is_required=True`
+- De-materialization on contractor unlink: persist if `rfa_submitted_at IS NOT NULL`; auto-remove if pristine (Decision #6)
+- **History via system notes, not a history table.** Re-submitting an RFA/RFP after prior dates were recorded calls `create_system_note()` (Phase 3.6) capturing the prior dates before clearing them. Stage regressions (approved → rejected) likewise get auto-notes
 
 **Silo 3 — `dep_filing_forms` + `project_dep_filings`**
 - Admin-managed `dep_filing_forms` (code, label, `is_default_selected`, `display_order`) — adding a new form requires no migration
-- `project_dep_filings` — one row per (project, form) with `is_saved`, `saved_at`, nullable `file_id`; unique on (project_id, dep_filing_form_id)
-- Manager UX: "project has DEP filings" button → form list with common ones pre-checked → POST `{form_ids: [...]}` creates rows
-- Closure gate: any `is_saved=false` row blocks close
+- `project_dep_filings` — one row per `(project, form)` with `is_saved`, `saved_at`, nullable `file_id`, dismissal fields, `AuditMixin`; unique on `(project_id, dep_filing_form_id)`
+- `compute_is_fulfilled() -> is_saved`
+- Materialization: manager UX flow ("project has DEP filings" button → form list with common ones pre-checked → POST `{form_ids: [...]}`); no WA-code-driven auto-create
 
-**Cross-cutting — expected/placeholder entities and project templates:**
+**Silo 4 — `lab_report_requirements`** (one row per `SampleBatch`; retires the `is_report` boolean)
+- Lives in new module `app/lab_reports/` (mirrors `cprs/` and `dep_filings/` placement; not inside `lab_results/`)
+- Columns: `id`, `project_id`, `sample_batch_id` (FK, unique-among-non-dismissed), `is_saved`, nullable `file_id`, `notes`, dismissal fields (from `DismissibleMixin`), `AuditMixin`. No `is_required` column from day one (per E0d outcome)
+- `compute_is_fulfilled() -> is_saved`
+- Materialization: `BATCH_CREATED` event (already declared in `app/common/enums.py`) auto-creates one row per batch whose `time_entry_id` resolves to a project. Hardcoded — every batch triggers a row; no per-sample-type config table. Easy to evolve to configurable later by gating the handler on a config lookup
+- Idempotent: skips if a non-dismissed `LabReportRequirement` already exists for the same `sample_batch_id`
+- Dispatch sites: `app/lab_results/router/batches.py` (POST `/batches/`) and `app/lab_results/service.py` (`quick_add_batch`); mirror existing `TIME_ENTRY_CREATED` dispatch placement
+- The `is_report` column on `sample_batches` is dropped in the same session (no backfill — no production data to preserve)
 
-- Every derived-entity table carries `is_placeholder: bool` and allows nullable identity columns (employee_id, date, etc.) when `is_placeholder=True`
-- `time_entries.status` gains a fourth value `EXPECTED` (nullable employee/dates; does not participate in overlap checks) on top of the Phase 4 migration
-- `wa_code_expected_entities` config table (extends the existing `deliverable_wa_code_triggers` pattern): maps WA codes to the entities they imply — expected time entries by role type, expected daily logs, expected DEP filing packages, etc.
-- Service `derive_expected_entities_for_project(project_id)` runs on WA code add (idempotent via `(project_id, source_wa_code_id, derived_entity_type, expected_role_type)` dedupe key) and creates placeholder rows in the appropriate silos
-- **Dismissibility** (generalizes the Phase 4 "dismissible requirements" idea): every required thing can be satisfied (real data promotes the placeholder) OR dismissed (manager sets `is_required=false` via a dedicated endpoint that requires `dismissal_reason`). Closure aggregator only counts `is_required=True AND not_satisfied`
-- **Project templates** (`project_templates` + `project_template_wa_codes`): a named bundle of WA codes. Apply-to-project = copy the WA codes onto the project, then run `derive_expected_entities_for_project()`. This is a convenience layer on top of `wa_code_expected_entities` and is deferred to its own follow-up phase — the code-level derivation works without it
+**Cross-cutting:**
 
-**Role-type schema addition:** add `requires_daily_log: bool` to role type config. Air techs and project monitors get True; asbestos investigators get False. Admin-toggleable.
+- `time_entries.status` gains a fourth value `EXPECTED` (nullable employee/dates; does not participate in overlap checks) — implementation pending in this phase
+- Role-type schema: add `requires_daily_log: bool` to role type config. Air techs and project monitors get True; asbestos investigators get False. Admin-toggleable.
 
-**⚠️ Placeholder→actual matching layer (service logic that promotes a placeholder when a matching real entity is created) is DESIGN NOT FINALIZED.** Must be revisited in a dedicated session before any implementation.
+**Sessions** (each scoped for context focus; resume from `HANDOFF.md`):
 
-**In-scope for Phase 6.5 tasks:**
+- [x] **Session A — Protocol primitive & deliverable adapter** (Stage 1; no migrations) ✓ COMPLETE
+  - `app/project_requirements/protocol.py` — `ProjectRequirement` protocol (runtime-checkable), `DismissibleMixin`, `ManualTerminalMixin`
+  - `app/project_requirements/registry.py` — `RequirementTypeRegistry`, `register_requirement_type` decorator; `RequirementEvent` in `app/common/enums.py`
+  - `app/project_requirements/aggregator.py` — `get_unfulfilled_requirements_for_project()`
+  - `app/project_requirements/adapters/deliverables.py` — `DeliverableRequirementAdapter`, `BuildingDeliverableRequirementAdapter` (read-only; no schema change)
+  - `app/project_requirements/tests/` — 29 tests: protocol contract, registry, mixin smoke, aggregator per-row predicate (parametrized × 6 statuses × 2 levels), equivalence gate
+  - `app/project_requirements/README.md`
+  - **Gate passed:** 29 new + 532 existing tests green; `get_unfulfilled_requirements_for_project()` count == `derive_project_status().outstanding_deliverable_count` on mixed-status fixture.
 
-- [ ] `app/required_docs/` module — models (`ProjectDocumentRequirement`, `ContractorPaymentRecord`, `DepFilingForm`, `ProjectDepFiling`), schemas, CRUD routers, service, tests, README
-- [ ] Add `DocumentType`, `CPRStageStatus` enums to `app/common/enums.py`
-- [ ] Add `requires_daily_log: bool` to the role type model and admin CRUD
-- [ ] `app/time_entries/models.py` — add `EXPECTED` to `TimeEntryStatus`; make employee/datetimes nullable in service-layer validation when status=expected
-- [ ] `app/wa_codes/` — `wa_code_expected_entities` config table + admin CRUD + seed rules (monitoring codes → expected air tech / project monitor entries)
-- [ ] `app/projects/service.py` — `derive_expected_entities_for_project(project_id)`, idempotent; called on WA code add
-- [ ] Hook into project creation / contractor link → auto-create CPR rows
-- [ ] Hook into time entry create → auto-create DAILY_LOG requirement if role requires it
-- [ ] Dedicated dismissal endpoint per silo (requires `dismissal_reason`)
-- [ ] Extend Phase 6's `get_blocking_notes_for_project()` to include outstanding items from all three silos
-- [ ] Consider adding a "system notes as history substitute" entry to `app/PATTERNS.md` if the pattern recurs
+- [x] **Session B — `wa_code_requirement_triggers` admin config + dispatch entry point** ✓ COMPLETE
+  - `wa_code_requirement_triggers` table (`wa_code_id`, `requirement_type_name`, `template_params` JSON, `AuditMixin`); unique on `(wa_code_id, requirement_type_name, template_params_hash)`; model in `app/project_requirements/models.py` (Decision #11)
+  - Admin CRUD at `/requirement-triggers/` (flat collection; `wa_code_id` in POST body, query param on GET); validation against the registry (rejects unknown `requirement_type_name`)
+  - `app/project_requirements/services.py` — `dispatch_requirement_event(project_id, event, payload, db)` — looks up registered handlers, calls each; forward dispatch only (reverse inference deferred — Decision #12)
+  - `app/project_requirements/registry.py` extended — `register_requirement_type(name, events=[...])` declares per-handler event subscriptions; `handlers_for_event(event)` queries them
+  - User-managed migration for the new table
 
-**Deferred out of Phase 6.5:**
+- [x] **Session C — Silo 1: `project_document_requirements`** ✓ COMPLETE
+  - `app/required_docs/` module (models, schemas, service, router, tests, README)
+  - `DocumentType` enum added to `app/common/enums.py` (`DAILY_LOG`, `REOCCUPANCY_LETTER`, `MINOR_LETTER`)
+  - `ROLES_REQUIRING_DAILY_LOG` silo-owned mapping in `service.py` (no admin CRUD — pure code)
+  - Materializers: `TIME_ENTRY_CREATED`, `WA_CODE_ADDED`, `WA_CODE_REMOVED` (Decision #6 conditional delete)
+  - Partial unique index prevents duplicate active rows; dismissed rows allow re-materialization
+  - `ProjectDocumentHandler` in `service.py` registered in requirement registry (separate from ORM model to avoid circular import)
+  - Dispatch wired in `app/time_entries/router.py` and `app/lab_results/service.py`
+  - 50 new tests (643 total, all passing)
+  - User-managed migration (pending)
 
-- File upload infrastructure (a polymorphic `files` table referenced via nullable `file_id` on every silo). `is_saved=true, file_id=null` remains a valid permanent state ("on file outside the system")
-- Project templates proper (`project_templates`, `project_template_wa_codes`) and the apply-template UX
+- [x] **Session D — Silo 2: `cprs`**
+  - Model + schema + router + service for CPR; `ManualTerminalMixin` applied
+  - Add `CPRStageStatus` enum to `app/common/enums.py`
+  - Materialization on `CONTRACTOR_LINKED`; de-materialization on contractor unlink (Decision #6)
+  - History note integration via `create_system_note()` on RFA/RFP re-submission
+  - Per-silo dismissal endpoint
+  - User-managed migration
+
+---
+
+**Pre-Session-E refactor stack (E0a → E0b → E0b-refactor → E0c → E0d).** Two reviews on 2026-04-27 produced this stack. The first review (path-finalization) surfaced module-layering and router-pattern problems in the post-Session-D state. The second (architecture evaluation, plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`) surfaced four protocol/schema cleanup items and gutted the speculative Phase 6.7 framework. E0b landed the correct mounting point but kept project-scoped routes inside child modules (wrong); E0b-refactor corrects that by moving them into `app/projects/router/`. All sub-sessions complete with a green test suite before Session E lands silo 3. New memory entries: `feedback_module_organization.md`, `feedback_lateral_vs_hierarchical.md`. Migrations only in E0d (drop `is_required` columns).
+
+- [x] **Session E0a — Module split refactor (Refactor 1)**
+  - Create `app/common/requirements/` with `protocol.py`, `registry.py`, `dispatcher.py` (renamed from `services.py`), `aggregator.py`, `schemas.py` (UnfulfilledRequirement only), README.md
+  - Create `app/requirement_triggers/` (renamed from `app/project_requirements/`) with `models.py`, `schemas.py` (WACodeRequirementTrigger* only), `services.py` (hash_template_params only), `router.py`, README.md
+  - Move `app/project_requirements/adapters/deliverables.py` → `app/deliverables/requirement_adapter.py`; `app/deliverables/__init__.py` gains side-effect import
+  - Move test files: contract tests (protocol, dispatch, aggregator) → `app/common/requirements/tests/`; trigger tests (models, router, hash) → `app/requirement_triggers/tests/`; adapter tests → `app/deliverables/tests/`
+  - Update all imports across `app/main.py`, `app/cprs/{service,models}.py`, `app/required_docs/{service,models}.py`, `app/lab_results/service.py`, `app/time_entries/router.py`, `app/projects/services.py`, `app/wa_codes/router/__init__.py`
+  - Delete `app/project_requirements/` directory entirely
+  - Verify: zero matches for `app.project_requirements` in repo; full test suite green (currently 693 tests)
+  - User-managed migration: NONE (pure code reorganization)
+
+- [x] **Session E0b — Router pattern refactor (Refactor 2)** ✓ COMPLETE (partial — see E0b-refactor)
+  - Moved under-project sub-routers out of `main.py`; mounted via `app/projects/router/__init__.py`. URLs unchanged; 693 tests passing.
+  - **Pattern error:** project-scoped routes left inside child modules (`app/cprs/router.py`, `app/required_docs/router.py`) rather than colocated in `app/projects/router/`. Corrected in E0b-refactor.
+
+- [ ] **Session E0b-refactor — Router pattern correction (move project-scoped routes into projects module)**
+  - `app/projects/router/cprs.py` (new) — `router = APIRouter(prefix="/{project_id}/cprs", tags=["CPRs"])`; receives the two routes moved from `cpr_under_project_router`
+  - `app/projects/router/required_docs.py` (new) — `router = APIRouter(prefix="/{project_id}/document-requirements", tags=["document-requirements"])`; receives the two routes moved from `doc_under_project_router`
+  - `app/cprs/router.py` — remove `cpr_under_project_router`; item-only router remains
+  - `app/required_docs/router.py` — remove `doc_under_project_router`; item-only router remains
+  - `app/projects/router/__init__.py` — drop external imports; add local imports from `./cprs` and `./required_docs`
+  - `app/PATTERNS.md` — #17 already corrected (2026-04-27 session)
+  - Add note to `app/cprs/README.md` and `app/required_docs/README.md`: project-scoped list/create endpoints live in `app/projects/router/`
+  - Verify: URLs unchanged (OpenAPI diff is zero); full test suite green
+  - User-managed migration: NONE
+
+- [ ] **Session E0c — Protocol & schema hygiene (pure code, no migration)**
+  - **Drop `requirement_key`** from `ProjectRequirement` protocol, from `UnfulfilledRequirement` schema, and from the deliverable + building-deliverable adapters. Rationale: no FE consumer parses it; per-silo endpoints navigate by silo PK, not opaque key. Keep `label` + `requirement_type` only. Re-add later if a concrete FE consumer needs it.
+  - **Remove duplicate `@computed_field`** for `label` and `is_fulfilled` from silo Read schemas (`ContractorPaymentRecordRead`, `ProjectDocumentRequirementRead`). Rely on `from_attributes=True` to surface the model property — one source of truth. Confirms the in-flight HANDOFF Session-D follow-up about `ContractorPaymentRecordRead.label` missing the contractor name.
+  - **Add `validate_template_params(params: dict) -> None`** as a classmethod on the handler protocol. Trigger POST router calls it before persisting; bad config (e.g. `{"document_type": "DAILT_LOG"}`) returns 422 at config time instead of silently producing a no-op trigger. Each silo declares its own validator (`ProjectDocumentHandler` validates `document_type` against `DocumentType` enum; CPR handler validates emptiness; deliverable adapter has no template params). Reject triggers whose handler does not subscribe to `WA_CODE_ADDED`.
+  - **Registry coverage test** in `app/common/requirements/tests/test_registry_coverage.py`: assert every silo whose model declares a `requirement_type` ClassVar appears in `registry.all_handlers()`. Catches "added a silo, forgot to register" failure mode. Walks `Base.registry` for models with the marker.
+  - Verify: full test suite green; OpenAPI diff strips `requirement_key` from `UnfulfilledRequirementRead` (FE handoff note required — see below).
+  - User-managed migration: NONE.
+
+- [ ] **Session E0d — Drop `is_required` columns**
+  - Remove `is_required` Mapped column from `ContractorPaymentRecord` (`app/cprs/models.py`) and `ProjectDocumentRequirement` (`app/required_docs/models.py`). All materialization paths set this to `True`; no path sets `False`; closure queries already filter on it but never see `False`. The column is silent dead weight.
+  - Remove `is_required` from Read/Update schemas in both silos.
+  - Remove `is_required.is_(True)` predicate from `get_unfulfilled_for_project` queries in both handlers.
+  - When Session E builds `dep_filings`, do **not** include `is_required` from day one.
+  - User-managed migration: drop `is_required` from `contractor_payment_records` and `project_document_requirements` tables.
+  - Verify: full test suite green; OpenAPI diff strips `is_required` from both Read schemas (FE handoff note).
+
+---
+
+- [x] **Session E — Silo 3: `dep_filings`** (single module, lands on E0a–E0d paths) ✓ COMPLETE 2026-04-27
+  - `app/dep_filings/` module containing `DEPFilingForm` (admin config) + `ProjectDEPFiling` (instance) — single module mirrors `lab_results/` precedent
+  - Admin form CRUD endpoints under `/dep-filings/forms` (use `create_readonly_router` + `create_guarded_delete_router` factories)
+  - Item router in `app/dep_filings/router.py` (`prefix="/dep-filings"`) for item ops + admin form CRUD; mounted in `main.py`
+  - Project-scoped ops (`GET /{project_id}/dep-filings`, `POST /{project_id}/dep-filings`) in `app/projects/router/dep_filings.py` (`prefix="/{project_id}/dep-filings"`); mounted in `app/projects/router/__init__.py`
+  - Manager UX endpoint: POST `/{project_id}/dep-filings` `{form_ids: [...]}` materializes rows
+  - Per-silo dismissal endpoint on item router
+  - **No `is_required` column** (per E0d outcome); `ProjectDEPFiling` does not have it from day one
+  - User-managed migration
+
+- [ ] **Session E2 — Silo 4: `lab_reports`** (retires `sample_batches.is_report`; planned 2026-04-27, plan ref: `../.claude/plans/i-want-to-revisit-refactored-valley.md`)
+  - **Depends on E0d only** (uses no-`is_required` shape from day one). Independent of Session E — may land before, after, or alongside it
+  - Create `app/lab_reports/` module: `models.py` (`LabReportRequirement`), `service.py` (`LabReportHandler` + `materialize_for_batch_created`), `schemas.py`, `router.py`, `tests/`, `README.md`
+  - `LabReportRequirement` keys on `sample_batch_id` (FK, partial-unique among non-dismissed) — mirrors the partial-unique pattern at `app/required_docs/models.py:51`. Class-level `requirement_type = "lab_report"`, `is_dismissable = True`. `is_fulfilled() -> is_saved`. `label` derives from the loaded `sample_batch.batch_num`
+  - Register handler with `RequirementEvent.BATCH_CREATED` (the event is already declared in `app/common/enums.py:149`; no new event)
+  - Wire dispatch in two places (mirror `TIME_ENTRY_CREATED` placement at `app/time_entries/router.py:98` and `app/lab_results/service.py:253`):
+    - `app/lab_results/router/batches.py` POST `/batches/` after the batch is added and `time_entry_id` resolves to a `project_id`
+    - `app/lab_results/service.py` `quick_add_batch` in the same transactional region as the existing `TIME_ENTRY_CREATED` dispatch
+  - Item router in `app/lab_reports/router.py` (`prefix="/lab-reports"`) for item ops: PATCH `/save`, POST `/dismiss`, POST `/undismiss`; mounted in `main.py`
+  - Project-scoped op (`GET /{project_id}/lab-reports`) in `app/projects/router/lab_reports.py` (`prefix="/{project_id}/lab-reports"`); mounted in `app/projects/router/__init__.py`
+  - Drop `is_report` from `SampleBatch` model + Read/Create/Update/QuickAdd schemas + tests at `app/lab_results/tests/test_batches.py:124,424` (which become "POST creates a `LabReportRequirement` row")
+  - **No backfill** — no production data to preserve. Existing batches do not retroactively get requirement rows
+  - Aggregator integration: `get_unfulfilled_requirements_for_project` picks up the new handler automatically (no aggregator changes); add a coverage test asserting unsaved rows surface
+  - User-managed migration: drop `is_report` from `sample_batches`; create `lab_report_requirements` table
+  - Verify: `.venv/Scripts/python.exe -m pytest app/lab_reports/tests app/lab_results/tests app/required_docs/tests app/project_requirements/tests -v`; OpenAPI diff drops `is_report` from SampleBatch schemas and adds new `LabReportRequirement*` schemas (FE handoff note required)
+
+- [x] **Session F — Closure-gate integration + project status surface** ✓ 2026-04-27
+  - Extend `lock_project_records()` (`app/projects/services.py`) to refuse close on any unfulfilled non-dismissed requirement, in addition to the existing blocking-notes check
+  - Extend `derive_project_status()` and `ProjectStatusRead` (`app/projects/schemas.py`) — added `unfulfilled_requirement_count`
+  - New `GET /projects/{id}/requirements` endpoint (`app/projects/router/requirements.py`) returns `list[UnfulfilledRequirement]`
+  - Also fixed carry-over: CPR-attached blocking notes now surface in `get_blocking_notes_for_project`
+  - Final sweep: 817 passing
+
+**Deferred out of Phase 6.5 (Stages 3 + 4 and beyond):**
+
+- Migrating `project_deliverables` / `project_building_deliverables` natively into the registry — adapter only for now (Stage 3)
+- Admin self-serve config for new requirement *types* (Stage 4)
+- File upload infrastructure (polymorphic `files` table, upload endpoints, storage backend) — `file_id` columns are added as nullable per silo
+- Project templates proper (`project_templates`, `project_template_wa_codes`)
 - Full placeholder sample batches (Phase 4's `time_entry_id=null` + dismiss already covers the lived case)
-- Zipped project-package export (one folder per silo)
-- Reminder/nudge logic ("CPR stuck at internal review N days") — trivial to layer on once dates exist
+
+---
+
+### Phase 6.7 — Peer Dependency Navigation (two-layer rule, no framework)
+
+**Superseded earlier plan.** The 2026-04-27 architecture evaluation
+(plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`,
+detailed comparison: `PLANNING-peer-navigation.md`) replaced the
+peer-route factory + `/requirement-sets/...` introspection layer with
+a simpler rule. The rationale: most "peer" relationships are singular
+FKs that collapse to embedded Read-schema fields; the genuine
+many-to-many lateral edges in the field-work cluster turn out to be
+3–4, not 12; and the introspection layer was developer documentation
+masquerading as an HTTP surface.
+
+**The two-layer rule** (also documented in `app/PATTERNS.md` once
+written):
+
+1. **Singular peers** → embed in the parent's Read schema via
+   `selectin` eager-load. No new endpoint. The FE renders hyperlinks
+   from the embedded IDs / labels in one round-trip. Example:
+   `SampleBatchRead.time_entry: TimeEntryMini | None`.
+2. **Genuine many-to-many lateral peers** → one bespoke endpoint per
+   edge, with a **descriptive name** (not a generic `<peer>`
+   pluralization). Example:
+   `GET /lab-results/{batch_id}/matching-daily-logs` returns daily
+   log requirements that share the batch's `(project, employee, date,
+   school)` tuple. Shape it to the consumer's actual need (filters +
+   pagination where cardinality warrants).
+3. **Developer/admin debugging** → one `GET /admin/registry-dump`
+   endpoint returning flat registry contents (registered requirement
+   types, their handler classes, their event subscriptions). No
+   per-set framework, no dynamic Pydantic models.
+4. **Hierarchical relationships** stay on FK + cascade + guarded-delete
+   factory, naturally nested URL (e.g. `work_auth →
+   work_auth_project_code`). See `feedback_lateral_vs_hierarchical.md`.
+
+**Constraints carried forward from the prior framework design** (these
+still apply to every hand-rolled lateral endpoint, and would still
+apply if the factory is ever extracted):
+
+1. Project scoping is enforced inside each query — look up the
+   parent, extract its `project_id`, filter peers.
+2. Each lateral endpoint returns the **project-scoped form**
+   (`WorkAuthProjectCode`, not `WACode`).
+3. Lateral query lives in the parent's module router file (or
+   colocated `peer_queries.py` if it grows). Reciprocal model imports
+   are read-only and not circular.
+4. The endpoint attaches to the parent's item router alongside other
+   item-scoped operations.
+
+**Per-cluster work** (one session per edge, per
+`feedback_session_segmentation.md` — only when a concrete FE consumer
+asks for it):
+
+- Field-work cluster identified edges (3–4):
+  - `GET /time-entries/{id}/batches` (paginated, status filter)
+  - `GET /lab-results/{id}/matching-daily-logs`
+  - `GET /lab-results/{id}/triggering-wa-codes`
+  - Possibly `GET /required-documents/{id}/related-batches` if the
+    daily-log → batch direction has a use case
+- Future clusters as identified
+
+**Factory extraction trigger:** revisit only if 8+ lateral edges with
+genuinely uniform shape land. The frozen constraints above carry
+forward; extraction at that point is a refactor, not a redesign.
+
+**Excluded from this phase (was in earlier plan, dropped):**
+
+- `app/common/peer_routes.py` factory + `register_peer_query`
+  decorator — defer until 8+ uniform edges exist.
+- `app/requirement_sets/` module + `/requirement-sets/...` admin
+  introspection endpoints — replaced by `GET /admin/registry-dump`.
+- `register_requirement_set()` API and dynamically constructed
+  per-set Pydantic response models.
+- Cluster-level closure rollup. The existing aggregator
+  (`get_unfulfilled_requirements_for_project`) already gives one
+  unfulfilled list per project, which is what closure gates need.
 
 ---
 

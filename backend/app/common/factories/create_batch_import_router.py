@@ -16,7 +16,6 @@ from app.database import get_db
 from app.database.base import Base
 from app.users.dependencies import get_current_user
 
-
 ModelT = TypeVar("ModelT", bound=Base)
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 

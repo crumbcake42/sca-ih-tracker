@@ -15,7 +15,6 @@ from app.common.config import SYSTEM_USER_ID
 from app.common.enums import NoteEntityType, NoteType
 from app.notes.models import Note
 from app.notes.service import auto_resolve_system_notes, create_system_note
-
 from tests.seeds import seed_note
 
 # ---------------------------------------------------------------------------

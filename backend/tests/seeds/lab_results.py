@@ -50,7 +50,6 @@ async def seed_sample_batch(
         sample_type_id=sample_type.id,
         time_entry_id=time_entry.id,
         batch_num=batch_num or f"BATCH-{n:04d}",
-        is_report=False,
         date_collected=date(2025, 6, 1),
         status=status,
         created_by_id=SYSTEM_USER_ID,

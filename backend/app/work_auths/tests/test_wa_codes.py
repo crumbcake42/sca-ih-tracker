@@ -18,9 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.enums import WACodeLevel, WACodeStatus
 from app.wa_codes.models import WACode
 from app.work_auths.models import WorkAuthBuildingCode, WorkAuthProjectCode
-
-from tests.seeds import seed_school, seed_project, seed_work_auth, seed_wa_code
-
+from tests.seeds import seed_project, seed_school, seed_wa_code, seed_work_auth
 
 # ---------------------------------------------------------------------------
 # POST /work-auths/{id}/project-codes
