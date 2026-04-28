@@ -258,6 +258,26 @@ export type Boro = 'BROOKLYN' | 'MANHATTAN' | 'BRONX' | 'QUEENS' | 'STATEN ISLAN
 export type CprStageStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
 
 /**
+ * CloseProjectConflictDetail
+ *
+ * 409 detail shape for POST /projects/{project_id}/close.
+ *
+ * Exactly one of the two lists is populated per response — never both.
+ * Blocking notes are checked first; if any exist, unfulfilled requirements
+ * aren't checked (see app/projects/services.py:549-563).
+ */
+export type CloseProjectConflictDetail = {
+    /**
+     * Blocking Issues
+     */
+    blocking_issues?: Array<BlockingIssue> | null;
+    /**
+     * Unfulfilled Requirements
+     */
+    unfulfilled_requirements?: Array<UnfulfilledRequirement> | null;
+};
+
+/**
  * Contractor
  */
 export type Contractor = {
@@ -646,6 +666,36 @@ export type DeliverableConnections = {
      * Deliverable Wa Code Triggers
      */
     deliverable_wa_code_triggers: number;
+};
+
+/**
+ * DeliverableCreate
+ */
+export type DeliverableCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    level: WaCodeLevel;
+};
+
+/**
+ * DeliverableUpdate
+ */
+export type DeliverableUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    level?: WaCodeLevel | null;
 };
 
 /**
@@ -2101,6 +2151,42 @@ export type RfaResolve = {
 export type RfaStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
 
 /**
+ * RequirementEvent
+ *
+ * Events that can trigger requirement materialization or recalculation.
+ * Defined in Session A; first dispatch wiring is Session B.
+ */
+export type RequirementEvent = 'wa_code_added' | 'wa_code_removed' | 'rfa_resolved' | 'time_entry_created' | 'batch_created' | 'contractor_linked' | 'contractor_unlinked';
+
+/**
+ * RequirementTypeInfo
+ */
+export type RequirementTypeInfo = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Events
+     */
+    events: Array<RequirementEvent>;
+    /**
+     * Template Params Schema
+     */
+    template_params_schema: {
+        [key: string]: unknown;
+    };
+    /**
+     * Is Dismissable
+     */
+    is_dismissable: boolean;
+    /**
+     * Display Name
+     */
+    display_name?: string | null;
+};
+
+/**
  * RoleSchema
  */
 export type RoleSchema = {
@@ -2888,7 +2974,7 @@ export type WaCodeRequirementTriggerCreate = {
     /**
      * Requirement Type Name
      */
-    requirement_type_name: string;
+    requirement_type_name: 'project_document' | 'contractor_payment_record' | 'lab_report' | 'project_dep_filing' | 'deliverable' | 'building_deliverable';
     /**
      * Template Params
      */
@@ -4191,35 +4277,30 @@ export type ListEntriesDeliverablesGetResponses = {
 
 export type ListEntriesDeliverablesGetResponse = ListEntriesDeliverablesGetResponses[keyof ListEntriesDeliverablesGetResponses];
 
-export type WrapperDeliverablesDeliverableIdConnectionsGetData = {
-    body?: never;
-    path: {
-        /**
-         * Deliverable Id
-         */
-        deliverable_id: number;
-    };
+export type CreateDeliverableDeliverablesPostData = {
+    body: DeliverableCreate;
+    path?: never;
     query?: never;
-    url: '/deliverables/{deliverable_id}/connections';
+    url: '/deliverables/';
 };
 
-export type WrapperDeliverablesDeliverableIdConnectionsGetErrors = {
+export type CreateDeliverableDeliverablesPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type WrapperDeliverablesDeliverableIdConnectionsGetError = WrapperDeliverablesDeliverableIdConnectionsGetErrors[keyof WrapperDeliverablesDeliverableIdConnectionsGetErrors];
+export type CreateDeliverableDeliverablesPostError = CreateDeliverableDeliverablesPostErrors[keyof CreateDeliverableDeliverablesPostErrors];
 
-export type WrapperDeliverablesDeliverableIdConnectionsGetResponses = {
+export type CreateDeliverableDeliverablesPostResponses = {
     /**
      * Successful Response
      */
-    200: DeliverableConnections;
+    201: Deliverable;
 };
 
-export type WrapperDeliverablesDeliverableIdConnectionsGetResponse = WrapperDeliverablesDeliverableIdConnectionsGetResponses[keyof WrapperDeliverablesDeliverableIdConnectionsGetResponses];
+export type CreateDeliverableDeliverablesPostResponse = CreateDeliverableDeliverablesPostResponses[keyof CreateDeliverableDeliverablesPostResponses];
 
 export type WrapperDeliverablesDeliverableIdDeleteData = {
     body?: never;
@@ -4250,6 +4331,66 @@ export type WrapperDeliverablesDeliverableIdDeleteResponses = {
 };
 
 export type WrapperDeliverablesDeliverableIdDeleteResponse = WrapperDeliverablesDeliverableIdDeleteResponses[keyof WrapperDeliverablesDeliverableIdDeleteResponses];
+
+export type UpdateDeliverableDeliverablesDeliverableIdPatchData = {
+    body: DeliverableUpdate;
+    path: {
+        /**
+         * Deliverable Id
+         */
+        deliverable_id: number;
+    };
+    query?: never;
+    url: '/deliverables/{deliverable_id}';
+};
+
+export type UpdateDeliverableDeliverablesDeliverableIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateDeliverableDeliverablesDeliverableIdPatchError = UpdateDeliverableDeliverablesDeliverableIdPatchErrors[keyof UpdateDeliverableDeliverablesDeliverableIdPatchErrors];
+
+export type UpdateDeliverableDeliverablesDeliverableIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: Deliverable;
+};
+
+export type UpdateDeliverableDeliverablesDeliverableIdPatchResponse = UpdateDeliverableDeliverablesDeliverableIdPatchResponses[keyof UpdateDeliverableDeliverablesDeliverableIdPatchResponses];
+
+export type WrapperDeliverablesDeliverableIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Deliverable Id
+         */
+        deliverable_id: number;
+    };
+    query?: never;
+    url: '/deliverables/{deliverable_id}/connections';
+};
+
+export type WrapperDeliverablesDeliverableIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type WrapperDeliverablesDeliverableIdConnectionsGetError = WrapperDeliverablesDeliverableIdConnectionsGetErrors[keyof WrapperDeliverablesDeliverableIdConnectionsGetErrors];
+
+export type WrapperDeliverablesDeliverableIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: DeliverableConnections;
+};
+
+export type WrapperDeliverablesDeliverableIdConnectionsGetResponse = WrapperDeliverablesDeliverableIdConnectionsGetResponses[keyof WrapperDeliverablesDeliverableIdConnectionsGetResponses];
 
 export type ImportBatchDeliverablesBatchImportPostData = {
     body: BodyImportBatchDeliverablesBatchImportPost;
@@ -5127,6 +5268,10 @@ export type CloseProjectProjectsProjectIdClosePostData = {
 };
 
 export type CloseProjectProjectsProjectIdClosePostErrors = {
+    /**
+     * Project cannot be closed — either blocking notes or unfulfilled requirements exist, or the project is already locked.
+     */
+    409: CloseProjectConflictDetail;
     /**
      * Validation Error
      */
@@ -6355,6 +6500,24 @@ export type DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponses 
 
 export type DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponse = DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponses[keyof DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponses];
 
+export type ListRequirementTypesRequirementTypesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/requirement-types';
+};
+
+export type ListRequirementTypesRequirementTypesGetResponses = {
+    /**
+     * Response List Requirement Types Requirement Types Get
+     *
+     * Successful Response
+     */
+    200: Array<RequirementTypeInfo>;
+};
+
+export type ListRequirementTypesRequirementTypesGetResponse = ListRequirementTypesRequirementTypesGetResponses[keyof ListRequirementTypesRequirementTypesGetResponses];
+
 export type DeleteDocumentRequirementDocumentRequirementsReqIdDeleteData = {
     body?: never;
     path: {
@@ -6445,6 +6608,36 @@ export type DismissDocumentRequirementDocumentRequirementsReqIdDismissPostRespon
 
 export type DismissDocumentRequirementDocumentRequirementsReqIdDismissPostResponse = DismissDocumentRequirementDocumentRequirementsReqIdDismissPostResponses[keyof DismissDocumentRequirementDocumentRequirementsReqIdDismissPostResponses];
 
+export type UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostData = {
+    body?: never;
+    path: {
+        /**
+         * Req Id
+         */
+        req_id: number;
+    };
+    query?: never;
+    url: '/document-requirements/{req_id}/undismiss';
+};
+
+export type UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostError = UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostErrors[keyof UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostErrors];
+
+export type UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectDocumentRequirementRead;
+};
+
+export type UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostResponse = UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostResponses[keyof UndismissDocumentRequirementDocumentRequirementsReqIdUndismissPostResponses];
+
 export type DeleteContractorPaymentRecordCprsCprIdDeleteData = {
     body?: never;
     path: {
@@ -6534,6 +6727,36 @@ export type DismissContractorPaymentRecordCprsCprIdDismissPostResponses = {
 };
 
 export type DismissContractorPaymentRecordCprsCprIdDismissPostResponse = DismissContractorPaymentRecordCprsCprIdDismissPostResponses[keyof DismissContractorPaymentRecordCprsCprIdDismissPostResponses];
+
+export type UndismissContractorPaymentRecordCprsCprIdUndismissPostData = {
+    body?: never;
+    path: {
+        /**
+         * Cpr Id
+         */
+        cpr_id: number;
+    };
+    query?: never;
+    url: '/cprs/{cpr_id}/undismiss';
+};
+
+export type UndismissContractorPaymentRecordCprsCprIdUndismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UndismissContractorPaymentRecordCprsCprIdUndismissPostError = UndismissContractorPaymentRecordCprsCprIdUndismissPostErrors[keyof UndismissContractorPaymentRecordCprsCprIdUndismissPostErrors];
+
+export type UndismissContractorPaymentRecordCprsCprIdUndismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ContractorPaymentRecordRead;
+};
+
+export type UndismissContractorPaymentRecordCprsCprIdUndismissPostResponse = UndismissContractorPaymentRecordCprsCprIdUndismissPostResponses[keyof UndismissContractorPaymentRecordCprsCprIdUndismissPostResponses];
 
 export type ListEntriesDepFilingsFormsGetData = {
     body?: never;
@@ -6807,6 +7030,36 @@ export type DismissDepFilingDepFilingsFilingIdDismissPostResponses = {
 };
 
 export type DismissDepFilingDepFilingsFilingIdDismissPostResponse = DismissDepFilingDepFilingsFilingIdDismissPostResponses[keyof DismissDepFilingDepFilingsFilingIdDismissPostResponses];
+
+export type UndismissDepFilingDepFilingsFilingIdUndismissPostData = {
+    body?: never;
+    path: {
+        /**
+         * Filing Id
+         */
+        filing_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/{filing_id}/undismiss';
+};
+
+export type UndismissDepFilingDepFilingsFilingIdUndismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UndismissDepFilingDepFilingsFilingIdUndismissPostError = UndismissDepFilingDepFilingsFilingIdUndismissPostErrors[keyof UndismissDepFilingDepFilingsFilingIdUndismissPostErrors];
+
+export type UndismissDepFilingDepFilingsFilingIdUndismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectDepFilingRead;
+};
+
+export type UndismissDepFilingDepFilingsFilingIdUndismissPostResponse = UndismissDepFilingDepFilingsFilingIdUndismissPostResponses[keyof UndismissDepFilingDepFilingsFilingIdUndismissPostResponses];
 
 export type SaveLabReportLabReportsReqIdSavePatchData = {
     body: LabReportRequirementUpdate;
@@ -7110,93 +7363,6 @@ export type ImportBatchWaCodesBatchImportPostResponses = {
 };
 
 export type ImportBatchWaCodesBatchImportPostResponse = ImportBatchWaCodesBatchImportPostResponses[keyof ImportBatchWaCodesBatchImportPostResponses];
-
-export type ListRequirementTriggersWaCodesRequirementTriggersGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Wa Code Id
-         */
-        wa_code_id?: number | null;
-    };
-    url: '/wa-codes/requirement-triggers';
-};
-
-export type ListRequirementTriggersWaCodesRequirementTriggersGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListRequirementTriggersWaCodesRequirementTriggersGetError = ListRequirementTriggersWaCodesRequirementTriggersGetErrors[keyof ListRequirementTriggersWaCodesRequirementTriggersGetErrors];
-
-export type ListRequirementTriggersWaCodesRequirementTriggersGetResponses = {
-    /**
-     * Response List Requirement Triggers Wa Codes Requirement Triggers Get
-     *
-     * Successful Response
-     */
-    200: Array<WaCodeRequirementTriggerRead>;
-};
-
-export type ListRequirementTriggersWaCodesRequirementTriggersGetResponse = ListRequirementTriggersWaCodesRequirementTriggersGetResponses[keyof ListRequirementTriggersWaCodesRequirementTriggersGetResponses];
-
-export type CreateRequirementTriggerWaCodesRequirementTriggersPostData = {
-    body: WaCodeRequirementTriggerCreate;
-    path?: never;
-    query?: never;
-    url: '/wa-codes/requirement-triggers';
-};
-
-export type CreateRequirementTriggerWaCodesRequirementTriggersPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CreateRequirementTriggerWaCodesRequirementTriggersPostError = CreateRequirementTriggerWaCodesRequirementTriggersPostErrors[keyof CreateRequirementTriggerWaCodesRequirementTriggersPostErrors];
-
-export type CreateRequirementTriggerWaCodesRequirementTriggersPostResponses = {
-    /**
-     * Successful Response
-     */
-    201: WaCodeRequirementTriggerRead;
-};
-
-export type CreateRequirementTriggerWaCodesRequirementTriggersPostResponse = CreateRequirementTriggerWaCodesRequirementTriggersPostResponses[keyof CreateRequirementTriggerWaCodesRequirementTriggersPostResponses];
-
-export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Trigger Id
-         */
-        trigger_id: number;
-    };
-    query?: never;
-    url: '/wa-codes/requirement-triggers/{trigger_id}';
-};
-
-export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteError = DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteErrors[keyof DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteErrors];
-
-export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    204: void;
-};
-
-export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponse = DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponses[keyof DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponses];
 
 export type ListEntriesWorkAuthsGetData = {
     body?: never;
