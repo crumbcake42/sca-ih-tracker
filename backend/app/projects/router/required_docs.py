@@ -61,7 +61,6 @@ async def create_document_requirement(
     req = ProjectDocumentRequirement(
         project_id=project_id,
         document_type=body.document_type,
-        is_required=True,
         is_saved=False,
         is_placeholder=body.is_placeholder,
         employee_id=body.employee_id,

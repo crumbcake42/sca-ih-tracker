@@ -22,7 +22,6 @@ async def _seed_req(db: AsyncSession, project_id: int, **overrides) -> ProjectDo
     defaults = dict(
         project_id=project_id,
         document_type=DocumentType.REOCCUPANCY_LETTER,
-        is_required=True,
         is_saved=False,
         is_placeholder=False,
     )

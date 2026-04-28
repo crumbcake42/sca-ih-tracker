@@ -238,7 +238,6 @@ class TestCleanupForWaCodeRemoved:
         row = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.REOCCUPANCY_LETTER,
-            is_required=True,
             is_saved=False,
             wa_code_trigger_id=trigger.id,
         )
@@ -260,7 +259,6 @@ class TestCleanupForWaCodeRemoved:
         row = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.REOCCUPANCY_LETTER,
-            is_required=True,
             is_saved=True,
             wa_code_trigger_id=trigger.id,
         )
@@ -282,7 +280,6 @@ class TestCleanupForWaCodeRemoved:
         row = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.REOCCUPANCY_LETTER,
-            is_required=True,
             is_saved=False,
             wa_code_trigger_id=trigger.id,
             dismissed_at=datetime(2025, 12, 1),
@@ -305,7 +302,6 @@ class TestCleanupForWaCodeRemoved:
         row = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.MINOR_LETTER,
-            is_required=True,
             is_saved=False,
             wa_code_trigger_id=trigger.id,
             file_id=99,

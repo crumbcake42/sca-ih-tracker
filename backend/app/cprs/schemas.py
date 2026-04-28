@@ -16,7 +16,6 @@ class ContractorPaymentRecordCreate(BaseModel):
 class ContractorPaymentRecordUpdate(BaseModel):
     """All fields optional; primary use is advancing RFA/RFP stage dates and statuses."""
 
-    is_required: bool | None = None
     rfa_submitted_at: datetime | None = None
     rfa_internal_status: CPRStageStatus | None = None
     rfa_internal_resolved_at: datetime | None = None
@@ -47,7 +46,6 @@ class ContractorPaymentRecordRead(BaseModel):
     id: int
     project_id: int
     contractor_id: int
-    is_required: bool
     # RFA sub-flow
     rfa_submitted_at: datetime | None
     rfa_internal_status: CPRStageStatus | None

@@ -26,7 +26,6 @@ class TestProjectDocumentRequirementModel:
         req = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.DAILY_LOG,
-            is_required=True,
             is_saved=False,
         )
         db_session.add(req)
@@ -44,7 +43,6 @@ class TestProjectDocumentRequirementModel:
         req = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.MINOR_LETTER,
-            is_required=True,
             is_saved=False,
         )
         db_session.add(req)
@@ -59,7 +57,6 @@ class TestProjectDocumentRequirementModel:
         req = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.REOCCUPANCY_LETTER,
-            is_required=True,
             is_saved=False,
         )
         db_session.add(req)
@@ -81,7 +78,6 @@ class TestProjectDocumentRequirementModel:
         r1 = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.DAILY_LOG,
-            is_required=True,
             is_saved=False,
             employee_id=employee.id,
             date=entry_date,
@@ -93,7 +89,6 @@ class TestProjectDocumentRequirementModel:
         r2 = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.DAILY_LOG,
-            is_required=True,
             is_saved=False,
             employee_id=employee.id,
             date=entry_date,
@@ -116,7 +111,6 @@ class TestProjectDocumentRequirementModel:
         r1 = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.DAILY_LOG,
-            is_required=True,
             is_saved=False,
             employee_id=employee.id,
             date=entry_date,
@@ -129,7 +123,6 @@ class TestProjectDocumentRequirementModel:
         r2 = ProjectDocumentRequirement(
             project_id=project.id,
             document_type=DocumentType.DAILY_LOG,
-            is_required=True,
             is_saved=False,
             employee_id=employee.id,
             date=entry_date,

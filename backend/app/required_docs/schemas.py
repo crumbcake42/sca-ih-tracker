@@ -46,7 +46,6 @@ class ProjectDocumentRequirementRead(BaseModel):
     id: int
     project_id: int
     document_type: DocumentType
-    is_required: bool
     is_saved: bool
     is_placeholder: bool
     employee_id: int | None

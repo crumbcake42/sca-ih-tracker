@@ -28,7 +28,6 @@ class TestAggregatorSilo2:
             ContractorPaymentRecord(
                 project_id=project.id,
                 contractor_id=contractor.id,
-                is_required=True,
             )
         )
         await db_session.flush()
@@ -45,7 +44,6 @@ class TestAggregatorSilo2:
             ContractorPaymentRecord(
                 project_id=project.id,
                 contractor_id=contractor.id,
-                is_required=True,
                 rfp_saved_at=datetime(2025, 12, 1),
             )
         )
@@ -63,7 +61,6 @@ class TestAggregatorSilo2:
             ContractorPaymentRecord(
                 project_id=project.id,
                 contractor_id=contractor.id,
-                is_required=True,
                 dismissed_at=datetime(2025, 12, 1),
                 dismissal_reason="Not needed",
             )
@@ -82,7 +79,6 @@ class TestAggregatorSilo2:
             ContractorPaymentRecord(
                 project_id=project.id,
                 contractor_id=contractor.id,
-                is_required=True,
             )
         )
         await db_session.flush()

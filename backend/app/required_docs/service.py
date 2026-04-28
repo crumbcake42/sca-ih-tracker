@@ -62,7 +62,6 @@ async def materialize_for_time_entry(
                 ProjectDocumentRequirement(
                     project_id=project_id,
                     document_type=doc_type,
-                    is_required=True,
                     is_saved=False,
                     is_placeholder=False,
                     employee_id=entry.employee_id,
@@ -116,7 +115,6 @@ async def materialize_for_wa_code_added(
                 ProjectDocumentRequirement(
                     project_id=project_id,
                     document_type=doc_type,
-                    is_required=True,
                     is_saved=False,
                     is_placeholder=False,
                     wa_code_trigger_id=trigger.id,
@@ -215,7 +213,6 @@ class ProjectDocumentHandler:
                 await db.execute(
                     select(ProjectDocumentRequirement).where(
                         ProjectDocumentRequirement.project_id == project_id,
-                        ProjectDocumentRequirement.is_required.is_(True),
                         ProjectDocumentRequirement.is_saved.is_(False),
                         ProjectDocumentRequirement.dismissed_at.is_(None),
                     )

@@ -27,7 +27,6 @@ class TestContractorPaymentRecordModel:
         record = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
         )
         db_session.add(record)
         await db_session.flush()
@@ -36,7 +35,6 @@ class TestContractorPaymentRecordModel:
         assert fetched is not None
         assert fetched.project_id == project.id
         assert fetched.contractor_id == contractor.id
-        assert fetched.is_required is True
         assert fetched.rfp_saved_at is None
         assert fetched.dismissed_at is None
 
@@ -47,7 +45,6 @@ class TestContractorPaymentRecordModel:
         record = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
         )
         db_session.add(record)
         await db_session.flush()
@@ -63,7 +60,6 @@ class TestContractorPaymentRecordModel:
         record = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
         )
         db_session.add(record)
         await db_session.flush()
@@ -82,7 +78,6 @@ class TestContractorPaymentRecordModel:
         r1 = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
         )
         db_session.add(r1)
         await db_session.flush()
@@ -90,7 +85,6 @@ class TestContractorPaymentRecordModel:
         r2 = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
         )
         db_session.add(r2)
         with pytest.raises(IntegrityError):
@@ -105,7 +99,6 @@ class TestContractorPaymentRecordModel:
         r1 = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
             dismissed_at=datetime(2025, 12, 1),
         )
         db_session.add(r1)
@@ -114,7 +107,6 @@ class TestContractorPaymentRecordModel:
         r2 = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
         )
         db_session.add(r2)
         await db_session.flush()  # should not raise

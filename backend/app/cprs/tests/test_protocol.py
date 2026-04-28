@@ -19,7 +19,6 @@ def _make_record(**overrides) -> ContractorPaymentRecord:
     defaults = dict(
         project_id=1,
         contractor_id=10,
-        is_required=True,
     )
     defaults.update(overrides)
     return ContractorPaymentRecord(**defaults)

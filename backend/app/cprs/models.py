@@ -27,8 +27,6 @@ class ContractorPaymentRecord(Base, AuditMixin, DismissibleMixin, ManualTerminal
     contractor_id: Mapped[int] = mapped_column(
         ForeignKey("contractors.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    is_required: Mapped[bool] = mapped_column(default=True, nullable=False)
-
     # RFA sub-flow
     rfa_submitted_at: Mapped[datetime | None] = mapped_column(nullable=True)
     rfa_internal_status: Mapped[CPRStageStatus | None] = mapped_column(

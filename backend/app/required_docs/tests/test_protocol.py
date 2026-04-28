@@ -21,7 +21,6 @@ def _make_req(**overrides) -> ProjectDocumentRequirement:
     defaults = dict(
         project_id=1,
         document_type=DocumentType.DAILY_LOG,
-        is_required=True,
         is_saved=False,
         is_placeholder=False,
         employee_id=10,

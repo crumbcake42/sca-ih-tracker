@@ -66,7 +66,6 @@ async def create_contractor_payment_record(
     record = ContractorPaymentRecord(
         project_id=project_id,
         contractor_id=body.contractor_id,
-        is_required=True,
         notes=body.notes,
         created_by_id=current_user.id,
         updated_by_id=current_user.id,

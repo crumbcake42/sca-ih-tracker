@@ -45,7 +45,6 @@ class TestMaterializeForContractorLinked:
             )
         ).scalars().all()
         assert len(rows) == 1
-        assert rows[0].is_required is True
         assert rows[0].rfp_saved_at is None
         assert rows[0].dismissed_at is None
         assert rows[0].created_by_id == SYSTEM_USER_ID
@@ -100,7 +99,6 @@ class TestCleanupForContractorUnlinked:
         row = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
         )
         db_session.add(row)
         await db_session.flush()
@@ -118,7 +116,6 @@ class TestCleanupForContractorUnlinked:
         row = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
             rfa_submitted_at=datetime(2025, 11, 15),
         )
         db_session.add(row)
@@ -137,7 +134,6 @@ class TestCleanupForContractorUnlinked:
         row = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
             dismissed_at=datetime(2025, 12, 1),
             dismissal_reason="Not applicable",
         )
@@ -157,7 +153,6 @@ class TestCleanupForContractorUnlinked:
         row = ContractorPaymentRecord(
             project_id=project.id,
             contractor_id=contractor.id,
-            is_required=True,
             file_id=42,
         )
         db_session.add(row)

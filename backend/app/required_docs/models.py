@@ -24,7 +24,6 @@ class ProjectDocumentRequirement(Base, AuditMixin, DismissibleMixin):
     document_type: Mapped[DocumentType] = mapped_column(
         SQLEnum(DocumentType), nullable=False, index=True
     )
-    is_required: Mapped[bool] = mapped_column(default=True, nullable=False)
     is_saved: Mapped[bool] = mapped_column(default=False, nullable=False)
     is_placeholder: Mapped[bool] = mapped_column(default=False, nullable=False)
     employee_id: Mapped[int | None] = mapped_column(

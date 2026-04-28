@@ -32,7 +32,6 @@ async def materialize_for_contractor_linked(
             ContractorPaymentRecord(
                 project_id=project_id,
                 contractor_id=contractor_id,
-                is_required=True,
                 created_by_id=SYSTEM_USER_ID,
                 updated_by_id=SYSTEM_USER_ID,
             )
@@ -165,7 +164,6 @@ class ContractorPaymentRecordHandler:
                 await db.execute(
                     select(ContractorPaymentRecord).where(
                         ContractorPaymentRecord.project_id == project_id,
-                        ContractorPaymentRecord.is_required.is_(True),
                         ContractorPaymentRecord.rfp_saved_at.is_(None),
                         ContractorPaymentRecord.dismissed_at.is_(None),
                     )

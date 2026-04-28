@@ -25,7 +25,6 @@ async def _seed_req(db, project_id, **overrides):
     defaults = dict(
         project_id=project_id,
         document_type=DocumentType.REOCCUPANCY_LETTER,
-        is_required=True,
         is_saved=False,
     )
     defaults.update(overrides)

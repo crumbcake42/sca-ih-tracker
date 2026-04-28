@@ -24,7 +24,6 @@ async def _seed_cpr(db: AsyncSession, project_id: int, contractor_id: int, **ove
     defaults = dict(
         project_id=project_id,
         contractor_id=contractor_id,
-        is_required=True,
     )
     defaults.update(overrides)
     record = ContractorPaymentRecord(**defaults)
