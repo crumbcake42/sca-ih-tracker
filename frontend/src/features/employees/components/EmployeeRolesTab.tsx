@@ -68,7 +68,7 @@ function DeleteRoleDialog({ role, onClose, employeeId }: DeleteDialogProps) {
           <p className="text-sm text-muted-foreground">
             Delete{" "}
             <span className="font-medium text-foreground">
-              {role.role_type.name}
+              {role.role_type}
             </span>{" "}
             starting {role.start_date}? This cannot be undone.
           </p>
@@ -143,7 +143,7 @@ export function EmployeeRolesTab({ employeeId }: Props) {
               <TableBody>
                 {roles.map((role) => (
                   <TableRow key={role.id}>
-                    <TableCell>{role.role_type.name}</TableCell>
+                    <TableCell>{role.role_type}</TableCell>
                     <TableCell>{role.start_date}</TableCell>
                     <TableCell>{role.end_date ?? "—"}</TableCell>
                     <TableCell>${role.hourly_rate}</TableCell>

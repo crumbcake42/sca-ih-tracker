@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "@/test/queryClient";
 import { EmployeeRoleFormDialog } from "./EmployeeRoleFormDialog";
 import type { EmployeeRole } from "@/api/generated/types.gen";
+import { EMPLOYEE_ROLE_TYPES } from "@/features/employees/api/employeeRoleTypes";
 
 // Hoist mocks so they are available inside vi.mock factories.
 const { mockCreate, mockUpdate, mockToastError } = vi.hoisted(() => ({
@@ -19,13 +20,6 @@ vi.mock("@/features/employees/api/employees", () => ({
   listEmployeeRolesQueryKey: () => ["employee-roles"],
 }));
 
-vi.mock("@/features/employee-role-types/api/employeeRoleTypes", () => ({
-  listEmployeeRoleTypesOptions: () => ({
-    queryKey: ["role-types"],
-    queryFn: async () => [{ id: 5, name: "Mold Field Technician" }],
-  }),
-}));
-
 vi.mock("sonner", () => ({
   toast: { error: mockToastError, success: vi.fn() },
 }));
@@ -33,8 +27,7 @@ vi.mock("sonner", () => ({
 const SAMPLE_ROLE: EmployeeRole = {
   id: 42,
   employee_id: 1,
-  role_type_id: 5,
-  role_type: { id: 5, name: "Mold Field Technician" },
+  role_type: EMPLOYEE_ROLE_TYPES.MoldFieldTech,
   start_date: "2024-01-01",
   end_date: null,
   hourly_rate: "35.00",
@@ -80,11 +73,10 @@ describe("EmployeeRoleFormDialog", () => {
     // blocking all clicks even though elements inside the dialog are auto.
     const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-    // Wait for role types to load, then select one
     const trigger = await screen.findByRole("combobox", { name: /role type/i });
     await user.click(trigger);
     const option = await screen.findByRole("option", {
-      name: "Mold Field Technician",
+      name: EMPLOYEE_ROLE_TYPES.MoldFieldTech,
     });
     await user.click(option);
 

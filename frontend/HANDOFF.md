@@ -1,5 +1,28 @@
 # Session Handoff — Frontend
 
+## 2026-04-28 — Fix: employee role type enum drift
+
+**Done:**
+
+- Deleted entire `features/employee-role-types/` tree (API barrel, `EmployeeRoleTypeFormDialog`, `EmployeeRoleTypeDetail`, both tests) — dead code after backend reverted `EmployeeRoleType` to `StrEnum`.
+- Deleted `pages/admin/employee-role-types/` (list, detail, loader) and both file routes. Removed "Employee Role Types" entry from `nav-items.ts` and the admin dashboard card in `admin/index.tsx`. Route tree regenerated.
+- Created `features/employees/api/employeeRoleTypes.ts` — `EMPLOYEE_ROLE_TYPES` object typed `as const satisfies Record<string, EmployeeRoleType>`, anchored to the generated literal union so TypeScript errors on backend drift.
+- `EmployeeRoleFormDialog` — replaced `listEmployeeRoleTypesOptions()` query + `role_type_id` with static `EMPLOYEE_ROLE_TYPES` select. Schema field: `role_type: z.string()`. Submit body passes `role_type` (enum string) instead of `role_type_id` (number). Removed `useQuery` import.
+- `EmployeeRolesTab` — updated `role.role_type.name` → `role.role_type` (string directly on `EmployeeRole`).
+- `EmployeeRoleFormDialog.test.tsx` — updated to match new shape.
+
+**Next:** Sign-out redirect fix (see bug note below), then continue with scoped FE sessions.
+
+**Blockers:** none.
+
+---
+
+## Bug note — sign-out does not redirect to /login
+
+Sign-out clears auth state but does not navigate to `/login`. User must manually refresh or navigate. The 401 interceptor in `src/auth/store.ts` already does `window.location.href = "/login"` on token expiry — the sign-out handler needs the same (or a `router.navigate({ to: "/login" })` call). Quick fix: find the sign-out mutation/handler (likely in `AdminTopBar.tsx` or `AppShell.tsx`) and add `window.location.href = "/login"` after `clearAuth()`.
+
+---
+
 ## 2026-04-28 — Session 2.4a: close-flow dual-detail 409 + project detail surface
 
 **Done:**
