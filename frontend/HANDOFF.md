@@ -1,5 +1,130 @@
 # Session Handoff — Frontend
 
+## Backend Phase 6.6 complete — drift items resolved (2026-04-28)
+
+All five backend gaps surfaced in the Session F regen audit are now shipped and the regen has landed (commit `5dc2ff4`). The inline `RESOLVED` markers in the drift section below have the per-item detail; this entry is the consolidated FE pickup view.
+
+**What shipped on backend (Phase 6.6 Sessions A + B + C):**
+
+- `POST /projects/{project_id}/close` now declares `responses={409: {"model": CloseProjectConflictDetail}}`. New schema `CloseProjectConflictDetail = { blocking_issues?: BlockingIssue[]; unfulfilled_requirements?: UnfulfilledRequirement[] }`. Exactly one key is populated per response (blocking notes checked first); FE narrows on key presence, not a discriminator.
+- `POST /deliverables/` (201) and `PATCH /deliverables/{id}` (200) implemented. Catalog `Deliverable` has **only** `name`, `description`, `level`. `internal_status`/`sca_status` live on `ProjectDeliverable`/`ProjectBuildingDeliverable`, not the catalog. `level` is immutable after creation (PATCH returns 422 if changed). Duplicate `name` returns 422 (codebase pattern). Both require `PROJECT_EDIT`.
+- `POST /cprs/{id}/undismiss`, `POST /document-requirements/{id}/undismiss`, `POST /dep-filings/{id}/undismiss` added with the same 404/422/409 guards as `POST /lab-reports/{id}/undismiss`. The 409 fires when a live row already holds the same partial-unique key tuple. Lab-reports undismiss received the same collision pre-check (parity fix).
+- `WaCodeRequirementTriggerCreate.requirement_type_name` is now typed as a Literal of the six registered handler names (`"project_document" | "contractor_payment_record" | "lab_report" | "project_dep_filing" | "deliverable" | "building_deliverable"`). The generated SDK type is no longer `string`.
+- New `GET /requirement-types` → `list[RequirementTypeInfo]` with `name`, `events` (list of `RequirementEvent`), `template_params_schema` (JSON Schema dict — non-empty only for `project_document`, which expects `{ document_type: DocumentType }`), `is_dismissable`, `display_name` (always `null` today). FE can render the requirement-trigger create form dynamically off this.
+- The `/wa-codes/requirement-triggers` re-mount is gone. Canonical path is `/requirement-triggers` only. The duplicate SDK function `createRequirementTriggerWaCodesRequirementTriggersPost` should be absent after regen.
+
+**What to confirm in the regenerated client (`frontend/src/api/generated/`):**
+
+1. `CloseProjectConflictDetail` is present and both keys are typed and optional. The close-flow handler can narrow on key presence (no discriminator).
+2. `DeliverableCreate` and `DeliverableUpdate` exist and carry **exactly** `name`, `description`, `level` — not `internal_status`/`sca_status`. SDK functions for `POST /deliverables/` and `PATCH /deliverables/{id}` are present.
+3. SDK functions exist for undismiss on all four silos (`cprs`, `document-requirements`, `dep-filings`, `lab-reports`).
+4. `WaCodeRequirementTriggerCreate.requirement_type_name` is a string-literal union, not bare `string`.
+5. New SDK function for `GET /requirement-types` exists; `RequirementTypeInfo` schema present with the five fields above.
+6. The duplicate `createRequirementTriggerWaCodesRequirementTriggersPost` is gone (search the generated SDK to be sure).
+
+**What's now unblocked on FE:**
+
+- Session 2.3e (Deliverables admin CRUD) — three-field form, `level` disabled on edit, 422 mapped to a duplicate-name field error.
+- Close-flow dual-detail 409 handler + `unfulfilled_requirement_count` badge on `ProjectStatusRead`.
+- Four new silo UIs (DEP filings, lab reports, document requirements, CPRs) with symmetric dismiss/undismiss.
+- Dynamic requirement-trigger create form off `GET /requirement-types` + the Literal-narrowed `requirement_type_name` field.
+
+**FE-side cleanup still owed (unchanged from prior audit):** items 6–10 in the drift section below — stale `frontend/CLAUDE.md` notes-entity-type count (4 → 5), `NoteType.cpr_stage_regression` switch branches, deliverables blocker description rewrite, ROADMAP re-sequence, removable `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx`.
+
+---
+
+## 2026-04-28 — Coordinator queued: Deliverables admin CRUD (Session 2.3e)
+
+**Scope:** Build the Deliverables admin slice mirroring 2.3a–d. In: list page, create dialog, edit dialog, sidebar entry, API wrappers off the new `POST /deliverables/` and `PATCH /deliverables/{id}`. Out: `ProjectDeliverable` / `ProjectBuildingDeliverable` per-project rows (different surface).
+
+**Files likely to touch:**
+- `frontend/src/features/deliverables/api/` (new wrappers)
+- `frontend/src/features/deliverables/components/`
+- `frontend/src/pages/admin/deliverables.tsx` (or current admin page convention)
+- `frontend/src/routes/admin/deliverables.tsx`
+- Sidebar / admin dashboard entry
+
+**Gotchas / non-obvious:**
+- Catalog `Deliverable` has **only** `name`, `description`, `level`. No `internal_status`/`sca_status` on the catalog (those live on `ProjectDeliverable`/`ProjectBuildingDeliverable`).
+- `level` is immutable after creation — disable the field on edit; PATCH returns 422 if you try to change it.
+- Duplicate `name` returns 422 — map to a `name` field-level error, not a generic toast (codebase pattern).
+- Both endpoints require `PROJECT_EDIT`.
+
+**Acceptance:** Admin can create, edit, list, and delete catalog deliverables from the admin dashboard; duplicate-name shows inline; `level` cannot be edited.
+
+**Branch:** `fe/feature/deliverables-admin` (not yet created — branch when picked up). **Delegation:** dedicated session (`tracker-fe`). **Commit header:** `Session 2.3e: Deliverables admin CRUD`.
+
+---
+
+## 2026-04-28 — Coordinator queued: Close-flow dual-detail 409 + unfulfilled-requirement badge
+
+**Scope:** Update the project close dialog to handle both 409 detail shapes (`blocking_issues[]` and `unfulfilled_requirements[]`) inline with deep links. Add `unfulfilled_requirement_count` to the project status badge surface. Out: building the four silo UIs the unfulfilled-requirements list links into (separate scope).
+
+**Files likely to touch:**
+- `frontend/src/features/projects/close/` (close dialog)
+- `frontend/src/features/projects/status/` (status badge)
+- API wrappers if a `getProjectRequirementsOptions` helper is missing
+
+**Gotchas / non-obvious:**
+- `CloseProjectConflictDetail` has both keys optional; **exactly one** is populated per response (blocking notes checked first). Narrow on key presence — there is no discriminator.
+- Per `frontend/CLAUDE.md` §6, render the payload **inline** in the dialog with deep links, not a generic toast.
+- `UnfulfilledRequirement.is_dismissable` controls whether a "dismiss" affordance shows; `is_dismissed` controls list filtering downstream.
+- Until the silo UIs land, deep links from `unfulfilled_requirements[]` may target screens that don't exist yet — coordinate routing or fall back to the project page.
+
+**Acceptance:** Close dialog renders both 409 shapes with deep links; badge displays `unfulfilled_requirement_count` from `ProjectStatusRead`; the count and dialog stay in sync after dismiss/undismiss.
+
+**Branch:** `fe/feature/close-flow-409-dual-detail` (not yet created). **Delegation:** dedicated session (`tracker-fe`). **Commit header:** `Session 2.4a: close-flow dual-detail 409 + unfulfilled-req badge` *(session number provisional — confirm during ROADMAP re-sequence)*.
+
+---
+
+## 2026-04-28 — Coordinator queued: Dynamic requirement-trigger create form
+
+**Scope:** Replace any free-text `requirement_type_name` input with a select sourced from `GET /requirement-types`, and conditionally render a `template_params` form derived from each type's `template_params_schema`. In: create form, list integration, validation. Out: edit/delete of triggers (existing surface).
+
+**Files likely to touch:**
+- `frontend/src/features/requirement-triggers/api/` (new `listRequirementTypesOptions` wrapper)
+- `frontend/src/features/requirement-triggers/components/` (create form)
+- Possibly a small `src/lib/json-schema-form.ts` helper if no equivalent exists yet
+
+**Gotchas / non-obvious:**
+- `template_params_schema` is **non-empty only for `project_document`** (expects `{ document_type: DocumentType }` with `extra="forbid"`). For the other five handlers it's `{}` — render no params input.
+- `requirement_type_name` is now a generated Literal union, not `string`. Use the generated type as the source of truth — do not hand-roll the list of names.
+- `display_name` is `null` for every handler today; fall back to `name` until handlers start setting it.
+- `is_dismissable` should drive whether the trigger row offers a dismiss affordance downstream — outside this session's scope but worth noting.
+
+**Acceptance:** Create form lists all six handler names from `GET /requirement-types`; selecting `project_document` shows a `document_type` select; selecting any other type shows no params input; submission posts valid `template_params` (either `{}` or `{ document_type }`); form rejects unknown keys before submit.
+
+**Branch:** `fe/feature/requirement-trigger-form` (not yet created). **Delegation:** dedicated session (`tracker-fe`). **Commit header:** `Session 2.4b: dynamic requirement-trigger create form` *(session number provisional)*.
+
+---
+
+## 2026-04-28 — Coordinator queued: Post-regen cleanup pass
+
+**Scope:** Knock out the FE-side drift items 6–10 from the Session F regen audit. In: doc fixes, switch-case extension, cast removal, ROADMAP re-sequence proposal. Out: any code generation or new feature work.
+
+**Files likely to touch:**
+- `frontend/CLAUDE.md` (notes polymorphic-types count: 4 → 5; add `contractor_payment_record`)
+- Wherever `NoteType` is switched on (icons/labels/system-badge) — add a branch for `'cpr_stage_regression'`
+- `frontend/src/features/wa-codes/components/WaCodeFormDialog.tsx` (remove `hasConnections(unknown)` cast — `WaCodeConnections` is now typed)
+- `frontend/ROADMAP.md` (re-sequence: silo UIs + close-flow now unblocked; Session 2.3e no longer the only logical next step)
+
+**Gotchas / non-obvious:**
+- The new `NoteType.cpr_stage_regression` is **system-generated** — render with the system badge and hide manual edit/resolve controls (per `frontend/CLAUDE.md` system-row convention).
+- `NotesPanel` may also need wiring for CPR row entityType — confirm during the cleanup whether it's already there or part of a future silo UI.
+- ROADMAP re-sequence is a proposal, not a unilateral edit — agent should produce a diff and stop for review.
+
+**Acceptance:** CLAUDE.md count reads 5 with `contractor_payment_record` listed; every `NoteType` switch handles `cpr_stage_regression`; `hasConnections(unknown)` cast removed and `tsc` clean; ROADMAP diff posted for review.
+
+**Branch:** `fe/feature/post-regen-cleanup` (not yet created). **Delegation:** subagent (`subagent_type: frontend-dev`) — small, well-bounded; agent should propose the ROADMAP re-sequence as a diff and stop for review rather than commit. **Commit header:** `Cleanup: post-regen FE drift (CLAUDE.md, NoteType, hasConnections cast, ROADMAP)`.
+
+---
+
+## ⚠ Needs scoping before pickup — Silo UIs
+
+Four silo UIs (DEP filings / lab reports / document requirements / CPRs) are now schema-unblocked, but **not yet scoped**. Bundling vs. splitting (1 branch with 4 sessions vs. 4 branches), build order, and "list + detail vs. just list" all need a separate scoping conversation. Park until then.
+
+---
+
 ## Drift surfaced by Session F regen audit (2026-04-27)
 
 OpenAPI client regenerated against backend post-Session-F (regen sits unstaged in the working tree at the time of writing). Most of the pending-pickup items below landed cleanly, but the audit surfaced backend gaps and FE doc/scope issues that need to be resolved before further work in this area:
