@@ -1,3 +1,6 @@
+from typing import ClassVar
+
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +25,7 @@ class DeliverableRequirementAdapter:
 
     requirement_type = "deliverable"
     is_dismissable = False
+    template_params_model: ClassVar[type[BaseModel] | None] = None
 
     def __init__(self, row: ProjectDeliverable, deliverable: Deliverable) -> None:
         self._row = row
@@ -76,6 +80,7 @@ class BuildingDeliverableRequirementAdapter:
 
     requirement_type = "building_deliverable"
     is_dismissable = False
+    template_params_model: ClassVar[type[BaseModel] | None] = None
 
     def __init__(
         self, row: ProjectBuildingDeliverable, deliverable: Deliverable

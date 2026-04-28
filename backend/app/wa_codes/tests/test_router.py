@@ -329,3 +329,14 @@ class TestListWACodesColumnFilters:
         response = await auth_client.get("/wa-codes/?unknown_col=x")
         assert response.status_code == 422
         assert "unknown_col" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Regression: /wa-codes/requirement-triggers re-mount removed
+# ---------------------------------------------------------------------------
+
+
+class TestWACodesRequirementTriggersRemountRemoved:
+    async def test_wa_codes_requirement_triggers_returns_404(self, auth_client: AsyncClient):
+        response = await auth_client.get("/wa-codes/requirement-triggers")
+        assert response.status_code == 404

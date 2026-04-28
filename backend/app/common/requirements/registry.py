@@ -28,6 +28,15 @@ class RequirementTypeRegistry:
     def all_handlers(self) -> Iterable[type]:
         return self._handlers.values()
 
+    def items(self) -> Iterable[tuple[str, type]]:
+        return self._handlers.items()
+
+    def events_for(self, name: str) -> list[RequirementEvent]:
+        handler = self._handlers.get(name)
+        if handler is None:
+            return []
+        return [evt for evt, handlers in self._events.items() if handler in handlers]
+
     def handlers_for_event(self, event: RequirementEvent) -> list[type]:
         return self._events.get(event, [])
 

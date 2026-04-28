@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +20,7 @@ class LabReportHandler:
 
     requirement_type: ClassVar[str] = "lab_report"
     is_dismissable: ClassVar[bool] = True
+    template_params_model: ClassVar[type[BaseModel] | None] = None
 
     @classmethod
     def validate_template_params(cls, params: dict) -> None:

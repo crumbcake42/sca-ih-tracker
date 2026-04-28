@@ -85,7 +85,7 @@ class TestProjectDocumentHandlerValidateTemplateParams:
             ProjectDocumentHandler.validate_template_params({"document_type": "safety_report"})
 
     def test_extra_key_raises(self):
-        with pytest.raises(ValueError, match="document_type"):
+        with pytest.raises(ValueError, match="Extra inputs"):
             ProjectDocumentHandler.validate_template_params(
                 {"document_type": "daily_log", "extra": "field"}
             )

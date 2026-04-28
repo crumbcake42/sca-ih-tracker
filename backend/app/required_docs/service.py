@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,6 +11,11 @@ from app.common.requirements import register_requirement_type
 from app.required_docs.models import ProjectDocumentRequirement
 from app.requirement_triggers.models import WACodeRequirementTrigger
 from app.time_entries.models import TimeEntry
+
+
+class ProjectDocumentTemplateParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    document_type: DocumentType
 
 # Maps employee role types to the document types that a time entry of that role triggers.
 # Adding a role here requires no migration — it is a code-only change.
@@ -178,20 +184,14 @@ class ProjectDocumentHandler:
 
     requirement_type: ClassVar[str] = "project_document"
     is_dismissable: ClassVar[bool] = True
+    template_params_model: ClassVar[type[BaseModel] | None] = ProjectDocumentTemplateParams
 
     @classmethod
     def validate_template_params(cls, params: dict) -> None:
-        if set(params.keys()) != {"document_type"}:
-            raise ValueError(
-                f"project_document trigger requires exactly {{'document_type'}}, got {set(params.keys())}"
-            )
         try:
-            DocumentType(params["document_type"])
-        except ValueError:
-            valid = [e.value for e in DocumentType]
-            raise ValueError(
-                f"Unknown document_type '{params['document_type']}'. Valid values: {valid}"
-            )
+            cls.template_params_model.model_validate(params)  # type: ignore[union-attr]
+        except ValidationError as exc:
+            raise ValueError(str(exc)) from exc
 
     @classmethod
     async def handle_event(

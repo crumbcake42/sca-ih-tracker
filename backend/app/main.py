@@ -22,6 +22,7 @@ from app.notes.router import router as notes_router
 from app.projects.router import router as projects_router
 from app.required_docs.router import doc_req_router
 from app.requirement_triggers.router import router as requirement_triggers_router
+from app.requirement_types.router import router as requirement_types_router
 from app.schools.router import router as schools_router
 from app.time_entries.router import router as time_entries_router
 from app.users.router import auth_router, users_router
@@ -63,6 +64,7 @@ app.include_router(projects_router)
 app.include_router(schools_router)
 app.include_router(time_entries_router)
 app.include_router(requirement_triggers_router)
+app.include_router(requirement_types_router)
 app.include_router(doc_req_router)
 app.include_router(cpr_router)
 app.include_router(dep_filing_router)

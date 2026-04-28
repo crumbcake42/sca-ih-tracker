@@ -6,7 +6,7 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 6.6 Session B complete** (undismiss symmetry, 2026-04-28). **~840 passing** (+15 new tests). Phase 6.5 remains fully complete; Session B adds no migrations.
+**Phase 6.6 Session C complete** (requirement-types module + namespace cleanup, 2026-04-28). **859 passing** (+19 new tests). Phase 6.6 is now fully complete. No migrations.
 
 Full arc through this phase:
 
@@ -22,8 +22,41 @@ Full arc through this phase:
 | F | Closure-gate integration + project status surface | 817 |
 | **6.6A** | **FE regen drift — close 409 docs + Deliverables CRUD + cross-side note** | **~825** |
 | **6.6B** | **Undismiss symmetry across all four silos + lab_reports parity fix** | **~840** |
+| **6.6C** | **Requirement-types module + Literal narrowing + wa-codes remount dropped** | **859** |
 
-**Phase 6.5 is complete.** Phase 6.6 Sessions A and B are complete.
+**Phase 6.5 is complete. Phase 6.6 is complete.**
+
+---
+
+## Phase 6.6 Session C — What Was Built
+
+### `template_params_model` on each handler
+
+Added `template_params_model: ClassVar[type[BaseModel] | None]` to all five requirement-type handler classes (across six handler registrations):
+
+- `app/required_docs/service.py` — new `ProjectDocumentTemplateParams(BaseModel)` with `extra="forbid"`, field `document_type: DocumentType`. `ProjectDocumentHandler.template_params_model = ProjectDocumentTemplateParams`. `validate_template_params` now delegates to `model_validate(params)` and translates `ValidationError → ValueError`.
+- `app/cprs/service.py`, `app/lab_reports/service.py`, `app/dep_filings/service.py`, `app/deliverables/requirement_adapter.py` (both adapters) — `template_params_model = None` (signals "params must be `{}`"). Existing `validate_template_params` bodies unchanged.
+
+Note: `template_params_model` is a handler-class attribute, NOT added to `ProjectRequirement` Protocol (which covers requirement ORM row instances, not handler classes).
+
+### `RequirementTypeName` Literal + registry helpers
+
+- `app/common/requirements/__init__.py` — exports `RequirementTypeName = Literal["project_document", "contractor_payment_record", "lab_report", "project_dep_filing", "deliverable", "building_deliverable"]`.
+- `app/common/requirements/registry.py` — added `items() → Iterable[tuple[str, type]]` and `events_for(name) → list[RequirementEvent]` helpers.
+- `app/requirement_triggers/schemas.py` — `WACodeRequirementTriggerCreate.requirement_type_name` typed as `RequirementTypeName` (was plain `str`). OpenAPI now emits an enum; Pydantic validates at the schema layer before any service code runs.
+- `app/common/requirements/tests/test_registry_coverage.py` — new `test_requirement_type_name_literal_matches_registry` asserts `set(get_args(RequirementTypeName)) == set(registry._handlers.keys())`. Also added missing side-effect imports for `app.dep_filings` and `app.lab_reports`.
+
+### New `app/requirement_types/` module
+
+- `GET /requirement-types` → `list[RequirementTypeInfo]`. One row per registered handler. Fields: `name`, `events` (list of `RequirementEvent` strings), `template_params_schema` (JSON Schema dict — non-empty only for `project_document`), `is_dismissable`, `display_name` (always `None` today; future handlers set via `ClassVar[str]`).
+- `app/main.py` — registered `requirement_types_router`.
+- 15 new tests in `app/requirement_types/tests/test_router.py`.
+
+### Dropped `/wa-codes/requirement-triggers` re-mount
+
+- `app/wa_codes/router/__init__.py` — removed `router.include_router(requirement_triggers_router)` and its import. Canonical path `/requirement-triggers` unchanged.
+- `app/requirement_triggers/README.md` — updated path note.
+- 1 regression test in `app/wa_codes/tests/test_router.py`.
 
 ---
 
@@ -79,12 +112,7 @@ New schema `app/projects/schemas.py:CloseProjectConflictDetail` with two optiona
 
 ## Next Phase
 
-Phase 6.6 Session A is done. Remaining sessions:
-
-- **Session B** — Undismiss symmetry across cprs/document-requirements/dep-filings + lab_reports parity fix (Item 3)
-- **Session C** — `app/requirement_types/` module + Literal narrowing + drop `/wa-codes/requirement-triggers` re-mount (Items 4, 5)
-
-After 6.6, the next major phase is **Phase 6.7 — Peer Dependency Navigation** (see ROADMAP.md §"Phase 6.7"). Work only when a concrete FE consumer asks for a specific lateral edge. The first candidate: `GET /time-entries/{id}/batches`.
+**Phase 6.6 is complete.** The next major phase is **Phase 6.7 — Peer Dependency Navigation** (see ROADMAP.md §"Phase 6.7"). Work only when a concrete FE consumer asks for a specific lateral edge. The first candidate: `GET /time-entries/{id}/batches`.
 
 ---
 

@@ -7,12 +7,19 @@ under that name in the requirement registry.
 
 Catches the "added a silo ORM model but forgot to register the handler" failure
 mode before it reaches production (where the materializer would silently no-op).
+
+Also asserts that the RequirementTypeName Literal exactly matches the registered
+handler keys, so the two cannot drift silently.
 """
+
+from typing import get_args
 
 import app.cprs  # noqa: F401 — side-effect: registers ContractorPaymentRecordHandler
 import app.deliverables.requirement_adapter  # noqa: F401 — side-effect: registers deliverable adapters
+import app.dep_filings  # noqa: F401 — side-effect: registers ProjectDEPFilingHandler
+import app.lab_reports  # noqa: F401 — side-effect: registers LabReportHandler
 import app.required_docs  # noqa: F401 — side-effect: registers ProjectDocumentHandler
-from app.common.requirements import registry
+from app.common.requirements import RequirementTypeName, registry
 from app.database import Base
 
 
@@ -29,3 +36,14 @@ def test_every_model_with_requirement_type_classvar_is_registered():
             f"Add @register_requirement_type('{rtype}') to its handler class "
             f"and import it as a side effect in its module's __init__.py."
         )
+
+
+def test_requirement_type_name_literal_matches_registry():
+    literal_names = set(get_args(RequirementTypeName))
+    registered_names = set(registry._handlers.keys())
+    assert literal_names == registered_names, (
+        f"RequirementTypeName Literal and registry are out of sync. "
+        f"In Literal only: {literal_names - registered_names}. "
+        f"In registry only: {registered_names - literal_names}. "
+        f"Update app/common/requirements/__init__.py to match."
+    )

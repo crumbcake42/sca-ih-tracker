@@ -25,7 +25,6 @@ canonical. `POST /requirement-triggers` computes the hash before inserting and r
 The registry must be populated (via startup side-effect imports) before this endpoint
 is reachable — guaranteed by `app/main.py`'s top-of-file import chain.
 
-**Router is mounted at two paths.** `app/main.py` includes the router at
-`/requirement-triggers` (global admin list). `app/wa_codes/router/__init__.py` mounts it
-as a nested sub-router under `/wa-codes`, yielding `/wa-codes/requirement-triggers`.
-Both paths are intentional; do not remove either mount without verifying frontend usage.
+**Canonical path is `/requirement-triggers` only.** `app/main.py` includes the router
+at `/requirement-triggers`. The `/wa-codes/requirement-triggers` duplicate mount was
+removed in Phase 6.6 Session C — that path now returns 404.

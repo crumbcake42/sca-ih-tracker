@@ -13,6 +13,9 @@ class ProjectRequirement(Protocol):
     Adapters do not inherit this class — they satisfy it structurally.
     Use ``isinstance(obj, ProjectRequirement)`` only as a contract gate in tests;
     production code drives behaviour through the registry, not isinstance checks.
+
+    Note: ``template_params_model`` is a handler-class attribute, not a requirement
+    instance attribute — it is not part of this Protocol.
     """
 
     project_id: int

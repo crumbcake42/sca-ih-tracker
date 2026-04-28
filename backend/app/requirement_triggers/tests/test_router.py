@@ -90,7 +90,9 @@ class TestCreateRequirementTrigger:
             ),
         )
         assert response.status_code == 422
-        assert "not_a_real_type" in response.json()["detail"]
+        # Pydantic validates the Literal at the schema layer; detail is a list of error objects
+        detail = response.json()["detail"]
+        assert any("not_a_real_type" in str(err) for err in detail)
 
     async def test_duplicate_returns_409(
         self, auth_client: AsyncClient, db_session: AsyncSession
