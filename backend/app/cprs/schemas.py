@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.common.enums import CPRStageStatus
 
@@ -70,18 +70,7 @@ class ContractorPaymentRecordRead(BaseModel):
     updated_at: datetime
     created_by_id: int | None
     updated_by_id: int | None
-
-    @computed_field
-    @property
-    def label(self) -> str:
-        return f"CPR — Contractor #{self.contractor_id}"
-
-    @computed_field
-    @property
-    def is_fulfilled(self) -> bool:
-        return self.rfp_saved_at is not None
-
-    @computed_field
-    @property
-    def is_dismissed(self) -> bool:
-        return self.dismissed_at is not None
+    # Protocol fields — sourced from model properties via from_attributes=True
+    label: str
+    is_fulfilled: bool
+    is_dismissed: bool

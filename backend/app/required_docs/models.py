@@ -76,5 +76,6 @@ class ProjectDocumentRequirement(Base, AuditMixin, DismissibleMixin):
     def is_dismissed(self) -> bool:
         return self.dismissed_at is not None
 
+    @property
     def is_fulfilled(self) -> bool:
         return self.is_saved

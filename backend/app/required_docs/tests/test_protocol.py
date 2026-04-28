@@ -43,8 +43,8 @@ class TestProjectRequirementProtocol:
     def test_is_fulfilled_reflects_is_saved(self):
         unsaved = _make_req(is_saved=False)
         saved = _make_req(is_saved=True)
-        assert unsaved.is_fulfilled() is False
-        assert saved.is_fulfilled() is True
+        assert unsaved.is_fulfilled is False
+        assert saved.is_fulfilled is True
 
     def test_is_dismissed_reflects_dismissed_at(self):
         from datetime import datetime

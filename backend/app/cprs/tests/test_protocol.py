@@ -41,11 +41,11 @@ class TestContractorPaymentRecordProtocol:
 
     def test_is_fulfilled_false_when_rfp_not_saved(self):
         record = _make_record(rfp_saved_at=None)
-        assert record.is_fulfilled() is False
+        assert record.is_fulfilled is False
 
     def test_is_fulfilled_true_when_rfp_saved(self):
         record = _make_record(rfp_saved_at=datetime(2025, 12, 1))
-        assert record.is_fulfilled() is True
+        assert record.is_fulfilled is True
 
     def test_is_dismissed_reflects_dismissed_at(self):
         undismissed = _make_record()

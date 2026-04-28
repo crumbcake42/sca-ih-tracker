@@ -73,5 +73,6 @@ class ContractorPaymentRecord(Base, AuditMixin, DismissibleMixin, ManualTerminal
     def is_dismissed(self) -> bool:
         return self.dismissed_at is not None
 
+    @property
     def is_fulfilled(self) -> bool:
         return self.rfp_saved_at is not None

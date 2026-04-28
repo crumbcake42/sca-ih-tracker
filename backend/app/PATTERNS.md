@@ -311,28 +311,25 @@ Every `create_readonly_router`-backed `GET /` endpoint accepts column-filter que
 
 ---
 
-## 16. `@computed_field` for ORM-method-derived Pydantic fields
+## 16. Model properties and Pydantic `from_attributes=True`
 
-When a Pydantic `Read` schema includes a field computed from an ORM model method (not a column), use `@computed_field` + `@property`. If the field is declared as a plain type annotation (`is_fulfilled: bool`), Pydantic's `from_attributes=True` reads `obj.is_fulfilled` and gets the bound method object, which fails validation with `bool_type` error.
+Pydantic's `from_attributes=True` reads `getattr(orm_obj, field_name)`. Plain type annotations work for ORM **columns** and **`@property`** methods. They fail for plain Python **methods**: `obj.is_fulfilled` returns the bound method object, which Pydantic coerces to `True` (truthy) silently.
+
+**Rule: ORM model methods that need serialization must be `@property`.** Then plain annotation works in the schema:
 
 ```python
-from pydantic import BaseModel, ConfigDict, computed_field
+# model
+@property
+def is_fulfilled(self) -> bool:
+    return self.rfp_saved_at is not None
 
+# schema
 class MyRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
-    is_saved: bool  # plain column → fine as a direct annotation
-
-    @computed_field
-    @property
-    def is_fulfilled(self) -> bool:  # ORM method → must be computed_field
-        return self.is_saved
-
-    @computed_field
-    @property
-    def is_dismissed(self) -> bool:
-        return self.dismissed_at is not None
+    is_fulfilled: bool  # works because model has @property
 ```
+
+Non-ORM adapters (e.g. `DeliverableRequirementAdapter`) keep `is_fulfilled` as a plain method since they are never serialized via `from_attributes=True` — the aggregator calls `req.is_fulfilled()` directly.
 
 **Python 3.14 `date` field shadowing:** If a schema field is named `date` with annotation `date | None`, Python 3.14's annotation evaluation sees `date` as the default value `None` in the class namespace, not the `datetime.date` type. Fix with an import alias:
 

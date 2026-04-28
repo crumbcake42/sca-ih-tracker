@@ -1,6 +1,6 @@
 from datetime import date as DateField, datetime
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.common.enums import DocumentType, EmployeeRoleType
 
@@ -65,24 +65,7 @@ class ProjectDocumentRequirementRead(BaseModel):
     updated_at: datetime
     created_by_id: int | None
     updated_by_id: int | None
-    @computed_field
-    @property
-    def label(self) -> str:
-        if self.document_type == DocumentType.DAILY_LOG:
-            date_str = self.date.isoformat() if self.date else "pending"
-            return f"Daily Log ({date_str})"
-        if self.document_type == DocumentType.REOCCUPANCY_LETTER:
-            return "Re-Occupancy Letter"
-        if self.document_type == DocumentType.MINOR_LETTER:
-            return "Minor Letter"
-        return str(self.document_type)
-
-    @computed_field
-    @property
-    def is_fulfilled(self) -> bool:
-        return self.is_saved
-
-    @computed_field
-    @property
-    def is_dismissed(self) -> bool:
-        return self.dismissed_at is not None
+    # Protocol fields — sourced from model properties via from_attributes=True
+    label: str
+    is_fulfilled: bool
+    is_dismissed: bool
