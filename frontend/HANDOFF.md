@@ -2,6 +2,23 @@
 
 ## Backend changes pending frontend pickup
 
+**Session F (backend) landed (2026-04-27) — final Phase 6.5 regen. Regenerate the OpenAPI client before the next FE session.**
+
+Changes since last regen (Sessions E0d + E + E2 + F all land together):
+
+- `ProjectStatusRead` has a new field `unfulfilled_requirement_count: int`. Any component reading `ProjectStatusRead` (e.g. project close flow, status badge) should display or act on this count.
+- New `UnfulfilledRequirement` schema: `{ requirement_type, project_id, label, is_dismissed, is_dismissable }`.
+- New endpoint `GET /projects/{project_id}/requirements` → `list[UnfulfilledRequirement]`. Returns all unfulfilled, non-dismissed requirements across all silos for the project.
+- `POST /projects/{project_id}/close` now 409s with `{"unfulfilled_requirements": [...]}` in addition to the existing `{"blocking_issues": [...]}` path. The FE close flow needs to handle both 409 detail shapes.
+- CPR blocking notes now appear in `blocking_issues` responses (previously silently dropped). No FE code change needed — the `BlockingIssue` shape is unchanged.
+- `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lost `is_required` (Session E0d).
+- New Session E schemas: `DEPFilingFormRead/Create/Update`, `ProjectDEPFilingRead/Update/Dismiss`, `ProjectDEPFilingCreate`.
+- New Session E endpoints: `/dep-filings/forms/*`, `/dep-filings/{id}`, `/projects/{id}/dep-filings`.
+- `SampleBatchRead/Create/Update/QuickAdd` lose `is_report` (Session E2). Migrate any FE code reading or writing `is_report` to the new `GET /projects/{id}/lab-reports` + `PATCH /lab-reports/{id}/save` + `POST /lab-reports/{id}/dismiss` endpoints.
+- New `LabReportRequirementRead` schema; new endpoints: `GET /projects/{id}/lab-reports`, `PATCH /lab-reports/{id}/save`, `POST /lab-reports/{id}/dismiss`, `POST /lab-reports/{id}/undismiss`.
+
+---
+
 **Session E0c landed (2026-04-27) — regen OpenAPI client before next FE session.**
 
 - `UnfulfilledRequirementRead` loses `requirement_key` field. FE does not currently consume this field, so no code changes needed — just regen.

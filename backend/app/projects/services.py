@@ -17,7 +17,9 @@ from app.common.enums import (
     WACodeLevel,
     WACodeStatus,
 )
+from app.common.requirements import get_unfulfilled_requirements_for_project
 from app.contractors.models import Contractor
+from app.cprs.models import ContractorPaymentRecord
 from app.deliverables.models import (
     Deliverable,
     DeliverableWACodeTrigger,
@@ -448,6 +450,7 @@ async def derive_project_status(
             pending_rfa_count=0,
             outstanding_deliverable_count=0,
             unconfirmed_time_entry_count=0,
+            unfulfilled_requirement_count=0,
             blocking_issues=[],
         )
 
@@ -491,6 +494,9 @@ async def derive_project_status(
     ).scalar_one()
     outstanding_deliverable_count = pd_count + pbd_count
 
+    unfulfilled = await get_unfulfilled_requirements_for_project(project_id, db)
+    unfulfilled_requirement_count = len(unfulfilled)
+
     time_entry_count: int = (
         await db.execute(
             select(func.count())
@@ -515,7 +521,7 @@ async def derive_project_status(
     elif time_entry_count == 0:
         status = ProjectStatus.SETUP
     elif (
-        outstanding_deliverable_count == 0
+        unfulfilled_requirement_count == 0
         and pending_rfa_count == 0
         and unconfirmed_time_entry_count == 0
     ):
@@ -530,6 +536,7 @@ async def derive_project_status(
         pending_rfa_count=pending_rfa_count,
         outstanding_deliverable_count=outstanding_deliverable_count,
         unconfirmed_time_entry_count=unconfirmed_time_entry_count,
+        unfulfilled_requirement_count=unfulfilled_requirement_count,
         blocking_issues=blocking_issues,
     )
 
@@ -537,13 +544,22 @@ async def derive_project_status(
 async def lock_project_records(project_id: int, db: AsyncSession, user_id: int) -> None:
     """
     Close a project: cascade LOCKED status to all time entries and active batches.
-    Raises 409 if any unresolved blocking notes exist on the project.
+    Raises 409 if any unresolved blocking notes or unfulfilled requirements exist.
     """
     blocking_issues = await get_blocking_notes_for_project(project_id, db)
     if blocking_issues:
         raise HTTPException(
             status_code=409,
             detail={"blocking_issues": [bi.model_dump() for bi in blocking_issues]},
+        )
+
+    unfulfilled = await get_unfulfilled_requirements_for_project(project_id, db)
+    if unfulfilled:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "unfulfilled_requirements": [u.model_dump() for u in unfulfilled],
+            },
         )
 
     await db.execute(
@@ -625,6 +641,12 @@ async def get_blocking_notes_for_project(
         .scalar_subquery()
     )
 
+    cpr_ids_sq = (
+        select(ContractorPaymentRecord.id)
+        .where(ContractorPaymentRecord.project_id == project_id)
+        .scalar_subquery()
+    )
+
     rows = (
         await db.execute(
             select(Note)
@@ -643,6 +665,8 @@ async def get_blocking_notes_for_project(
                     ),
                     (Note.entity_type == NoteEntityType.SAMPLE_BATCH)
                     & Note.entity_id.in_(sb_ids_sq),
+                    (Note.entity_type == NoteEntityType.CONTRACTOR_PAYMENT_RECORD)
+                    & Note.entity_id.in_(cpr_ids_sq),
                 ),
             )
             .order_by(Note.created_at)

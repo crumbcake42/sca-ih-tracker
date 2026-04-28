@@ -19,6 +19,7 @@ from app.employees.models import Employee, EmployeeRole
 from app.notes.models import Note
 from tests.seeds import (
     seed_blocking_note,
+    seed_contractor,
     seed_project,
     seed_sample_batch,
     seed_sample_type,
@@ -144,6 +145,79 @@ class TestCloseProject:
         response = await auth_client.post(f"/projects/{project.id}/close")
 
         assert response.status_code == 409
+
+    async def test_409_when_unfulfilled_requirements_exist(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from app.cprs.models import ContractorPaymentRecord
+
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        emp, role = await _seed_employee_with_role(db_session)
+        await seed_time_entry(db_session, emp, role, project, school)
+        contractor = await seed_contractor(db_session)
+        db_session.add(
+            ContractorPaymentRecord(project_id=project.id, contractor_id=contractor.id)
+        )
+        await db_session.flush()
+
+        response = await auth_client.post(f"/projects/{project.id}/close")
+
+        assert response.status_code == 409
+        body = response.json()
+        assert "unfulfilled_requirements" in body["detail"]
+        assert len(body["detail"]["unfulfilled_requirements"]) == 1
+
+    async def test_409_blocking_notes_takes_precedence_over_unfulfilled(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        """Blocking notes raise first; unfulfilled requirements are not checked."""
+        from app.cprs.models import ContractorPaymentRecord
+
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        emp, role = await _seed_employee_with_role(db_session)
+        await seed_time_entry(db_session, emp, role, project, school)
+        await seed_blocking_note(
+            db_session, entity_type=NoteEntityType.PROJECT, entity_id=project.id
+        )
+        contractor = await seed_contractor(db_session)
+        db_session.add(
+            ContractorPaymentRecord(project_id=project.id, contractor_id=contractor.id)
+        )
+        await db_session.flush()
+
+        response = await auth_client.post(f"/projects/{project.id}/close")
+
+        assert response.status_code == 409
+        body = response.json()
+        assert "blocking_issues" in body["detail"]
+
+    async def test_close_succeeds_when_requirements_fulfilled(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        from datetime import datetime
+
+        from app.cprs.models import ContractorPaymentRecord
+
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        emp, role = await _seed_employee_with_role(db_session)
+        await seed_time_entry(db_session, emp, role, project, school)
+        contractor = await seed_contractor(db_session)
+        db_session.add(
+            ContractorPaymentRecord(
+                project_id=project.id,
+                contractor_id=contractor.id,
+                rfp_saved_at=datetime(2025, 12, 1),
+            )
+        )
+        await db_session.flush()
+
+        response = await auth_client.post(f"/projects/{project.id}/close")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == ProjectStatus.LOCKED
 
 
 # ---------------------------------------------------------------------------

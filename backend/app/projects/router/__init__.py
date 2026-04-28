@@ -10,6 +10,7 @@ from .hygienist import router as ProjectHygienistRouter
 from .lab_reports import router as LabReportsRouter
 from .manager import router as ProjectManagerRouter
 from .required_docs import router as RequiredDocsRouter
+from .requirements import router as RequirementsRouter
 
 router = APIRouter(
     prefix="/projects", tags=["Projects"], dependencies=[Depends(get_current_user)]
@@ -22,3 +23,4 @@ router.include_router(CprsRouter)
 router.include_router(RequiredDocsRouter)
 router.include_router(DepFilingsRouter)
 router.include_router(LabReportsRouter)
+router.include_router(RequirementsRouter)

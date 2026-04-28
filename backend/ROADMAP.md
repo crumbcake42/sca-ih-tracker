@@ -665,14 +665,12 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
   - User-managed migration: drop `is_report` from `sample_batches`; create `lab_report_requirements` table
   - Verify: `.venv/Scripts/python.exe -m pytest app/lab_reports/tests app/lab_results/tests app/required_docs/tests app/project_requirements/tests -v`; OpenAPI diff drops `is_report` from SampleBatch schemas and adds new `LabReportRequirement*` schemas (FE handoff note required)
 
-- [ ] **Session F — Closure-gate integration + project status surface**
-  - Extend `lock_project_records()` (`app/projects/services.py:509`) to refuse close on any unfulfilled non-dismissed requirement, in addition to the existing blocking-notes check
-  - Extend `derive_project_status()` and `ProjectStatusRead` (`app/projects/schemas.py`) — add `unfulfilled_requirement_count`
-  - New `GET /projects/{id}/requirements` endpoint in `app/projects/router.py` (returns `list[UnfulfilledRequirement]` from `app.common.requirements.schemas`); not a new module
-  - Lab reports (Session E2 silo) participate automatically via the registered handler — no extra wiring here
-  - `frontend/HANDOFF.md` note: regen OpenAPI client (new `UnfulfilledRequirement`, `ContractorPaymentRecord`, `ProjectDocumentRequirement`, `ProjectDepFiling`, `LabReportRequirement`, `WaCodeRequirementTrigger`, `DepFilingForm` schemas)
-  - ROADMAP.md checkboxes; HANDOFF.md update
-  - Final sweep: `.venv/Scripts/python.exe -m pytest app/ -v` clean
+- [x] **Session F — Closure-gate integration + project status surface** ✓ 2026-04-27
+  - Extend `lock_project_records()` (`app/projects/services.py`) to refuse close on any unfulfilled non-dismissed requirement, in addition to the existing blocking-notes check
+  - Extend `derive_project_status()` and `ProjectStatusRead` (`app/projects/schemas.py`) — added `unfulfilled_requirement_count`
+  - New `GET /projects/{id}/requirements` endpoint (`app/projects/router/requirements.py`) returns `list[UnfulfilledRequirement]`
+  - Also fixed carry-over: CPR-attached blocking notes now surface in `get_blocking_notes_for_project`
+  - Final sweep: 817 passing
 
 **Deferred out of Phase 6.5 (Stages 3 + 4 and beyond):**
 

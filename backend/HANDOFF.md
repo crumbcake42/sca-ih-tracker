@@ -6,7 +6,7 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Session E2 complete** (Silo 4 / `lab_reports`, 2026-04-27). **803 passing** (+37 new tests).
+**Session F complete** (Closure-gate integration, 2026-04-27). **817 passing** (+14 new tests).
 
 Full arc through this session:
 
@@ -18,67 +18,48 @@ Full arc through this session:
 | E0c | Protocol/schema hygiene (drop `requirement_key`, fix `@computed_field`, add `validate_template_params`, registry coverage test) | 705 |
 | E0d | Drop `is_required` columns from cprs + required_docs | 705 |
 | E | Silo 3 `dep_filings` | 766 |
-| **E2** | **Silo 4 `lab_reports` — retire `is_report`** | **803** |
+| E2 | Silo 4 `lab_reports` — retire `is_report` | 803 |
+| **F** | **Closure-gate integration + project status surface** | **817** |
 
-**Next: F.** All four silos are complete. Session F wires the aggregator into the project closure gate.
-
----
-
-## Session E2 — What Was Built
-
-`app/lab_reports/` — single module:
-
-- `LabReportRequirement` — one row per `SampleBatch`. `DismissibleMixin` + `AuditMixin`. `requirement_type = "lab_report"`, `is_dismissable = True`. `is_fulfilled → is_saved`. `label` derives from `sample_batch.batch_num`. Partial unique index on `(sample_batch_id) WHERE dismissed_at IS NULL`.
-- `LabReportHandler` — registered with `events=[RequirementEvent.BATCH_CREATED]`. Auto-materializes on every batch creation. Idempotent.
-
-**Key design choices:**
-
-- **`sample_batches.is_report` dropped.** No backfill (no production data). Schemas (`SampleBatchCreate/Update/Read`, `QuickAddBatchCreate`) all lose `is_report`. Tests updated.
-- **`BATCH_CREATED` dispatch wired in two places:** `app/lab_results/router/batches.py` `create_batch` (inside the `if time_entry is not None:` block — batches without a project association skip dispatch) and `app/lab_results/service.py` `quick_add_batch` (alongside the existing `TIME_ENTRY_CREATED` dispatch).
-- **`undismiss` endpoint.** `POST /lab-reports/{id}/undismiss` clears `dismissed_at/by/reason`. Added because system-created rows can't be deleted — undismiss is the only path back from dismissed state.
-- **No DELETE endpoint.** Lab report requirements are system-created and should only be dismissed/undismissed, not deleted by managers.
-
-**Router split:**
-
-- Item ops → `app/lab_reports/router.py` (`lab_report_router`, prefix `/lab-reports`); mounted in `main.py`.
-- Project-scoped list → `app/projects/router/lab_reports.py`; mounted in `app/projects/router/__init__.py`.
+**Phase 6.5 is complete.** All four silos are wired into the closure gate and the aggregator is a live production call.
 
 ---
 
-## Session E — What Was Built
+## Session F — What Was Built
 
-`app/dep_filings/` — single module with two ORM models (mirrors `lab_results/` config+data precedent):
+### 1. CPR blocking-notes fix (carry-over from E2)
 
-- `DEPFilingForm` — admin-managed config (code, label, `is_default_selected`, `display_order`, `AuditMixin`). Adding a new form type requires no migration.
-- `ProjectDEPFiling` — requirement instance, one row per `(project, form)`. `DismissibleMixin` + `AuditMixin`. `requirement_type = "project_dep_filing"`, `is_dismissable = True`. `is_fulfilled → is_saved`. Partial unique index on `(project_id, dep_filing_form_id) WHERE dismissed_at IS NULL`.
+`get_blocking_notes_for_project` (`app/projects/services.py`) previously had no branch for `NoteEntityType.CONTRACTOR_PAYMENT_RECORD`. Added a `cpr_ids_sq` scalar subquery and a 5th `or_()` branch. CPR-attached blocking notes now surface in `derive_project_status`, `lock_project_records`, and `GET /projects/{id}/blocking-issues` automatically.
 
-**Key design choices (non-obvious):**
+### 2. Closure gate — aggregator wired into `lock_project_records`
 
-- **Manager-driven, not event-driven.** Handler registered with `events=[]`. The dispatcher never calls `handle_event`. Rows are created by `POST /projects/{id}/dep-filings {form_ids: [...]}` — idempotent; re-posting with same IDs creates no duplicates.
-- **Guarded form delete.** `dep_filing_form_id` is NOT NULL with no `ondelete` cascade. `create_guarded_delete_router` blocks form deletion when any `ProjectDEPFiling` references it (dismissed or not).
-- **`saved_at` stamp.** PATCH sets `saved_at = now()` when `is_saved` first transitions to `True`. Does not overwrite if `saved_at` is already set.
-- **`validate_template_params` raises on non-empty dict.** This handler is not usable from `/requirement-triggers` (doesn't subscribe to `WA_CODE_ADDED`), but the classmethod is implemented to keep the protocol surface uniform.
+`lock_project_records` now calls `get_unfulfilled_requirements_for_project` after the blocking-notes check. If any unfulfilled requirements exist, raises `HTTPException(409, detail={"unfulfilled_requirements": [...]})`. Blocking notes still take precedence (checked first; if any exist, the unfulfilled check is never reached).
 
-**Router split:**
+### 3. `ProjectStatusRead` + `derive_project_status`
 
-- Item ops + form admin CRUD → `app/dep_filings/router.py` (`dep_filing_router`, prefix `/dep-filings`); mounted in `main.py`.
-- Project-scoped list/create → `app/projects/router/dep_filings.py`; mounted in `app/projects/router/__init__.py`.
+- New field: `unfulfilled_requirement_count: int` on `ProjectStatusRead` (`app/projects/schemas.py`).
+- `derive_project_status` computes it via `get_unfulfilled_requirements_for_project`. Locked-project short-circuit sets it to 0.
+- `READY_TO_CLOSE` condition tightened: now requires `unfulfilled_requirement_count == 0` (broader than the previous `outstanding_deliverable_count == 0`, which was already implied — deliverables are included in the aggregator).
 
----
+### 4. `GET /projects/{id}/requirements`
 
-## Next Session — F: Closure Gate
+New project-scoped sub-router at `app/projects/router/requirements.py`. Returns `list[UnfulfilledRequirement]`. Mounted in `app/projects/router/__init__.py` alongside the other silos.
 
-All four requirement silos are complete. Session F wires `get_unfulfilled_requirements_for_project` into the project closure check. See ROADMAP.md §"Session F".
+`UnfulfilledRequirement` added to `app/common/requirements/__init__.py` public exports.
 
 ---
 
-## Carry-overs (still valid — do not block E2)
+## Next Phase
+
+Phase 6.5 is done. The next major phase is **Phase 6.7 — Peer Dependency Navigation** (see ROADMAP.md §"Phase 6.7"). Work only when a concrete FE consumer asks for a specific lateral edge. The first candidate: `GET /time-entries/{id}/batches`.
+
+---
+
+## Carry-overs (still valid)
 
 1. **`process_project_import` is the only dispatch site for `CONTRACTOR_LINKED` / `CONTRACTOR_UNLINKED`.** If a dedicated HTTP endpoint is ever added to link/unlink contractors, it must also call `dispatch_requirement_event` for both events.
 
-2. **User-authored blocking notes on CPR entities do not surface in `get_blocking_notes_for_project`.** `NoteEntityType.CONTRACTOR_PAYMENT_RECORD` is registered but the project-level walk doesn't include CPRs. Fix in Session F.
-
-3. **Manual POST endpoints bypass materializer precondition checks.** `POST /projects/{id}/cprs` and `POST /projects/{id}/document-requirements` accept rows the materializer would reject. Deferred until a concrete bug surfaces.
+2. **Manual POST endpoints bypass materializer precondition checks.** `POST /projects/{id}/cprs` and `POST /projects/{id}/document-requirements` accept rows the materializer would reject. Deferred until a concrete bug surfaces.
 
 ---
 
@@ -93,18 +74,16 @@ All four requirement silos are complete. Session F wires `get_unfulfilled_requir
 - `ALTER TABLE sample_batches DROP COLUMN is_report;` (from Session E2)
 - `lab_report_requirements` table (from Session E2)
 
+No new migrations in Session F.
+
 ---
 
 ## Frontend cross-side notes
 
-**Regen needed now** (E0d + E + E2 all landed):
+**Regen needed now** (E0d + E + E2 + F all landed). See `frontend/HANDOFF.md` top section for the full change list.
 
-- `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lost `is_required`.
-- New Session E schemas: `DEPFilingFormRead/Create/Update`, `ProjectDEPFilingRead/Update/Dismiss`, `ProjectDEPFilingCreate` (`form_ids: number[]`).
-- New Session E endpoints: `/dep-filings/forms/*` (admin CRUD), `/dep-filings/{id}` (PATCH/DELETE/dismiss), `/projects/{id}/dep-filings` (GET/POST).
-- `SampleBatchRead/Create/Update/QuickAdd` lose `is_report` (Session E2).
-- New `LabReportRequirementRead` schema (Session E2).
-- New endpoints: `GET /projects/{id}/lab-reports`, `PATCH /lab-reports/{id}/save`, `POST /lab-reports/{id}/dismiss`, `POST /lab-reports/{id}/undismiss`.
-- Frontend that reads or writes `is_report` must migrate to the new lab-report endpoints.
+Key FE-impacting changes from Session F:
 
-**Regen after Session F (final):** `UnfulfilledRequirement` aggregator wired into closure gate; all Silo 1–4 schemas stable.
+- `ProjectStatusRead` has new `unfulfilled_requirement_count: int` field.
+- New `UnfulfilledRequirement` schema and `GET /projects/{project_id}/requirements` endpoint.
+- `POST /projects/{project_id}/close` now 409s with `{"unfulfilled_requirements": [...]}` (in addition to existing `{"blocking_issues": [...]}`). The FE close flow must handle both 409 detail shapes.

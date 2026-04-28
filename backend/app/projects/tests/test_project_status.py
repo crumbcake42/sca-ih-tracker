@@ -30,4 +30,5 @@ class TestGetProjectStatus:
         assert body["pending_rfa_count"] == 0
         assert body["outstanding_deliverable_count"] == 0
         assert body["unconfirmed_time_entry_count"] == 0
+        assert body["unfulfilled_requirement_count"] == 0
         assert body["blocking_issues"] == []
