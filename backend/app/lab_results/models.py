@@ -150,7 +150,6 @@ class SampleBatch(Base, AuditMixin):
         ForeignKey("time_entries.id", ondelete="RESTRICT"), index=True, nullable=True
     )
     batch_num: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    is_report: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     status: Mapped[SampleBatchStatus] = mapped_column(
         SQLEnum(SampleBatchStatus),
         nullable=False,

@@ -122,7 +122,6 @@ class SampleBatchCreate(BaseModel):
     turnaround_option_id: int | None = None
     time_entry_id: int | None = None
     batch_num: str = Field(..., max_length=50)
-    is_report: bool = False
     date_collected: date
     notes: str | None = None
     units: list[SampleBatchUnitCreate] = Field(..., min_length=1)
@@ -130,7 +129,6 @@ class SampleBatchCreate(BaseModel):
 
 
 class SampleBatchUpdate(BaseModel):
-    is_report: bool | None = None
     date_collected: date | None = None
     notes: str | None = None
 
@@ -143,7 +141,6 @@ class SampleBatchRead(BaseModel):
     turnaround_option_id: int | None
     time_entry_id: int | None
     batch_num: str
-    is_report: bool
     status: SampleBatchStatus
     date_collected: date
     notes: str | None
@@ -165,7 +162,6 @@ class QuickAddBatchCreate(BaseModel):
     sample_subtype_id: int | None = None
     turnaround_option_id: int | None = None
     batch_num: str = Field(..., max_length=50)
-    is_report: bool = False
     date_collected: date
     notes: str | None = None
     units: list[SampleBatchUnitCreate] = Field(..., min_length=1)

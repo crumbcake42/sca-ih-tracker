@@ -7,6 +7,7 @@ from .cprs import router as CprsRouter
 from .deliverables import router as DeliverablesRouter
 from .dep_filings import router as DepFilingsRouter
 from .hygienist import router as ProjectHygienistRouter
+from .lab_reports import router as LabReportsRouter
 from .manager import router as ProjectManagerRouter
 from .required_docs import router as RequiredDocsRouter
 
@@ -20,3 +21,4 @@ router.include_router(DeliverablesRouter)
 router.include_router(CprsRouter)
 router.include_router(RequiredDocsRouter)
 router.include_router(DepFilingsRouter)
+router.include_router(LabReportsRouter)

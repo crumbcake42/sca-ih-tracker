@@ -232,7 +232,6 @@ async def quick_add_batch(
         turnaround_option_id=body.turnaround_option_id,
         time_entry_id=entry.id,
         batch_num=body.batch_num,
-        is_report=body.is_report,
         date_collected=body.date_collected,
         notes=body.notes,
         created_by_id=SYSTEM_USER_ID,
@@ -254,6 +253,12 @@ async def quick_add_batch(
         project_id=entry.project_id,
         event=RequirementEvent.TIME_ENTRY_CREATED,
         payload={"time_entry_id": entry.id},
+        db=db,
+    )
+    await dispatch_requirement_event(
+        project_id=entry.project_id,
+        event=RequirementEvent.BATCH_CREATED,
+        payload={"batch_id": batch.id},
         db=db,
     )
     await db.commit()

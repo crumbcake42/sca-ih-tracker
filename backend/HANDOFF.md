@@ -6,7 +6,7 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Session E complete** (Silo 3 / `dep_filings`, 2026-04-27). **766 passing** (+61 new tests).
+**Session E2 complete** (Silo 4 / `lab_reports`, 2026-04-27). **803 passing** (+37 new tests).
 
 Full arc through this session:
 
@@ -17,9 +17,31 @@ Full arc through this session:
 | E0b + E0b-refactor | Router pattern: project-scoped ops into `app/projects/router/` | 693 |
 | E0c | Protocol/schema hygiene (drop `requirement_key`, fix `@computed_field`, add `validate_template_params`, registry coverage test) | 705 |
 | E0d | Drop `is_required` columns from cprs + required_docs | 705 |
-| **E** | **Silo 3 `dep_filings`** | **766** |
+| E | Silo 3 `dep_filings` | 766 |
+| **E2** | **Silo 4 `lab_reports` — retire `is_report`** | **803** |
 
-**Next: E2 → F.** Session E2 (Silo 4 `lab_reports`) is independent of anything else and can land before F.
+**Next: F.** All four silos are complete. Session F wires the aggregator into the project closure gate.
+
+---
+
+## Session E2 — What Was Built
+
+`app/lab_reports/` — single module:
+
+- `LabReportRequirement` — one row per `SampleBatch`. `DismissibleMixin` + `AuditMixin`. `requirement_type = "lab_report"`, `is_dismissable = True`. `is_fulfilled → is_saved`. `label` derives from `sample_batch.batch_num`. Partial unique index on `(sample_batch_id) WHERE dismissed_at IS NULL`.
+- `LabReportHandler` — registered with `events=[RequirementEvent.BATCH_CREATED]`. Auto-materializes on every batch creation. Idempotent.
+
+**Key design choices:**
+
+- **`sample_batches.is_report` dropped.** No backfill (no production data). Schemas (`SampleBatchCreate/Update/Read`, `QuickAddBatchCreate`) all lose `is_report`. Tests updated.
+- **`BATCH_CREATED` dispatch wired in two places:** `app/lab_results/router/batches.py` `create_batch` (inside the `if time_entry is not None:` block — batches without a project association skip dispatch) and `app/lab_results/service.py` `quick_add_batch` (alongside the existing `TIME_ENTRY_CREATED` dispatch).
+- **`undismiss` endpoint.** `POST /lab-reports/{id}/undismiss` clears `dismissed_at/by/reason`. Added because system-created rows can't be deleted — undismiss is the only path back from dismissed state.
+- **No DELETE endpoint.** Lab report requirements are system-created and should only be dismissed/undismissed, not deleted by managers.
+
+**Router split:**
+
+- Item ops → `app/lab_reports/router.py` (`lab_report_router`, prefix `/lab-reports`); mounted in `main.py`.
+- Project-scoped list → `app/projects/router/lab_reports.py`; mounted in `app/projects/router/__init__.py`.
 
 ---
 
@@ -44,20 +66,9 @@ Full arc through this session:
 
 ---
 
-## Next Session — E2: Silo 4 `lab_reports`
+## Next Session — F: Closure Gate
 
-Depends on E0d only (uses no-`is_required` shape). Design locked — see ROADMAP.md §"Session E2" and plan `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
-
-**Summary of what E2 builds:**
-
-- `app/lab_reports/` module: `LabReportRequirement` model (`sample_batch_id` FK, `is_saved`, nullable `file_id`, `DismissibleMixin`, `AuditMixin`). `requirement_type = "lab_report"`, `is_dismissable = True`. `is_fulfilled → is_saved`. `label` derives from `sample_batch.batch_num`.
-- Handler registered with `RequirementEvent.BATCH_CREATED` (event already declared in `app/common/enums.py`).
-- Materializer: every batch creation auto-creates one `LabReportRequirement`. Idempotent.
-- Dispatch wired in two places (mirror `TIME_ENTRY_CREATED` pattern): `app/lab_results/router/batches.py` POST and `app/lab_results/service.py` `quick_add_batch`.
-- Drop `SampleBatch.is_report` column + field from all schemas. No backfill (no production data).
-- Item router at `/lab-reports/{id}` (PATCH `/save`, POST `/dismiss`, POST `/undismiss`); project-scoped `GET /projects/{id}/lab-reports`.
-- User-managed migration: drop `is_report` from `sample_batches`; create `lab_report_requirements` table.
-- Verify: `pytest app/lab_reports app/lab_results app/required_docs app/common/requirements -v`.
+All four requirement silos are complete. Session F wires `get_unfulfilled_requirements_for_project` into the project closure check. See ROADMAP.md §"Session F".
 
 ---
 
@@ -79,21 +90,20 @@ Depends on E0d only (uses no-`is_required` shape). Design locked — see ROADMAP
 - `ALTER TABLE contractor_payment_records DROP COLUMN is_required;` (from Session E0d)
 - `ALTER TABLE project_document_requirements DROP COLUMN is_required;` (from Session E0d)
 - `dep_filing_forms` + `project_dep_filings` tables (from Session E)
+- `ALTER TABLE sample_batches DROP COLUMN is_report;` (from Session E2)
+- `lab_report_requirements` table (from Session E2)
 
 ---
 
 ## Frontend cross-side notes
 
-**Regen needed now** (E0d + E both landed):
+**Regen needed now** (E0d + E + E2 all landed):
 
 - `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lost `is_required`.
 - New Session E schemas: `DEPFilingFormRead/Create/Update`, `ProjectDEPFilingRead/Update/Dismiss`, `ProjectDEPFilingCreate` (`form_ids: number[]`).
 - New Session E endpoints: `/dep-filings/forms/*` (admin CRUD), `/dep-filings/{id}` (PATCH/DELETE/dismiss), `/projects/{id}/dep-filings` (GET/POST).
-
-**Regen again after E2 lands:**
-
-- `SampleBatchRead/Create/Update/QuickAdd` lose `is_report`.
-- New `LabReportRequirementRead` schemas appear.
+- `SampleBatchRead/Create/Update/QuickAdd` lose `is_report` (Session E2).
+- New `LabReportRequirementRead` schema (Session E2).
 - New endpoints: `GET /projects/{id}/lab-reports`, `PATCH /lab-reports/{id}/save`, `POST /lab-reports/{id}/dismiss`, `POST /lab-reports/{id}/undismiss`.
 - Frontend that reads or writes `is_report` must migrate to the new lab-report endpoints.
 
