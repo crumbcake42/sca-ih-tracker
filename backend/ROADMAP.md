@@ -682,6 +682,52 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 
 ---
 
+### Phase 6.6 — FE Regen Drift Cleanup
+
+The 2026-04-27 FE regen audit (see `HANDOFF.md` §"FE regen drift to address") surfaced six contract gaps where the OpenAPI surface under-describes what the runtime accepts and returns. None require migrations or model changes; all are router/schema-layer fixes that tighten the contract. The result is an OpenAPI doc the FE can codegen against without hand-narrowing `unknown`.
+
+**Locked design decisions** (chosen 2026-04-27):
+
+1. **Close-endpoint 409 shape: document existing shapes via `responses=`; do not normalize.** Add a `CloseConflictResponse` Union model wrapping the three existing detail bodies (string "already closed", `{blocking_issues: [...]}`, `{unfulfilled_requirements: [...]}`). FE narrows by key. No service refactor; existing tests unchanged. Establishes the codebase's first `responses=` convention.
+2. **Deliverables CRUD permission posture: `PROJECT_EDIT`.** Matches DEP filing forms catalog (`app/dep_filings/router.py:57-103`), tighter than the existing deliverables router default of `Depends(get_current_user)`. `level` is immutable on PATCH, mirroring the WACode pattern at `app/wa_codes/router/base.py:69-121`.
+3. **Undismiss handlers stay inline in each silo's router.** Match `app/lab_reports/router.py:68-87`'s pattern verbatim. No service-layer additions. Each handler must do an explicit uniqueness re-check before nulling `dismissed_at` (each model has a partial unique index on `(...keys, dismissed_at) WHERE dismissed_at IS NULL`); otherwise a collision surfaces as `IntegrityError` 500 instead of a clean 409. The existing `lab_reports` undismiss is patched for parity in the same session.
+4. **Requirement-type discoverability: both Literal narrowing AND `GET /requirement-types`.** Literal gives the FE compile-time narrowing on `requirement_type_name`; the registry endpoint exposes per-type `template_params_schema` (JSON Schema) so the FE can render forms dynamically. Each handler gains a `template_params_model: ClassVar[type[BaseModel] | None]` attribute on the `ProjectRequirement` Protocol — `None` signals "params must be empty `{}`"; only `project_document` declares a real model today. A registry-coverage test asserts the `RequirementTypeName` Literal members exactly match `set(registry.all_handlers().keys())` so the two cannot drift.
+5. **New `/requirement-types` lives in a new top-level `app/requirement_types/` module.** Owns ONLY the metadata endpoint and any future cross-silo type-introspection routes. The existing silo modules (`cprs/`, `lab_reports/`, `dep_filings/`, `required_docs/`, `deliverables/`) stay flat at top level — each is a domain module first and a requirement-type implementer second; the Protocol + registry already solve discovery at runtime, so filesystem colocation would only force `/requirement-types/cprs/...`-style URLs (violating module-owns-namespace) or decouple filesystem path from URL path (subtly violating it for every reader). The new module imports `registry` from `app.common.requirements` and reads handlers; zero coupling to the silos themselves.
+6. **Requirement-triggers namespace: drop the wa-codes re-mount.** Remove `router.include_router(requirement_triggers_router)` from `app/wa_codes/router/__init__.py:15`. Canonical path stays `/requirement-triggers/...` (where ~30 existing tests already point); `/wa-codes/requirement-triggers/...` becomes 404. The schema is `WACodeRequirementTriggerCreate` and the body carries `wa_code_id`, but the URL doesn't need to repeat that scope — the duplicate mount was redundant exposure, not a Option-C requirement.
+
+**Migrations:** NONE.
+
+**Sessions** (each scoped for context focus; resume from `HANDOFF.md`):
+
+- [ ] **Session A — Contract polish on existing surfaces** (Items 1, 2, 6)
+  - **Close 409 documentation.** `app/projects/schemas.py` — add `BlockingIssuesDetail`, `UnfulfilledRequirementsDetail`, `CloseConflictResponse(detail: BlockingIssuesDetail | UnfulfilledRequirementsDetail | str)` (the wrapper matches FastAPI's actual `{"detail": ...}` body shape). `app/projects/router/base.py:134` — add `responses={409: {"model": CloseConflictResponse, "description": "..."}}` to the close decorator. No runtime change; existing `app/projects/tests/test_project_closure.py` continues to pass unchanged.
+  - **Deliverables CRUD.** `app/deliverables/schemas.py` — add `DeliverableUpdate` (all fields optional). `app/deliverables/router/base.py` — add `POST /` (status 201, `_ensure_name_unique` helper, 409 on dup, `created_by_id=current_user.id`) and `PATCH /{deliverable_id}` (`exclude_unset=True`, immutable-`level` 422, name re-uniqueness, `updated_by_id=current_user.id`); both gated by `Depends(PermissionChecker(PermissionName.PROJECT_EDIT))`.
+  - **Cross-side note.** Append a section to `frontend/HANDOFF.md` clarifying that the catalog `Deliverable` has only `name`, `description`, `level` — `internal_status`/`sca_status` live on `ProjectDeliverable`/`ProjectBuildingDeliverable`, not the catalog. New `POST/PATCH /deliverables/` manage exactly the three catalog fields.
+  - Tests: deliverables POST 201/409/422; PATCH 200/404/422-immutable-level/409-dup-name; permission 403; close-endpoint OpenAPI smoke test (optional). ~8 new tests.
+  - User-managed migration: NONE.
+
+- [ ] **Session B — Undismiss symmetry** (Item 3)
+  - `app/cprs/router.py` — add `POST /cprs/{cpr_id}/undismiss` (`response_model=ContractorPaymentRecordRead`, `PROJECT_EDIT` guard).
+  - `app/required_docs/router.py` — add `POST /document-requirements/{req_id}/undismiss` (`response_model=ProjectDocumentRequirementRead`).
+  - `app/dep_filings/router.py` — add `POST /dep-filings/{filing_id}/undismiss` (`response_model=ProjectDepFilingRead`).
+  - All three follow `app/lab_reports/router.py:68-87` pattern: `db.get` → 404 → 422 if not dismissed → **uniqueness re-check** against active sibling on the same logical key (raise 409 if collision) → null out `dismissed_at`/`dismissed_by_id`/`dismissal_reason` → set `updated_by_id` → commit/refresh.
+  - **Lab-reports parity:** add the same uniqueness re-check to `app/lab_reports/router.py:68-87`'s undismiss handler (currently absent — would surface as `IntegrityError` 500).
+  - Tests for each new endpoint: 200 round-trip, 404 unknown id, 422 not-dismissed, 409 collision, 403 permission. Plus one regression test for lab_reports' new collision check. ~16-20 new tests.
+  - User-managed migration: NONE.
+
+- [ ] **Session C — Requirement-types module + namespace cleanup** (Items 4a, 4b, 5)
+  - **`template_params_model` on Protocol.** `app/common/requirements/protocol.py` — add `template_params_model: ClassVar[type[BaseModel] | None]` to the Protocol. Each handler declares it: `app/required_docs/service.py` introduces `ProjectDocumentTemplateParams(BaseModel): document_type: DocumentType` and reuses it from `validate_template_params` via `model.model_validate(params)`; the other four handlers (`deliverables`, `lab_reports`, `dep_filings`, `cprs`) set `template_params_model = None` (signals "must be `{}`").
+  - **Literal narrowing.** `app/common/requirements/__init__.py` — export a `RequirementTypeName` Literal mirroring registered names. `app/requirement_triggers/schemas.py:6-9` — type `WACodeRequirementTriggerCreate.requirement_type_name` as `RequirementTypeName`. Add `app/common/requirements/tests/test_registry_coverage.py` (extending the existing E0c coverage test) asserting `set(get_args(RequirementTypeName)) == set(registry.all_handlers().keys())`.
+  - **New `app/requirement_types/` module.** Files: `__init__.py` (empty), `router.py` (`prefix="/requirement-types"`, `GET ""` → `list[RequirementTypeInfo]`, `Depends(get_current_user)`), `schemas.py` (`RequirementTypeInfo(BaseModel)`: `name: str`, `events: list[RequirementEvent]`, `template_params_schema: dict`, `is_dismissable: bool`, `display_name: str | None`), `tests/test_router.py`, `README.md`. Handler iteration: `for h in registry.all_handlers(): schema = h.template_params_model.model_json_schema() if h.template_params_model else {}`.
+  - `app/main.py` — register `requirement_types_router`.
+  - **Drop wa-codes re-mount.** `app/wa_codes/router/__init__.py:15` — delete the `router.include_router(requirement_triggers_router)` line and its import on line 3. `app/requirement_triggers/README.md:29-30` — update to reflect canonical path is `/requirement-triggers` only. Add a regression test (`app/wa_codes/tests/test_router.py`) asserting `GET /wa-codes/requirement-triggers` returns 404.
+  - Tests: `GET /requirement-types` returns one row per registered handler; `project_document`'s `template_params_schema` includes `document_type` enum with all `DocumentType` values; others return `{}`; Literal-vs-registry coverage; wa-codes-mount-removed regression. ~10 new tests.
+  - User-managed migration: NONE.
+
+**Verification (each session):** `.venv/Scripts/python.exe -m pytest app/ -v` green; OpenAPI smoke (boot `just api`, fetch `/openapi.json`, eyeball the changed paths/schemas); cross-side note to `frontend/HANDOFF.md` at end of session covering all FE-impacting changes.
+
+---
+
 ### Phase 6.7 — Peer Dependency Navigation (two-layer rule, no framework)
 
 **Superseded earlier plan.** The 2026-04-27 architecture evaluation
