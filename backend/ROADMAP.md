@@ -639,7 +639,7 @@ Full design eval: `PLANNING.md`. Concrete plan reference (working doc): `~/.clau
 
 ---
 
-- [ ] **Session E — Silo 3: `dep_filings`** (single module, lands on E0a–E0d paths)
+- [x] **Session E — Silo 3: `dep_filings`** (single module, lands on E0a–E0d paths) ✓ COMPLETE 2026-04-27
   - `app/dep_filings/` module containing `DEPFilingForm` (admin config) + `ProjectDEPFiling` (instance) — single module mirrors `lab_results/` precedent
   - Admin form CRUD endpoints under `/dep-filings/forms` (use `create_readonly_router` + `create_guarded_delete_router` factories)
   - Item router in `app/dep_filings/router.py` (`prefix="/dep-filings"`) for item ops + admin form CRUD; mounted in `main.py`

@@ -1,4 +1,4 @@
-# Session Handoff — 2026-04-27
+# Session Handoff — 2026-04-27 (updated)
 
 This file captures decisions made and work completed in the most recent session. Read before continuing.
 
@@ -27,13 +27,24 @@ This file captures decisions made and work completed in the most recent session.
 - Dropped `is_required.is_(True)` predicate from both `get_unfulfilled_for_project` classmethod queries.
 - Migration pending (user generates): `ALTER TABLE contractor_payment_records DROP COLUMN is_required; ALTER TABLE project_document_requirements DROP COLUMN is_required;`
 
+**Session E complete** (Silo 3 / `dep_filings`, 2026-04-27). 762 passing (+57 new tests).
+- `app/dep_filings/` module: `DEPFilingForm` (admin config) + `ProjectDEPFiling` (requirement instance).
+- Manager-driven materialization via `POST /projects/{id}/dep-filings {form_ids: [...]}` — no WA-code trigger, no event subscription.
+- Item ops at `PATCH /dep-filings/{id}`, `POST /dep-filings/{id}/dismiss`, `DELETE /dep-filings/{id}`.
+- Form admin CRUD at `/dep-filings/forms/*` using `create_readonly_router` + `create_guarded_delete_router` + hand-rolled POST/PATCH/GET-by-id.
+- Project-scoped list/create in `app/projects/router/dep_filings.py` per PATTERNS.md #17.
+- Migration pending (user generates): `dep_filing_forms` table + `project_dep_filings` table.
+- FE handoff note: see "Frontend cross-side notes" below.
+
+**Next: {E2} → F.** Session E2 (`lab_reports`) is independent and can land before F.
+
 **Three reviews on 2026-04-27**, no code written:
 
 1. **Path-finalization review** — surfaced module-layering (`app/project_requirements/` mixes contract with specific config) and router-pattern (`/projects` prefix declared from inside child modules) problems. Produced Sessions E0a + E0b. Plan: `../.claude/plans/review-the-current-phase-cached-wilkes.md`.
 2. **Architecture evaluation** — confirmed the `ProjectRequirement` abstraction is worth keeping, gutted the speculative Phase 6.7 framework, and surfaced four protocol/schema hygiene items. Produced Sessions E0c + E0d. Plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
 3. **Lab-report silo design** — proposed retiring the standalone `SampleBatch.is_report` boolean by modeling the typed lab report as a per-batch `ProjectRequirement` materialized on `BATCH_CREATED`. Produced Session E2 (Silo 4 `lab_reports`). Plan: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 
-**Next: {E, E2 — independent} → F.** Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
+**Next: {E2} → F.** Session E is complete. Session E2 (silo 4 `lab_reports`) is independent and may land before F.
 
 > Plans + key memory entries for the E0a–F + E2 arc are checkpointed in `../.claude/{plans,memory}/` so this context travels across machines. See `../.claude/README.md`.
 
@@ -252,12 +263,30 @@ Single `app/dep_filings/` module (mirrors `lab_results/` precedent — confirmed
 - `contractor_payment_records` (from Session D — DDL in prior HANDOFF revision; recover from git history if needed)
 - `ALTER TABLE contractor_payment_records DROP COLUMN is_required;` (from Session E0d)
 - `ALTER TABLE project_document_requirements DROP COLUMN is_required;` (from Session E0d)
+- `dep_filing_forms` table + `project_dep_filings` table (from Session E)
 
 ---
 
 ## Frontend cross-side notes
 
-Nothing new for FE this session (no code written). Regen points across the upcoming sub-sessions:
+**Session E regen required.** New schemas and endpoints added. Regen the OpenAPI client after Session E migrations are applied.
+
+New schemas: `DEPFilingFormRead`, `DEPFilingFormCreate`, `DEPFilingFormUpdate`, `ProjectDEPFilingRead`, `ProjectDEPFilingCreate` (`form_ids: number[]`), `ProjectDEPFilingUpdate`, `ProjectDEPFilingDismiss`.
+
+New endpoints:
+- `GET /dep-filings/forms/` — paginated admin form list
+- `GET /dep-filings/forms/{id}` — single form
+- `GET /dep-filings/forms/{id}/connections` — reference counts
+- `POST /dep-filings/forms/` — create form
+- `PATCH /dep-filings/forms/{id}` — update form
+- `DELETE /dep-filings/forms/{id}` — guarded delete
+- `PATCH /dep-filings/{id}` — update filing (`is_saved`, `file_id`, `notes`)
+- `POST /dep-filings/{id}/dismiss` — dismiss filing
+- `DELETE /dep-filings/{id}` — delete pristine filing
+- `GET /projects/{id}/dep-filings` — list filings for project (`?include_dismissed=true`)
+- `POST /projects/{id}/dep-filings` — manager selects forms `{form_ids: [...]}`
+
+Regen points across the upcoming sub-sessions:
 
 - After **E0c** lands: regen the OpenAPI client. `UnfulfilledRequirementRead` loses `requirement_key`. `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` `label` / `is_fulfilled` shapes are unchanged in OpenAPI (still computed at serialization, just from the model property now), but the CPR `label` value will start including the contractor name correctly.
 - After **E0d** lands (now complete): regen again. `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lose `is_required`. **Regen now.**
