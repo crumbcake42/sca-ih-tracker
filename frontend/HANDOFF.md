@@ -1,5 +1,39 @@
 # Session Handoff — Frontend
 
+## Drift surfaced by Session F regen audit (2026-04-27)
+
+OpenAPI client regenerated against backend post-Session-F (regen sits unstaged in the working tree at the time of writing). Most of the pending-pickup items below landed cleanly, but the audit surfaced backend gaps and FE doc/scope issues that need to be resolved before further work in this area:
+
+**Blocking backend gaps** (also recorded in `backend/HANDOFF.md` "FE regen drift to address"):
+
+1. **Close 409 response is not in the OpenAPI schema.** `CloseProjectProjectsProjectIdClosePostErrors` only declares `422`. The promised 409 with `{"unfulfilled_requirements": [...]}` or `{"blocking_issues": [...]}` is invisible to the generated client, so the close-flow handler will have to hand-narrow `unknown` until backend declares `responses={409: ...}`. Do not build the close-gate UI against a hand-rolled type.
+2. **Session 2.3e (Deliverables admin) still blocked** — no `POST /deliverables/` or `PATCH /deliverables/{id}`; no `DeliverableCreate` / `DeliverableUpdate` types.
+3. **`undismiss` only exists for lab reports.** CPRs, project document requirements, and project DEP filings have dismiss but no undismiss. If the silo UIs need a "restore" action, that's a backend gap.
+4. **No way to discover valid requirement-trigger types from the schema.** `WaCodeRequirementTriggerCreate.requirement_type_name` is plain `string`, `template_params` is `dict[str, unknown]`. Runtime validation rejects unsupported values, but the FE will have to maintain a hardcoded list aligned with backend until the schema exposes a `Literal` / discriminated union or a `GET /requirement-types` registry endpoint.
+5. **Duplicated requirement-triggers namespace** at `/requirement-triggers` and `/wa-codes/requirement-triggers` produces near-identical generated function names. Backend should disambiguate via explicit `operation_id` (e.g. `list_wa_code_requirement_triggers`); FE wrappers must be named explicitly to avoid mistakes.
+
+**FE-side cleanup before continuing**:
+
+6. **`frontend/CLAUDE.md` is stale** — line 24 says "Notes are polymorphic … four entity types (`project` | `time_entry` | `deliverable` | `sample_batch`)." `NoteEntityType` now has five values; `'contractor_payment_record'` was added. Update the doc and confirm `NotesPanel` is wired up for CPR rows on the new CPR silo UI.
+7. **`NoteType` gained `'cpr_stage_regression'`.** Any `NotesPanel` switch on note type (icons/labels/system-badge logic) needs a branch for it. New variant is system-generated.
+8. **Deliverables blocker description below is wrong.** It says the create surface needs "name, description, internal_status, sca_status," but `internal_status`/`sca_status` live on `ProjectDeliverable`/`ProjectBuildingDeliverable`, not the catalog `Deliverable` (which has only `name`/`description`/`level`). Reconfirm scope with backend before unblocking and rewrite the entry.
+9. **Stale "Next" pointer in Current State.** Session F now unblocks four new silo UIs (DEP filings, lab reports, document requirements, CPRs), the `unfulfilled_requirement_count` badge on the close flow, and the dual-detail close-409 handler. ROADMAP needs re-sequencing — Session 2.3e is no longer the only logical next thing, just still blocked.
+10. **`hasConnections(unknown)` cast in `WaCodeFormDialog.tsx`** is now actually removable (`WaCodeConnections` is typed). Quick warm-up task.
+
+**Resolved by this regen** (no further action needed):
+
+- `ProjectStatusRead.unfulfilled_requirement_count`, `UnfulfilledRequirement` schema, `GET /projects/{id}/requirements`
+- DEP filings: `DepFilingForm{Read,Create,Update,Connections}`, `ProjectDepFiling{Read,Create,Update,Dismiss}` and all `/dep-filings/...` + `/projects/{id}/dep-filings` endpoints
+- Lab reports: `LabReportRequirement{Read,Update,Dismiss}` + `/projects/{id}/lab-reports`, `/lab-reports/{id}/{save,dismiss,undismiss}`
+- Document requirements: full CRUD + dismiss surface present; `is_required` removed
+- CPRs: full CRUD + dismiss surface present; `is_required` removed; `BlockingIssue` shape unchanged
+- Sample batch types lose `is_report`
+- `UnfulfilledRequirement` does not carry `requirement_key`
+- All six `*Connections` schemas typed
+- `GET /work-auths/` paginated (`PaginatedResponseWorkAuth`)
+
+---
+
 ## Backend changes pending frontend pickup
 
 **Session F (backend) landed (2026-04-27) — final Phase 6.5 regen. Regenerate the OpenAPI client before the next FE session.**
@@ -38,15 +72,44 @@ Changes since last regen (Sessions E0d + E + E2 + F all land together):
 
 ## Current State
 
-**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, 2.3b, 2.3c, and 2.3d complete.**
+**Sessions 0.5, 1.1–1.7, 2.1a, 2.1b, 2.1c, 1.5A, 1.5B, 1.5C, 2.2, backend-pickup migration, auth fix, 2.3a, 2.3b, 2.3c, 2.3d, connections-pickup audit, and Session F regen audit complete.**
 
-- OpenAPI client regenerated after backend unblocking session.
-- `EmployeeRolesTab` + `EmployeeRoleFormDialog` migrated from `role_type: string` to `role_type_id: number` + `role_type: EmployeeRoleTypeRead`; select options now fetched from `/employee-role-types/`.
-- `src/features/employees/api/employees.ts` barrel extended with `listEmployeeRoleTypesOptions/QueryKey`, `createEmployeeRoleTypeMutation`, `updateEmployeeRoleTypeMutation`, `deleteEmployeeRoleTypeMutation`.
-- `EmployeeRoleFormDialog.test.tsx` updated to match new shape.
-- WA codes admin CRUD pages built and wired to dashboard (Session 2.3a). `GET /wa-codes/{id}/connections` returns `unknown` in generated client — backend needs `WaCodeConnections` response model before the `hasConnections` cast in `WaCodeFormDialog.tsx` can be removed.
+- All 2.3a–2.3d admin CRUD slices complete.
+- OpenAPI client regenerated post-Session F (E0d + E + E2 + F all landed); regen sits unstaged in the working tree pending a standalone commit.
+- Drift audit done: most pickup items resolved; 5 backend gaps + 5 FE doc/scope cleanups documented at top of this file and in `backend/HANDOFF.md` "FE regen drift to address."
 
-**Next: Session 2.3e (Deliverables) — still blocked.** See "Backend changes pending frontend pickup" above. All 2.3a–2.3d admin CRUD slices are complete.
+**Next:** decide what to build first now that the four silo schemas are typed (DEP filings UI, lab reports UI, document requirements UI, CPRs UI, close-flow `unfulfilled_requirement_count` badge + dual-detail 409 handler), and whether to wait on backend for the close-409 schema fix before touching the close gate. Session 2.3e (Deliverables) still blocked. ROADMAP needs re-sequencing.
+
+---
+
+## What Was Done This Session (Session F regen audit + cross-side drift documentation)
+
+**Done:**
+
+- Reviewed unstaged regen of `frontend/src/api/generated/{types.gen.ts,sdk.gen.ts,@tanstack/react-query.gen.ts,index.ts}` against `frontend/HANDOFF.md`'s pending-pickup list.
+- Confirmed resolved by the regen: `ProjectStatusRead.unfulfilled_requirement_count`, `UnfulfilledRequirement` schema, `GET /projects/{id}/requirements`, full DEP-filing surface (`DepFilingForm{Read,Create,Update,Connections}`, `ProjectDepFiling{Read,Create,Update,Dismiss}` and their endpoints), full lab-report surface (`LabReportRequirement{Read,Update,Dismiss}` + save/dismiss/undismiss), document-requirement and CPR surfaces with `is_required` removed, sample-batch types with `is_report` removed, `requirement_key` removed, all six `*Connections` typed, `PaginatedResponseWorkAuth`.
+- Surfaced drift items (5 backend + 5 FE) in a new "Drift surfaced by Session F regen audit" section at the top of this file: missing 409 schema on close, missing standalone Deliverables CRUD, asymmetric undismiss (only lab reports has it), untyped `requirement_type_name` + `template_params`, duplicated requirement-triggers namespace, stale CLAUDE.md polymorphic-notes count (4 → 5), new `NoteType.cpr_stage_regression` variant, wrong field-list in the deliverables blocker description, stale Next pointer, removable `hasConnections` cast.
+- Mirrored the backend-side items into `backend/HANDOFF.md` under a new "FE regen drift to address (audit 2026-04-27)" section so the next backend session picks them up.
+- Did not yet stage/commit the regen, update `frontend/CLAUDE.md`, remove the `hasConnections(unknown)` cast, or re-sequence ROADMAP — those are follow-ups for the next session.
+
+**Next:** commit the regen as a standalone "regenerate OpenAPI client (post-Session F)" commit, then decide which silo UI to build first. The `WaCodeFormDialog.tsx` cast cleanup and the `frontend/CLAUDE.md` four-→-five entity-types fix are quick warm-ups.
+
+**Blockers:** see "Drift surfaced by Session F regen audit" at top of file. The close-flow UI cannot be cleanly typed until backend declares `responses={409: ...}` on `POST /projects/{id}/close`. Session 2.3e (Deliverables) still blocked on standalone CRUD endpoints. Other items are workable but require FE-side knowledge of runtime constraints not in the schema.
+
+---
+
+## What Was Done Previously (Connections pickup audit — OpenAPI regen)
+
+**Done:**
+
+- Audited newly regenerated OpenAPI client (`types.gen.ts`, `sdk.gen.ts`) against outstanding pickup items in HANDOFF.
+- Confirmed resolved: all six connections endpoints now return typed schemas — `WaCodeConnections`, `DeliverableConnections`, `ContractorConnections`, `HygienistConnections`, `EmployeeConnections`, `SchoolConnections` all typed at `200`. The `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` is now removable.
+- Confirmed still blocked: no standalone `POST /deliverables/` or `PATCH /deliverables/{id}`; `DeliverableCreate`/`DeliverableUpdate` types absent from generated client. Session 2.3e remains blocked.
+- Updated HANDOFF: removed resolved connections pickup item, fixed deliverables blocker label (was "2.3b", now correctly "2.3e"), refreshed Current State and 2.3d blockers line.
+
+**Next:** Session 2.3e (Deliverables) — blocked. Can start next session with the `WaCodeFormDialog.tsx` cast cleanup as a warm-up.
+
+**Blockers:** Session 2.3e — backend needs `POST /deliverables/` + `PATCH /deliverables/{id}`.
 
 ---
 

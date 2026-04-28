@@ -253,6 +253,11 @@ export type BodyLoginForAccessTokenAuthTokenPost = {
 export type Boro = 'BROOKLYN' | 'MANHATTAN' | 'BRONX' | 'QUEENS' | 'STATEN ISLAND';
 
 /**
+ * CPRStageStatus
+ */
+export type CprStageStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
+
+/**
  * Contractor
  */
 export type Contractor = {
@@ -319,6 +324,172 @@ export type ContractorCreate = {
 };
 
 /**
+ * ContractorPaymentRecordCreate
+ *
+ * Used for manual POST creates when the system event was missed or for admin correction.
+ */
+export type ContractorPaymentRecordCreate = {
+    /**
+     * Project Id
+     */
+    project_id: number;
+    /**
+     * Contractor Id
+     */
+    contractor_id: number;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+};
+
+/**
+ * ContractorPaymentRecordDismiss
+ */
+export type ContractorPaymentRecordDismiss = {
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string;
+};
+
+/**
+ * ContractorPaymentRecordRead
+ */
+export type ContractorPaymentRecordRead = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Project Id
+     */
+    project_id: number;
+    /**
+     * Contractor Id
+     */
+    contractor_id: number;
+    /**
+     * Rfa Submitted At
+     */
+    rfa_submitted_at: string | null;
+    rfa_internal_status: CprStageStatus | null;
+    /**
+     * Rfa Internal Resolved At
+     */
+    rfa_internal_resolved_at: string | null;
+    rfa_sca_status: CprStageStatus | null;
+    /**
+     * Rfa Sca Resolved At
+     */
+    rfa_sca_resolved_at: string | null;
+    /**
+     * Rfp Submitted At
+     */
+    rfp_submitted_at: string | null;
+    rfp_internal_status: CprStageStatus | null;
+    /**
+     * Rfp Internal Resolved At
+     */
+    rfp_internal_resolved_at: string | null;
+    /**
+     * Rfp Saved At
+     */
+    rfp_saved_at: string | null;
+    /**
+     * File Id
+     */
+    file_id: number | null;
+    /**
+     * Notes
+     */
+    notes: string | null;
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string | null;
+    /**
+     * Dismissed By Id
+     */
+    dismissed_by_id: number | null;
+    /**
+     * Dismissed At
+     */
+    dismissed_at: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Created By Id
+     */
+    created_by_id: number | null;
+    /**
+     * Updated By Id
+     */
+    updated_by_id: number | null;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Is Fulfilled
+     */
+    is_fulfilled: boolean;
+    /**
+     * Is Dismissed
+     */
+    is_dismissed: boolean;
+};
+
+/**
+ * ContractorPaymentRecordUpdate
+ *
+ * All fields optional; primary use is advancing RFA/RFP stage dates and statuses.
+ */
+export type ContractorPaymentRecordUpdate = {
+    /**
+     * Rfa Submitted At
+     */
+    rfa_submitted_at?: string | null;
+    rfa_internal_status?: CprStageStatus | null;
+    /**
+     * Rfa Internal Resolved At
+     */
+    rfa_internal_resolved_at?: string | null;
+    rfa_sca_status?: CprStageStatus | null;
+    /**
+     * Rfa Sca Resolved At
+     */
+    rfa_sca_resolved_at?: string | null;
+    /**
+     * Rfp Submitted At
+     */
+    rfp_submitted_at?: string | null;
+    rfp_internal_status?: CprStageStatus | null;
+    /**
+     * Rfp Internal Resolved At
+     */
+    rfp_internal_resolved_at?: string | null;
+    /**
+     * Rfp Saved At
+     */
+    rfp_saved_at?: string | null;
+    /**
+     * File Id
+     */
+    file_id?: number | null;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+};
+
+/**
  * ContractorUpdate
  */
 export type ContractorUpdate = {
@@ -342,6 +513,102 @@ export type ContractorUpdate = {
      * Zip Code
      */
     zip_code?: string | null;
+};
+
+/**
+ * DEPFilingFormConnections
+ */
+export type DepFilingFormConnections = {
+    /**
+     * Project Dep Filings
+     */
+    project_dep_filings: number;
+};
+
+/**
+ * DEPFilingFormCreate
+ */
+export type DepFilingFormCreate = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Is Default Selected
+     */
+    is_default_selected?: boolean;
+    /**
+     * Display Order
+     */
+    display_order?: number;
+};
+
+/**
+ * DEPFilingFormRead
+ */
+export type DepFilingFormRead = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Is Default Selected
+     */
+    is_default_selected: boolean;
+    /**
+     * Display Order
+     */
+    display_order: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Created By Id
+     */
+    created_by_id: number | null;
+    /**
+     * Updated By Id
+     */
+    updated_by_id: number | null;
+};
+
+/**
+ * DEPFilingFormUpdate
+ */
+export type DepFilingFormUpdate = {
+    /**
+     * Code
+     */
+    code?: string | null;
+    /**
+     * Label
+     */
+    label?: string | null;
+    /**
+     * Is Default Selected
+     */
+    is_default_selected?: boolean | null;
+    /**
+     * Display Order
+     */
+    display_order?: number | null;
 };
 
 /**
@@ -404,6 +671,11 @@ export type DeliverableWaCodeTriggerCreate = {
      */
     wa_code_id: number;
 };
+
+/**
+ * DocumentType
+ */
+export type DocumentType = 'daily_log' | 'reoccupancy_letter' | 'minor_letter';
 
 /**
  * Employee
@@ -719,6 +991,100 @@ export type ImportErrorReport = {
 export type InternalDeliverableStatus = 'incomplete' | 'blocked' | 'in_review' | 'in_revision' | 'completed';
 
 /**
+ * LabReportRequirementDismiss
+ */
+export type LabReportRequirementDismiss = {
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string;
+};
+
+/**
+ * LabReportRequirementRead
+ */
+export type LabReportRequirementRead = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Project Id
+     */
+    project_id: number;
+    /**
+     * Sample Batch Id
+     */
+    sample_batch_id: number;
+    /**
+     * Is Saved
+     */
+    is_saved: boolean;
+    /**
+     * Saved At
+     */
+    saved_at: string | null;
+    /**
+     * File Id
+     */
+    file_id: number | null;
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string | null;
+    /**
+     * Dismissed By Id
+     */
+    dismissed_by_id: number | null;
+    /**
+     * Dismissed At
+     */
+    dismissed_at: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Created By Id
+     */
+    created_by_id: number | null;
+    /**
+     * Updated By Id
+     */
+    updated_by_id: number | null;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Is Fulfilled
+     */
+    is_fulfilled: boolean;
+    /**
+     * Is Dismissed
+     */
+    is_dismissed: boolean;
+};
+
+/**
+ * LabReportRequirementUpdate
+ */
+export type LabReportRequirementUpdate = {
+    /**
+     * Is Saved
+     */
+    is_saved?: boolean | null;
+    /**
+     * File Id
+     */
+    file_id?: number | null;
+};
+
+/**
  * ManagerAssignment
  *
  * Read schema for a single manager assignment record.
@@ -765,7 +1131,7 @@ export type NoteCreate = {
 /**
  * NoteEntityType
  */
-export type NoteEntityType = 'project' | 'time_entry' | 'deliverable' | 'sample_batch';
+export type NoteEntityType = 'project' | 'time_entry' | 'deliverable' | 'sample_batch' | 'contractor_payment_record';
 
 /**
  * NoteRead
@@ -857,7 +1223,7 @@ export type NoteResolve = {
  *
  * System-generated note types. NULL for user-authored notes.
  */
-export type NoteType = 'time_entry_conflict' | 'missing_sample_type_wa_code';
+export type NoteType = 'time_entry_conflict' | 'missing_sample_type_wa_code' | 'cpr_stage_regression';
 
 /**
  * PaginatedResponse[Contractor]
@@ -867,6 +1233,28 @@ export type PaginatedResponseContractor = {
      * Items
      */
     items: Array<Contractor>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Skip
+     */
+    skip: number;
+    /**
+     * Limit
+     */
+    limit: number;
+};
+
+/**
+ * PaginatedResponse[DEPFilingFormRead]
+ */
+export type PaginatedResponseDepFilingFormRead = {
+    /**
+     * Items
+     */
+    items: Array<DepFilingFormRead>;
     /**
      * Total
      */
@@ -1129,6 +1517,120 @@ export type ProjectCreate = {
 };
 
 /**
+ * ProjectDEPFilingCreate
+ *
+ * POST /projects/{id}/dep-filings body: manager selects which forms apply.
+ */
+export type ProjectDepFilingCreate = {
+    /**
+     * Form Ids
+     */
+    form_ids: Array<number>;
+};
+
+/**
+ * ProjectDEPFilingDismiss
+ */
+export type ProjectDepFilingDismiss = {
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string;
+};
+
+/**
+ * ProjectDEPFilingRead
+ */
+export type ProjectDepFilingRead = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Project Id
+     */
+    project_id: number;
+    /**
+     * Dep Filing Form Id
+     */
+    dep_filing_form_id: number;
+    /**
+     * Is Saved
+     */
+    is_saved: boolean;
+    /**
+     * Saved At
+     */
+    saved_at: string | null;
+    /**
+     * File Id
+     */
+    file_id: number | null;
+    /**
+     * Notes
+     */
+    notes: string | null;
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string | null;
+    /**
+     * Dismissed By Id
+     */
+    dismissed_by_id: number | null;
+    /**
+     * Dismissed At
+     */
+    dismissed_at: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Created By Id
+     */
+    created_by_id: number | null;
+    /**
+     * Updated By Id
+     */
+    updated_by_id: number | null;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Is Fulfilled
+     */
+    is_fulfilled: boolean;
+    /**
+     * Is Dismissed
+     */
+    is_dismissed: boolean;
+};
+
+/**
+ * ProjectDEPFilingUpdate
+ */
+export type ProjectDepFilingUpdate = {
+    /**
+     * Is Saved
+     */
+    is_saved?: boolean | null;
+    /**
+     * File Id
+     */
+    file_id?: number | null;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+};
+
+/**
  * ProjectDeliverable
  */
 export type ProjectDeliverable = {
@@ -1181,6 +1683,170 @@ export type ProjectDeliverableUpdate = {
 };
 
 /**
+ * ProjectDocumentRequirementCreate
+ *
+ * Used for manual POST creates (re-occupancy letters, minor letters, etc.).
+ */
+export type ProjectDocumentRequirementCreate = {
+    /**
+     * Project Id
+     */
+    project_id: number;
+    document_type: DocumentType;
+    /**
+     * Employee Id
+     */
+    employee_id?: number | null;
+    /**
+     * Date
+     */
+    date?: string | null;
+    /**
+     * School Id
+     */
+    school_id?: number | null;
+    expected_role_type?: EmployeeRoleType | null;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+    /**
+     * Is Placeholder
+     */
+    is_placeholder?: boolean;
+};
+
+/**
+ * ProjectDocumentRequirementDismiss
+ */
+export type ProjectDocumentRequirementDismiss = {
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string;
+};
+
+/**
+ * ProjectDocumentRequirementRead
+ */
+export type ProjectDocumentRequirementRead = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Project Id
+     */
+    project_id: number;
+    document_type: DocumentType;
+    /**
+     * Is Saved
+     */
+    is_saved: boolean;
+    /**
+     * Is Placeholder
+     */
+    is_placeholder: boolean;
+    /**
+     * Employee Id
+     */
+    employee_id: number | null;
+    /**
+     * Date
+     */
+    date: string | null;
+    /**
+     * School Id
+     */
+    school_id: number | null;
+    /**
+     * File Id
+     */
+    file_id: number | null;
+    expected_role_type: EmployeeRoleType | null;
+    /**
+     * Wa Code Trigger Id
+     */
+    wa_code_trigger_id: number | null;
+    /**
+     * Notes
+     */
+    notes: string | null;
+    /**
+     * Dismissal Reason
+     */
+    dismissal_reason: string | null;
+    /**
+     * Dismissed By Id
+     */
+    dismissed_by_id: number | null;
+    /**
+     * Dismissed At
+     */
+    dismissed_at: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Created By Id
+     */
+    created_by_id: number | null;
+    /**
+     * Updated By Id
+     */
+    updated_by_id: number | null;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Is Fulfilled
+     */
+    is_fulfilled: boolean;
+    /**
+     * Is Dismissed
+     */
+    is_dismissed: boolean;
+};
+
+/**
+ * ProjectDocumentRequirementUpdate
+ *
+ * All fields optional; primary use is toggling is_saved and attaching metadata.
+ */
+export type ProjectDocumentRequirementUpdate = {
+    /**
+     * Is Saved
+     */
+    is_saved?: boolean | null;
+    /**
+     * File Id
+     */
+    file_id?: number | null;
+    /**
+     * Employee Id
+     */
+    employee_id?: number | null;
+    /**
+     * Date
+     */
+    date?: string | null;
+    /**
+     * School Id
+     */
+    school_id?: number | null;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+};
+
+/**
  * ProjectStatus
  */
 export type ProjectStatus = 'setup' | 'in_progress' | 'blocked' | 'ready_to_close' | 'locked';
@@ -1210,6 +1876,10 @@ export type ProjectStatusRead = {
      * Unconfirmed Time Entry Count
      */
     unconfirmed_time_entry_count: number;
+    /**
+     * Unfulfilled Requirement Count
+     */
+    unfulfilled_requirement_count: number;
     /**
      * Blocking Issues
      */
@@ -1258,10 +1928,6 @@ export type QuickAddBatchCreate = {
      * Batch Num
      */
     batch_num: string;
-    /**
-     * Is Report
-     */
-    is_report?: boolean;
     /**
      * Date Collected
      */
@@ -1475,10 +2141,6 @@ export type SampleBatchCreate = {
      */
     batch_num: string;
     /**
-     * Is Report
-     */
-    is_report?: boolean;
-    /**
      * Date Collected
      */
     date_collected: string;
@@ -1538,10 +2200,6 @@ export type SampleBatchRead = {
      * Batch Num
      */
     batch_num: string;
-    /**
-     * Is Report
-     */
-    is_report: boolean;
     status: SampleBatchStatus;
     /**
      * Date Collected
@@ -1614,10 +2272,6 @@ export type SampleBatchUnitRead = {
  * SampleBatchUpdate
  */
 export type SampleBatchUpdate = {
-    /**
-     * Is Report
-     */
-    is_report?: boolean | null;
     /**
      * Date Collected
      */
@@ -2049,6 +2703,34 @@ export type TurnaroundOptionRead = {
 };
 
 /**
+ * UnfulfilledRequirement
+ *
+ * Uniform schema returned by the closure-gate aggregator for any requirement type.
+ */
+export type UnfulfilledRequirement = {
+    /**
+     * Requirement Type
+     */
+    requirement_type: string;
+    /**
+     * Project Id
+     */
+    project_id: number;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Is Dismissed
+     */
+    is_dismissed: boolean;
+    /**
+     * Is Dismissable
+     */
+    is_dismissable: boolean;
+};
+
+/**
  * User
  *
  * Schema for returning user data - excludes password.
@@ -2194,6 +2876,66 @@ export type WaCodeCreate = {
  * WACodeLevel
  */
 export type WaCodeLevel = 'project' | 'building';
+
+/**
+ * WACodeRequirementTriggerCreate
+ */
+export type WaCodeRequirementTriggerCreate = {
+    /**
+     * Wa Code Id
+     */
+    wa_code_id: number;
+    /**
+     * Requirement Type Name
+     */
+    requirement_type_name: string;
+    /**
+     * Template Params
+     */
+    template_params?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * WACodeRequirementTriggerRead
+ */
+export type WaCodeRequirementTriggerRead = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Wa Code Id
+     */
+    wa_code_id: number;
+    /**
+     * Requirement Type Name
+     */
+    requirement_type_name: string;
+    /**
+     * Template Params
+     */
+    template_params: {
+        [key: string]: unknown;
+    };
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Created By Id
+     */
+    created_by_id: number | null;
+    /**
+     * Updated By Id
+     */
+    updated_by_id: number | null;
+};
 
 /**
  * WACodeStatus
@@ -4882,6 +5624,282 @@ export type UpdateBuildingDeliverableProjectsProjectIdBuildingDeliverablesDelive
 
 export type UpdateBuildingDeliverableProjectsProjectIdBuildingDeliverablesDeliverableIdSchoolIdPatchResponse = UpdateBuildingDeliverableProjectsProjectIdBuildingDeliverablesDeliverableIdSchoolIdPatchResponses[keyof UpdateBuildingDeliverableProjectsProjectIdBuildingDeliverablesDeliverableIdSchoolIdPatchResponses];
 
+export type ListContractorPaymentRecordsProjectsProjectIdCprsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Include Dismissed
+         */
+        include_dismissed?: boolean;
+    };
+    url: '/projects/{project_id}/cprs/';
+};
+
+export type ListContractorPaymentRecordsProjectsProjectIdCprsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListContractorPaymentRecordsProjectsProjectIdCprsGetError = ListContractorPaymentRecordsProjectsProjectIdCprsGetErrors[keyof ListContractorPaymentRecordsProjectsProjectIdCprsGetErrors];
+
+export type ListContractorPaymentRecordsProjectsProjectIdCprsGetResponses = {
+    /**
+     * Response List Contractor Payment Records Projects  Project Id  Cprs  Get
+     *
+     * Successful Response
+     */
+    200: Array<ContractorPaymentRecordRead>;
+};
+
+export type ListContractorPaymentRecordsProjectsProjectIdCprsGetResponse = ListContractorPaymentRecordsProjectsProjectIdCprsGetResponses[keyof ListContractorPaymentRecordsProjectsProjectIdCprsGetResponses];
+
+export type CreateContractorPaymentRecordProjectsProjectIdCprsPostData = {
+    body: ContractorPaymentRecordCreate;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: never;
+    url: '/projects/{project_id}/cprs/';
+};
+
+export type CreateContractorPaymentRecordProjectsProjectIdCprsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateContractorPaymentRecordProjectsProjectIdCprsPostError = CreateContractorPaymentRecordProjectsProjectIdCprsPostErrors[keyof CreateContractorPaymentRecordProjectsProjectIdCprsPostErrors];
+
+export type CreateContractorPaymentRecordProjectsProjectIdCprsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ContractorPaymentRecordRead;
+};
+
+export type CreateContractorPaymentRecordProjectsProjectIdCprsPostResponse = CreateContractorPaymentRecordProjectsProjectIdCprsPostResponses[keyof CreateContractorPaymentRecordProjectsProjectIdCprsPostResponses];
+
+export type ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Document Type
+         */
+        document_type?: DocumentType | null;
+        /**
+         * Include Dismissed
+         */
+        include_dismissed?: boolean;
+    };
+    url: '/projects/{project_id}/document-requirements/';
+};
+
+export type ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetError = ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetErrors[keyof ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetErrors];
+
+export type ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetResponses = {
+    /**
+     * Response List Document Requirements Projects  Project Id  Document Requirements  Get
+     *
+     * Successful Response
+     */
+    200: Array<ProjectDocumentRequirementRead>;
+};
+
+export type ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetResponse = ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetResponses[keyof ListDocumentRequirementsProjectsProjectIdDocumentRequirementsGetResponses];
+
+export type CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostData = {
+    body: ProjectDocumentRequirementCreate;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: never;
+    url: '/projects/{project_id}/document-requirements/';
+};
+
+export type CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostError = CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostErrors[keyof CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostErrors];
+
+export type CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ProjectDocumentRequirementRead;
+};
+
+export type CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostResponse = CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostResponses[keyof CreateDocumentRequirementProjectsProjectIdDocumentRequirementsPostResponses];
+
+export type ListDepFilingsProjectsProjectIdDepFilingsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Include Dismissed
+         */
+        include_dismissed?: boolean;
+    };
+    url: '/projects/{project_id}/dep-filings/';
+};
+
+export type ListDepFilingsProjectsProjectIdDepFilingsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListDepFilingsProjectsProjectIdDepFilingsGetError = ListDepFilingsProjectsProjectIdDepFilingsGetErrors[keyof ListDepFilingsProjectsProjectIdDepFilingsGetErrors];
+
+export type ListDepFilingsProjectsProjectIdDepFilingsGetResponses = {
+    /**
+     * Response List Dep Filings Projects  Project Id  Dep Filings  Get
+     *
+     * Successful Response
+     */
+    200: Array<ProjectDepFilingRead>;
+};
+
+export type ListDepFilingsProjectsProjectIdDepFilingsGetResponse = ListDepFilingsProjectsProjectIdDepFilingsGetResponses[keyof ListDepFilingsProjectsProjectIdDepFilingsGetResponses];
+
+export type SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostData = {
+    body: ProjectDepFilingCreate;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: never;
+    url: '/projects/{project_id}/dep-filings/';
+};
+
+export type SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostError = SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostErrors[keyof SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostErrors];
+
+export type SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostResponses = {
+    /**
+     * Response Select Dep Filings For Project Projects  Project Id  Dep Filings  Post
+     *
+     * Successful Response
+     */
+    201: Array<ProjectDepFilingRead>;
+};
+
+export type SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostResponse = SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostResponses[keyof SelectDepFilingsForProjectProjectsProjectIdDepFilingsPostResponses];
+
+export type ListLabReportsProjectsProjectIdLabReportsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: {
+        /**
+         * Include Dismissed
+         */
+        include_dismissed?: boolean;
+    };
+    url: '/projects/{project_id}/lab-reports/';
+};
+
+export type ListLabReportsProjectsProjectIdLabReportsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListLabReportsProjectsProjectIdLabReportsGetError = ListLabReportsProjectsProjectIdLabReportsGetErrors[keyof ListLabReportsProjectsProjectIdLabReportsGetErrors];
+
+export type ListLabReportsProjectsProjectIdLabReportsGetResponses = {
+    /**
+     * Response List Lab Reports Projects  Project Id  Lab Reports  Get
+     *
+     * Successful Response
+     */
+    200: Array<LabReportRequirementRead>;
+};
+
+export type ListLabReportsProjectsProjectIdLabReportsGetResponse = ListLabReportsProjectsProjectIdLabReportsGetResponses[keyof ListLabReportsProjectsProjectIdLabReportsGetResponses];
+
+export type ListProjectRequirementsProjectsProjectIdRequirementsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Project Id
+         */
+        project_id: number;
+    };
+    query?: never;
+    url: '/projects/{project_id}/requirements';
+};
+
+export type ListProjectRequirementsProjectsProjectIdRequirementsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListProjectRequirementsProjectsProjectIdRequirementsGetError = ListProjectRequirementsProjectsProjectIdRequirementsGetErrors[keyof ListProjectRequirementsProjectsProjectIdRequirementsGetErrors];
+
+export type ListProjectRequirementsProjectsProjectIdRequirementsGetResponses = {
+    /**
+     * Response List Project Requirements Projects  Project Id  Requirements Get
+     *
+     * Successful Response
+     */
+    200: Array<UnfulfilledRequirement>;
+};
+
+export type ListProjectRequirementsProjectsProjectIdRequirementsGetResponse = ListProjectRequirementsProjectsProjectIdRequirementsGetResponses[keyof ListProjectRequirementsProjectsProjectIdRequirementsGetResponses];
+
 export type ListEntriesSchoolsGetData = {
     body?: never;
     path?: never;
@@ -5250,6 +6268,636 @@ export type UpdateTimeEntryTimeEntriesEntryIdPatchResponses = {
 
 export type UpdateTimeEntryTimeEntriesEntryIdPatchResponse = UpdateTimeEntryTimeEntriesEntryIdPatchResponses[keyof UpdateTimeEntryTimeEntriesEntryIdPatchResponses];
 
+export type ListRequirementTriggersRequirementTriggersGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Wa Code Id
+         */
+        wa_code_id?: number | null;
+    };
+    url: '/requirement-triggers';
+};
+
+export type ListRequirementTriggersRequirementTriggersGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRequirementTriggersRequirementTriggersGetError = ListRequirementTriggersRequirementTriggersGetErrors[keyof ListRequirementTriggersRequirementTriggersGetErrors];
+
+export type ListRequirementTriggersRequirementTriggersGetResponses = {
+    /**
+     * Response List Requirement Triggers Requirement Triggers Get
+     *
+     * Successful Response
+     */
+    200: Array<WaCodeRequirementTriggerRead>;
+};
+
+export type ListRequirementTriggersRequirementTriggersGetResponse = ListRequirementTriggersRequirementTriggersGetResponses[keyof ListRequirementTriggersRequirementTriggersGetResponses];
+
+export type CreateRequirementTriggerRequirementTriggersPostData = {
+    body: WaCodeRequirementTriggerCreate;
+    path?: never;
+    query?: never;
+    url: '/requirement-triggers';
+};
+
+export type CreateRequirementTriggerRequirementTriggersPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateRequirementTriggerRequirementTriggersPostError = CreateRequirementTriggerRequirementTriggersPostErrors[keyof CreateRequirementTriggerRequirementTriggersPostErrors];
+
+export type CreateRequirementTriggerRequirementTriggersPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: WaCodeRequirementTriggerRead;
+};
+
+export type CreateRequirementTriggerRequirementTriggersPostResponse = CreateRequirementTriggerRequirementTriggersPostResponses[keyof CreateRequirementTriggerRequirementTriggersPostResponses];
+
+export type DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Trigger Id
+         */
+        trigger_id: number;
+    };
+    query?: never;
+    url: '/requirement-triggers/{trigger_id}';
+};
+
+export type DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteError = DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteErrors[keyof DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteErrors];
+
+export type DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponse = DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponses[keyof DeleteRequirementTriggerRequirementTriggersTriggerIdDeleteResponses];
+
+export type DeleteDocumentRequirementDocumentRequirementsReqIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Req Id
+         */
+        req_id: number;
+    };
+    query?: never;
+    url: '/document-requirements/{req_id}';
+};
+
+export type DeleteDocumentRequirementDocumentRequirementsReqIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteDocumentRequirementDocumentRequirementsReqIdDeleteError = DeleteDocumentRequirementDocumentRequirementsReqIdDeleteErrors[keyof DeleteDocumentRequirementDocumentRequirementsReqIdDeleteErrors];
+
+export type DeleteDocumentRequirementDocumentRequirementsReqIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteDocumentRequirementDocumentRequirementsReqIdDeleteResponse = DeleteDocumentRequirementDocumentRequirementsReqIdDeleteResponses[keyof DeleteDocumentRequirementDocumentRequirementsReqIdDeleteResponses];
+
+export type UpdateDocumentRequirementDocumentRequirementsReqIdPatchData = {
+    body: ProjectDocumentRequirementUpdate;
+    path: {
+        /**
+         * Req Id
+         */
+        req_id: number;
+    };
+    query?: never;
+    url: '/document-requirements/{req_id}';
+};
+
+export type UpdateDocumentRequirementDocumentRequirementsReqIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateDocumentRequirementDocumentRequirementsReqIdPatchError = UpdateDocumentRequirementDocumentRequirementsReqIdPatchErrors[keyof UpdateDocumentRequirementDocumentRequirementsReqIdPatchErrors];
+
+export type UpdateDocumentRequirementDocumentRequirementsReqIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectDocumentRequirementRead;
+};
+
+export type UpdateDocumentRequirementDocumentRequirementsReqIdPatchResponse = UpdateDocumentRequirementDocumentRequirementsReqIdPatchResponses[keyof UpdateDocumentRequirementDocumentRequirementsReqIdPatchResponses];
+
+export type DismissDocumentRequirementDocumentRequirementsReqIdDismissPostData = {
+    body: ProjectDocumentRequirementDismiss;
+    path: {
+        /**
+         * Req Id
+         */
+        req_id: number;
+    };
+    query?: never;
+    url: '/document-requirements/{req_id}/dismiss';
+};
+
+export type DismissDocumentRequirementDocumentRequirementsReqIdDismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DismissDocumentRequirementDocumentRequirementsReqIdDismissPostError = DismissDocumentRequirementDocumentRequirementsReqIdDismissPostErrors[keyof DismissDocumentRequirementDocumentRequirementsReqIdDismissPostErrors];
+
+export type DismissDocumentRequirementDocumentRequirementsReqIdDismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectDocumentRequirementRead;
+};
+
+export type DismissDocumentRequirementDocumentRequirementsReqIdDismissPostResponse = DismissDocumentRequirementDocumentRequirementsReqIdDismissPostResponses[keyof DismissDocumentRequirementDocumentRequirementsReqIdDismissPostResponses];
+
+export type DeleteContractorPaymentRecordCprsCprIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Cpr Id
+         */
+        cpr_id: number;
+    };
+    query?: never;
+    url: '/cprs/{cpr_id}';
+};
+
+export type DeleteContractorPaymentRecordCprsCprIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteContractorPaymentRecordCprsCprIdDeleteError = DeleteContractorPaymentRecordCprsCprIdDeleteErrors[keyof DeleteContractorPaymentRecordCprsCprIdDeleteErrors];
+
+export type DeleteContractorPaymentRecordCprsCprIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteContractorPaymentRecordCprsCprIdDeleteResponse = DeleteContractorPaymentRecordCprsCprIdDeleteResponses[keyof DeleteContractorPaymentRecordCprsCprIdDeleteResponses];
+
+export type UpdateContractorPaymentRecordCprsCprIdPatchData = {
+    body: ContractorPaymentRecordUpdate;
+    path: {
+        /**
+         * Cpr Id
+         */
+        cpr_id: number;
+    };
+    query?: never;
+    url: '/cprs/{cpr_id}';
+};
+
+export type UpdateContractorPaymentRecordCprsCprIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateContractorPaymentRecordCprsCprIdPatchError = UpdateContractorPaymentRecordCprsCprIdPatchErrors[keyof UpdateContractorPaymentRecordCprsCprIdPatchErrors];
+
+export type UpdateContractorPaymentRecordCprsCprIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ContractorPaymentRecordRead;
+};
+
+export type UpdateContractorPaymentRecordCprsCprIdPatchResponse = UpdateContractorPaymentRecordCprsCprIdPatchResponses[keyof UpdateContractorPaymentRecordCprsCprIdPatchResponses];
+
+export type DismissContractorPaymentRecordCprsCprIdDismissPostData = {
+    body: ContractorPaymentRecordDismiss;
+    path: {
+        /**
+         * Cpr Id
+         */
+        cpr_id: number;
+    };
+    query?: never;
+    url: '/cprs/{cpr_id}/dismiss';
+};
+
+export type DismissContractorPaymentRecordCprsCprIdDismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DismissContractorPaymentRecordCprsCprIdDismissPostError = DismissContractorPaymentRecordCprsCprIdDismissPostErrors[keyof DismissContractorPaymentRecordCprsCprIdDismissPostErrors];
+
+export type DismissContractorPaymentRecordCprsCprIdDismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ContractorPaymentRecordRead;
+};
+
+export type DismissContractorPaymentRecordCprsCprIdDismissPostResponse = DismissContractorPaymentRecordCprsCprIdDismissPostResponses[keyof DismissContractorPaymentRecordCprsCprIdDismissPostResponses];
+
+export type ListEntriesDepFilingsFormsGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Search
+         */
+        search?: string | null;
+    };
+    url: '/dep-filings/forms/';
+};
+
+export type ListEntriesDepFilingsFormsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListEntriesDepFilingsFormsGetError = ListEntriesDepFilingsFormsGetErrors[keyof ListEntriesDepFilingsFormsGetErrors];
+
+export type ListEntriesDepFilingsFormsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PaginatedResponseDepFilingFormRead;
+};
+
+export type ListEntriesDepFilingsFormsGetResponse = ListEntriesDepFilingsFormsGetResponses[keyof ListEntriesDepFilingsFormsGetResponses];
+
+export type CreateDepFilingFormDepFilingsFormsPostData = {
+    body: DepFilingFormCreate;
+    path?: never;
+    query?: never;
+    url: '/dep-filings/forms/';
+};
+
+export type CreateDepFilingFormDepFilingsFormsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateDepFilingFormDepFilingsFormsPostError = CreateDepFilingFormDepFilingsFormsPostErrors[keyof CreateDepFilingFormDepFilingsFormsPostErrors];
+
+export type CreateDepFilingFormDepFilingsFormsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: DepFilingFormRead;
+};
+
+export type CreateDepFilingFormDepFilingsFormsPostResponse = CreateDepFilingFormDepFilingsFormsPostResponses[keyof CreateDepFilingFormDepFilingsFormsPostResponses];
+
+export type WrapperDepFilingsFormsFormIdConnectionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Form Id
+         */
+        form_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/forms/{form_id}/connections';
+};
+
+export type WrapperDepFilingsFormsFormIdConnectionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type WrapperDepFilingsFormsFormIdConnectionsGetError = WrapperDepFilingsFormsFormIdConnectionsGetErrors[keyof WrapperDepFilingsFormsFormIdConnectionsGetErrors];
+
+export type WrapperDepFilingsFormsFormIdConnectionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: DepFilingFormConnections;
+};
+
+export type WrapperDepFilingsFormsFormIdConnectionsGetResponse = WrapperDepFilingsFormsFormIdConnectionsGetResponses[keyof WrapperDepFilingsFormsFormIdConnectionsGetResponses];
+
+export type WrapperDepFilingsFormsFormIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Form Id
+         */
+        form_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/forms/{form_id}';
+};
+
+export type WrapperDepFilingsFormsFormIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type WrapperDepFilingsFormsFormIdDeleteError = WrapperDepFilingsFormsFormIdDeleteErrors[keyof WrapperDepFilingsFormsFormIdDeleteErrors];
+
+export type WrapperDepFilingsFormsFormIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type WrapperDepFilingsFormsFormIdDeleteResponse = WrapperDepFilingsFormsFormIdDeleteResponses[keyof WrapperDepFilingsFormsFormIdDeleteResponses];
+
+export type GetDepFilingFormDepFilingsFormsFormIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Form Id
+         */
+        form_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/forms/{form_id}';
+};
+
+export type GetDepFilingFormDepFilingsFormsFormIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetDepFilingFormDepFilingsFormsFormIdGetError = GetDepFilingFormDepFilingsFormsFormIdGetErrors[keyof GetDepFilingFormDepFilingsFormsFormIdGetErrors];
+
+export type GetDepFilingFormDepFilingsFormsFormIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: DepFilingFormRead;
+};
+
+export type GetDepFilingFormDepFilingsFormsFormIdGetResponse = GetDepFilingFormDepFilingsFormsFormIdGetResponses[keyof GetDepFilingFormDepFilingsFormsFormIdGetResponses];
+
+export type UpdateDepFilingFormDepFilingsFormsFormIdPatchData = {
+    body: DepFilingFormUpdate;
+    path: {
+        /**
+         * Form Id
+         */
+        form_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/forms/{form_id}';
+};
+
+export type UpdateDepFilingFormDepFilingsFormsFormIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateDepFilingFormDepFilingsFormsFormIdPatchError = UpdateDepFilingFormDepFilingsFormsFormIdPatchErrors[keyof UpdateDepFilingFormDepFilingsFormsFormIdPatchErrors];
+
+export type UpdateDepFilingFormDepFilingsFormsFormIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: DepFilingFormRead;
+};
+
+export type UpdateDepFilingFormDepFilingsFormsFormIdPatchResponse = UpdateDepFilingFormDepFilingsFormsFormIdPatchResponses[keyof UpdateDepFilingFormDepFilingsFormsFormIdPatchResponses];
+
+export type DeleteDepFilingDepFilingsFilingIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Filing Id
+         */
+        filing_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/{filing_id}';
+};
+
+export type DeleteDepFilingDepFilingsFilingIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteDepFilingDepFilingsFilingIdDeleteError = DeleteDepFilingDepFilingsFilingIdDeleteErrors[keyof DeleteDepFilingDepFilingsFilingIdDeleteErrors];
+
+export type DeleteDepFilingDepFilingsFilingIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteDepFilingDepFilingsFilingIdDeleteResponse = DeleteDepFilingDepFilingsFilingIdDeleteResponses[keyof DeleteDepFilingDepFilingsFilingIdDeleteResponses];
+
+export type UpdateDepFilingDepFilingsFilingIdPatchData = {
+    body: ProjectDepFilingUpdate;
+    path: {
+        /**
+         * Filing Id
+         */
+        filing_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/{filing_id}';
+};
+
+export type UpdateDepFilingDepFilingsFilingIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateDepFilingDepFilingsFilingIdPatchError = UpdateDepFilingDepFilingsFilingIdPatchErrors[keyof UpdateDepFilingDepFilingsFilingIdPatchErrors];
+
+export type UpdateDepFilingDepFilingsFilingIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectDepFilingRead;
+};
+
+export type UpdateDepFilingDepFilingsFilingIdPatchResponse = UpdateDepFilingDepFilingsFilingIdPatchResponses[keyof UpdateDepFilingDepFilingsFilingIdPatchResponses];
+
+export type DismissDepFilingDepFilingsFilingIdDismissPostData = {
+    body: ProjectDepFilingDismiss;
+    path: {
+        /**
+         * Filing Id
+         */
+        filing_id: number;
+    };
+    query?: never;
+    url: '/dep-filings/{filing_id}/dismiss';
+};
+
+export type DismissDepFilingDepFilingsFilingIdDismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DismissDepFilingDepFilingsFilingIdDismissPostError = DismissDepFilingDepFilingsFilingIdDismissPostErrors[keyof DismissDepFilingDepFilingsFilingIdDismissPostErrors];
+
+export type DismissDepFilingDepFilingsFilingIdDismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectDepFilingRead;
+};
+
+export type DismissDepFilingDepFilingsFilingIdDismissPostResponse = DismissDepFilingDepFilingsFilingIdDismissPostResponses[keyof DismissDepFilingDepFilingsFilingIdDismissPostResponses];
+
+export type SaveLabReportLabReportsReqIdSavePatchData = {
+    body: LabReportRequirementUpdate;
+    path: {
+        /**
+         * Req Id
+         */
+        req_id: number;
+    };
+    query?: never;
+    url: '/lab-reports/{req_id}/save';
+};
+
+export type SaveLabReportLabReportsReqIdSavePatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveLabReportLabReportsReqIdSavePatchError = SaveLabReportLabReportsReqIdSavePatchErrors[keyof SaveLabReportLabReportsReqIdSavePatchErrors];
+
+export type SaveLabReportLabReportsReqIdSavePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: LabReportRequirementRead;
+};
+
+export type SaveLabReportLabReportsReqIdSavePatchResponse = SaveLabReportLabReportsReqIdSavePatchResponses[keyof SaveLabReportLabReportsReqIdSavePatchResponses];
+
+export type DismissLabReportLabReportsReqIdDismissPostData = {
+    body: LabReportRequirementDismiss;
+    path: {
+        /**
+         * Req Id
+         */
+        req_id: number;
+    };
+    query?: never;
+    url: '/lab-reports/{req_id}/dismiss';
+};
+
+export type DismissLabReportLabReportsReqIdDismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DismissLabReportLabReportsReqIdDismissPostError = DismissLabReportLabReportsReqIdDismissPostErrors[keyof DismissLabReportLabReportsReqIdDismissPostErrors];
+
+export type DismissLabReportLabReportsReqIdDismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: LabReportRequirementRead;
+};
+
+export type DismissLabReportLabReportsReqIdDismissPostResponse = DismissLabReportLabReportsReqIdDismissPostResponses[keyof DismissLabReportLabReportsReqIdDismissPostResponses];
+
+export type UndismissLabReportLabReportsReqIdUndismissPostData = {
+    body?: never;
+    path: {
+        /**
+         * Req Id
+         */
+        req_id: number;
+    };
+    query?: never;
+    url: '/lab-reports/{req_id}/undismiss';
+};
+
+export type UndismissLabReportLabReportsReqIdUndismissPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UndismissLabReportLabReportsReqIdUndismissPostError = UndismissLabReportLabReportsReqIdUndismissPostErrors[keyof UndismissLabReportLabReportsReqIdUndismissPostErrors];
+
+export type UndismissLabReportLabReportsReqIdUndismissPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: LabReportRequirementRead;
+};
+
+export type UndismissLabReportLabReportsReqIdUndismissPostResponse = UndismissLabReportLabReportsReqIdUndismissPostResponses[keyof UndismissLabReportLabReportsReqIdUndismissPostResponses];
+
 export type ListEntriesWaCodesGetData = {
     body?: never;
     path?: never;
@@ -5462,6 +7110,93 @@ export type ImportBatchWaCodesBatchImportPostResponses = {
 };
 
 export type ImportBatchWaCodesBatchImportPostResponse = ImportBatchWaCodesBatchImportPostResponses[keyof ImportBatchWaCodesBatchImportPostResponses];
+
+export type ListRequirementTriggersWaCodesRequirementTriggersGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Wa Code Id
+         */
+        wa_code_id?: number | null;
+    };
+    url: '/wa-codes/requirement-triggers';
+};
+
+export type ListRequirementTriggersWaCodesRequirementTriggersGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRequirementTriggersWaCodesRequirementTriggersGetError = ListRequirementTriggersWaCodesRequirementTriggersGetErrors[keyof ListRequirementTriggersWaCodesRequirementTriggersGetErrors];
+
+export type ListRequirementTriggersWaCodesRequirementTriggersGetResponses = {
+    /**
+     * Response List Requirement Triggers Wa Codes Requirement Triggers Get
+     *
+     * Successful Response
+     */
+    200: Array<WaCodeRequirementTriggerRead>;
+};
+
+export type ListRequirementTriggersWaCodesRequirementTriggersGetResponse = ListRequirementTriggersWaCodesRequirementTriggersGetResponses[keyof ListRequirementTriggersWaCodesRequirementTriggersGetResponses];
+
+export type CreateRequirementTriggerWaCodesRequirementTriggersPostData = {
+    body: WaCodeRequirementTriggerCreate;
+    path?: never;
+    query?: never;
+    url: '/wa-codes/requirement-triggers';
+};
+
+export type CreateRequirementTriggerWaCodesRequirementTriggersPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateRequirementTriggerWaCodesRequirementTriggersPostError = CreateRequirementTriggerWaCodesRequirementTriggersPostErrors[keyof CreateRequirementTriggerWaCodesRequirementTriggersPostErrors];
+
+export type CreateRequirementTriggerWaCodesRequirementTriggersPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: WaCodeRequirementTriggerRead;
+};
+
+export type CreateRequirementTriggerWaCodesRequirementTriggersPostResponse = CreateRequirementTriggerWaCodesRequirementTriggersPostResponses[keyof CreateRequirementTriggerWaCodesRequirementTriggersPostResponses];
+
+export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Trigger Id
+         */
+        trigger_id: number;
+    };
+    query?: never;
+    url: '/wa-codes/requirement-triggers/{trigger_id}';
+};
+
+export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteError = DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteErrors[keyof DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteErrors];
+
+export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponse = DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponses[keyof DeleteRequirementTriggerWaCodesRequirementTriggersTriggerIdDeleteResponses];
 
 export type ListEntriesWorkAuthsGetData = {
     body?: never;

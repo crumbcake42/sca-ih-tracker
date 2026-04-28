@@ -87,3 +87,21 @@ Key FE-impacting changes from Session F:
 - `ProjectStatusRead` has new `unfulfilled_requirement_count: int` field.
 - New `UnfulfilledRequirement` schema and `GET /projects/{project_id}/requirements` endpoint.
 - `POST /projects/{project_id}/close` now 409s with `{"unfulfilled_requirements": [...]}` (in addition to existing `{"blocking_issues": [...]}`). The FE close flow must handle both 409 detail shapes.
+
+---
+
+## FE regen drift to address (audit 2026-04-27)
+
+The FE regenerated the OpenAPI client against this branch and audited the result. Most of `frontend/HANDOFF.md`'s pickup list landed cleanly (DEP-filings, lab-reports, document-requirements, CPR endpoints, removed `is_required`/`requirement_key`/`is_report`, all six `*Connections` typed, paginated work-auths, `unfulfilled_requirement_count`, `UnfulfilledRequirement`, `GET /projects/{id}/requirements`). The following items need backend fixes before FE can build cleanly against the contract:
+
+1. **`POST /projects/{id}/close` does not declare its 409 response shape.** `CloseProjectProjectsProjectIdClosePostErrors` in the generated client lists only `422`. The 409 with `{"unfulfilled_requirements": [...]}` or `{"blocking_issues": [...]}` is undocumented in the OpenAPI schema, so the FE has to hand-narrow `unknown` to render the close gate UI. Add `responses={409: ...}` to the route decorator with a discriminated-union model covering both detail shapes.
+
+2. **No standalone Deliverables CRUD endpoints.** `POST /deliverables/` and `PATCH /deliverables/{id}` (with `DeliverableCreate` / `DeliverableUpdate` schemas) are still missing. This blocks Session 2.3e (Deliverables admin). Existing surface: list, single delete, batch import, and trigger management — no single create/update.
+
+3. **`undismiss` is asymmetric across silos.** Only `POST /lab-reports/{id}/undismiss` exists. CPRs, project document requirements, and project DEP filings have no undismiss endpoint. If the four-silo requirements pattern is meant to support reversing a dismissal uniformly, the other three need it.
+
+4. **`WaCodeRequirementTriggerCreate.requirement_type_name` is plain `string`; `template_params` is `dict[str, unknown]`.** Runtime validation in `validate_template_params` rejects unsupported values, but the OpenAPI schema gives the FE no way to discover valid `requirement_type_name` values or per-type `template_params` shape. Two options: (a) replace `requirement_type_name: str` with a `Literal[...]` / discriminated union over known types and `template_params`, or (b) expose a `GET /requirement-types` registry endpoint listing accepted (name, template_params shape) pairs.
+
+5. **Duplicated requirement-triggers namespace.** SDK has both `createRequirementTriggerRequirementTriggersPost` (`/requirement-triggers`) and `createRequirementTriggerWaCodesRequirementTriggersPost` (`/wa-codes/requirement-triggers`), and the same for list/delete. This appears to follow Option C router boundaries but the function names are confusingly similar. Consider explicit `operation_id=` annotations on the WA-codes-scoped routes (e.g. `list_wa_code_requirement_triggers`) so the generated client surface is unambiguous.
+
+6. **Deliverables blocker description in `frontend/HANDOFF.md` is wrong.** It claims the create surface should be "name, description, internal_status, sca_status," but `internal_status` / `sca_status` live on `ProjectDeliverable` / `ProjectBuildingDeliverable`, not the catalog `Deliverable`. The catalog has only `name`, `description`, `level`. Confirm what the Deliverables admin should manage before scoping the create/update payload.
