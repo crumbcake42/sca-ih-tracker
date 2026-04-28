@@ -125,6 +125,64 @@ class TestDismissDEPFiling:
         assert resp.status_code == 404
 
 
+class TestUndismissDEPFiling:
+    async def test_undismisses_filing(self, auth_client: AsyncClient, db_session: AsyncSession):
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        form = await _seed_form(db_session, "UND1")
+        filing = await _seed_filing(
+            db_session,
+            project.id,
+            form.id,
+            dismissed_at=datetime(2025, 12, 1),
+            dismissed_by_id=1,
+            dismissal_reason="Was not needed",
+        )
+
+        resp = await auth_client.post(f"/dep-filings/{filing.id}/undismiss")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["dismissed_at"] is None
+        assert data["dismissed_by_id"] is None
+        assert data["dismissal_reason"] is None
+        assert data["is_dismissed"] is False
+
+    async def test_not_dismissed_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        form = await _seed_form(db_session, "UND2")
+        filing = await _seed_filing(db_session, project.id, form.id)
+
+        resp = await auth_client.post(f"/dep-filings/{filing.id}/undismiss")
+        assert resp.status_code == 422
+
+    async def test_collision_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        form = await _seed_form(db_session, "UND3")
+        # dismissed row
+        dismissed = await _seed_filing(
+            db_session,
+            project.id,
+            form.id,
+            dismissed_at=datetime(2025, 12, 1),
+            dismissal_reason="Temp dismiss",
+        )
+        # active row for same (project, form) — allowed because partial index excludes dismissed
+        await _seed_filing(db_session, project.id, form.id)
+
+        resp = await auth_client.post(f"/dep-filings/{dismissed.id}/undismiss")
+        assert resp.status_code == 409
+
+    async def test_404_unknown_id(self, auth_client: AsyncClient, db_session: AsyncSession):
+        resp = await auth_client.post("/dep-filings/99999/undismiss")
+        assert resp.status_code == 404
+
+
 class TestDeleteDEPFiling:
     async def test_deletes_pristine_row(self, auth_client: AsyncClient, db_session: AsyncSession):
         school = await seed_school(db_session)

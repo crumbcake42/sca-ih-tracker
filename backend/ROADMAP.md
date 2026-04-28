@@ -705,14 +705,10 @@ The 2026-04-27 FE regen audit (see `HANDOFF.md` §"FE regen drift to address") s
   - **Cross-side note.** Updated `frontend/HANDOFF.md`: corrected field list (catalog `Deliverable` has only `name`/`description`/`level`), marked items 1 and 2 resolved.
   - User-managed migration: NONE.
 
-- [ ] **Session B — Undismiss symmetry** (Item 3)
-  - `app/cprs/router.py` — add `POST /cprs/{cpr_id}/undismiss` (`response_model=ContractorPaymentRecordRead`, `PROJECT_EDIT` guard).
-  - `app/required_docs/router.py` — add `POST /document-requirements/{req_id}/undismiss` (`response_model=ProjectDocumentRequirementRead`).
-  - `app/dep_filings/router.py` — add `POST /dep-filings/{filing_id}/undismiss` (`response_model=ProjectDepFilingRead`).
-  - All three follow `app/lab_reports/router.py:68-87` pattern: `db.get` → 404 → 422 if not dismissed → **uniqueness re-check** against active sibling on the same logical key (raise 409 if collision) → null out `dismissed_at`/`dismissed_by_id`/`dismissal_reason` → set `updated_by_id` → commit/refresh.
-  - **Lab-reports parity:** add the same uniqueness re-check to `app/lab_reports/router.py:68-87`'s undismiss handler (currently absent — would surface as `IntegrityError` 500).
-  - Tests for each new endpoint: 200 round-trip, 404 unknown id, 422 not-dismissed, 409 collision, 403 permission. Plus one regression test for lab_reports' new collision check. ~16-20 new tests.
-  - User-managed migration: NONE.
+- [x] **Session B — Undismiss symmetry** ✓ COMPLETE (2026-04-28)
+  - Added `POST /cprs/{id}/undismiss`, `POST /document-requirements/{id}/undismiss`, `POST /dep-filings/{id}/undismiss`; all three with 404/422/409 guards and `PROJECT_EDIT` permission.
+  - Lab-reports parity: added uniqueness re-check to existing undismiss handler.
+  - 15 new tests across four test files. User-managed migration: NONE.
 
 - [ ] **Session C — Requirement-types module + namespace cleanup** (Items 4a, 4b, 5)
   - **`template_params_model` on Protocol.** `app/common/requirements/protocol.py` — add `template_params_model: ClassVar[type[BaseModel] | None]` to the Protocol. Each handler declares it: `app/required_docs/service.py` introduces `ProjectDocumentTemplateParams(BaseModel): document_type: DocumentType` and reuses it from `validate_template_params` via `model.model_validate(params)`; the other four handlers (`deliverables`, `lab_reports`, `dep_filings`, `cprs`) set `template_params_model = None` (signals "must be `{}`").

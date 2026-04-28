@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cprs.models import ContractorPaymentRecord
@@ -77,6 +78,47 @@ async def dismiss_contractor_payment_record(
     record.dismissal_reason = body.dismissal_reason
     record.dismissed_by_id = current_user.id
     record.dismissed_at = datetime.now(UTC).replace(tzinfo=None)
+    record.updated_by_id = current_user.id
+
+    await db.commit()
+    await db.refresh(record)
+    return record
+
+
+@cpr_router.post(
+    "/{cpr_id}/undismiss",
+    response_model=ContractorPaymentRecordRead,
+)
+async def undismiss_contractor_payment_record(
+    cpr_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
+):
+    record = await db.get(ContractorPaymentRecord, cpr_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Contractor payment record not found")
+    if record.dismissed_at is None:
+        raise HTTPException(status_code=422, detail="Record is not dismissed")
+
+    collision = (
+        await db.execute(
+            select(ContractorPaymentRecord).where(
+                ContractorPaymentRecord.project_id == record.project_id,
+                ContractorPaymentRecord.contractor_id == record.contractor_id,
+                ContractorPaymentRecord.dismissed_at.is_(None),
+                ContractorPaymentRecord.id != record.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if collision:
+        raise HTTPException(
+            status_code=409,
+            detail="A live CPR already exists for this project and contractor",
+        )
+
+    record.dismissed_at = None
+    record.dismissed_by_id = None
+    record.dismissal_reason = None
     record.updated_by_id = current_user.id
 
     await db.commit()

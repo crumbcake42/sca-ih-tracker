@@ -206,6 +206,59 @@ class TestDismissDocumentRequirement:
         assert resp.status_code == 422
 
 
+class TestUndismissDocumentRequirement:
+    async def test_undismisses_requirement(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        project = await _seed_project(db_session)
+        req = await _seed_req(
+            db_session,
+            project.id,
+            dismissed_at=datetime(2025, 12, 1),
+            dismissed_by_id=1,
+            dismissal_reason="Was not needed",
+        )
+
+        resp = await auth_client.post(f"/document-requirements/{req.id}/undismiss")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["dismissed_at"] is None
+        assert data["dismissed_by_id"] is None
+        assert data["dismissal_reason"] is None
+        assert data["is_dismissed"] is False
+
+    async def test_not_dismissed_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        project = await _seed_project(db_session)
+        req = await _seed_req(db_session, project.id)
+
+        resp = await auth_client.post(f"/document-requirements/{req.id}/undismiss")
+        assert resp.status_code == 422
+
+    async def test_collision_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        project = await _seed_project(db_session)
+        # dismissed row
+        dismissed = await _seed_req(
+            db_session,
+            project.id,
+            document_type=DocumentType.MINOR_LETTER,
+            dismissed_at=datetime(2025, 12, 1),
+            dismissal_reason="Temp dismiss",
+        )
+        # active row for same key tuple — allowed because partial index excludes dismissed
+        await _seed_req(db_session, project.id, document_type=DocumentType.MINOR_LETTER)
+
+        resp = await auth_client.post(f"/document-requirements/{dismissed.id}/undismiss")
+        assert resp.status_code == 409
+
+    async def test_404_unknown_id(self, auth_client: AsyncClient):
+        resp = await auth_client.post("/document-requirements/99999/undismiss")
+        assert resp.status_code == 404
+
+
 class TestDeleteDocumentRequirement:
     async def test_delete_unsaved_placeholder_succeeds(
         self, auth_client: AsyncClient, db_session: AsyncSession

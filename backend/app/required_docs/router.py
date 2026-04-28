@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -63,6 +64,50 @@ async def dismiss_document_requirement(
     req.dismissal_reason = body.dismissal_reason
     req.dismissed_by_id = current_user.id
     req.dismissed_at = datetime.now(UTC).replace(tzinfo=None)
+    req.updated_by_id = current_user.id
+
+    await db.commit()
+    await db.refresh(req)
+    return req
+
+
+@doc_req_router.post(
+    "/{req_id}/undismiss",
+    response_model=ProjectDocumentRequirementRead,
+)
+async def undismiss_document_requirement(
+    req_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
+):
+    req = await db.get(ProjectDocumentRequirement, req_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Document requirement not found")
+    if req.dismissed_at is None:
+        raise HTTPException(status_code=422, detail="Requirement is not dismissed")
+
+    collision = (
+        await db.execute(
+            select(ProjectDocumentRequirement).where(
+                ProjectDocumentRequirement.project_id == req.project_id,
+                ProjectDocumentRequirement.document_type == req.document_type,
+                ProjectDocumentRequirement.employee_id == req.employee_id,
+                ProjectDocumentRequirement.date == req.date,
+                ProjectDocumentRequirement.school_id == req.school_id,
+                ProjectDocumentRequirement.dismissed_at.is_(None),
+                ProjectDocumentRequirement.id != req.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if collision:
+        raise HTTPException(
+            status_code=409,
+            detail="A live document requirement already exists with the same keys",
+        )
+
+    req.dismissed_at = None
+    req.dismissed_by_id = None
+    req.dismissal_reason = None
     req.updated_by_id = current_user.id
 
     await db.commit()

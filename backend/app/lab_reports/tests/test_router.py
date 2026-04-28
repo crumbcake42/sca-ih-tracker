@@ -144,6 +144,33 @@ class TestUndismissLabReport:
         resp = await auth_client.post(f"/lab-reports/{req.id}/undismiss")
         assert resp.status_code == 422
 
+    async def test_collision_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        school = await seed_school(db_session)
+        project = await seed_project(db_session, school)
+        emp = await seed_employee(db_session)
+        role = await seed_employee_role(db_session, emp)
+        entry = await seed_time_entry(db_session, emp, role, project, school)
+        sample_type = await seed_sample_type(db_session)
+        batch = await seed_sample_batch(db_session, entry, sample_type)
+        # dismissed row
+        dismissed = LabReportRequirement(
+            project_id=project.id,
+            sample_batch_id=batch.id,
+            dismissed_at=datetime(2025, 12, 1),
+            dismissal_reason="Temp dismiss",
+        )
+        db_session.add(dismissed)
+        await db_session.flush()
+        # active row for same batch — allowed because partial index excludes dismissed
+        active = LabReportRequirement(project_id=project.id, sample_batch_id=batch.id)
+        db_session.add(active)
+        await db_session.flush()
+
+        resp = await auth_client.post(f"/lab-reports/{dismissed.id}/undismiss")
+        assert resp.status_code == 409
+
     async def test_404_unknown_id(self, auth_client: AsyncClient):
         resp = await auth_client.post("/lab-reports/99999/undismiss")
         assert resp.status_code == 404

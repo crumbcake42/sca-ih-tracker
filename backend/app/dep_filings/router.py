@@ -168,6 +168,47 @@ async def dismiss_dep_filing(
     return filing
 
 
+@dep_filing_router.post(
+    "/{filing_id}/undismiss",
+    response_model=ProjectDEPFilingRead,
+)
+async def undismiss_dep_filing(
+    filing_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(PermissionChecker(PermissionName.PROJECT_EDIT)),
+):
+    filing = await db.get(ProjectDEPFiling, filing_id)
+    if not filing:
+        raise HTTPException(status_code=404, detail="DEP filing not found")
+    if filing.dismissed_at is None:
+        raise HTTPException(status_code=422, detail="DEP filing is not dismissed")
+
+    collision = (
+        await db.execute(
+            select(ProjectDEPFiling).where(
+                ProjectDEPFiling.project_id == filing.project_id,
+                ProjectDEPFiling.dep_filing_form_id == filing.dep_filing_form_id,
+                ProjectDEPFiling.dismissed_at.is_(None),
+                ProjectDEPFiling.id != filing.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if collision:
+        raise HTTPException(
+            status_code=409,
+            detail="A live DEP filing already exists for this project and form",
+        )
+
+    filing.dismissed_at = None
+    filing.dismissed_by_id = None
+    filing.dismissal_reason = None
+    filing.updated_by_id = current_user.id
+
+    await db.commit()
+    await db.refresh(filing)
+    return filing
+
+
 @dep_filing_router.delete(
     "/{filing_id}",
     status_code=status.HTTP_204_NO_CONTENT,

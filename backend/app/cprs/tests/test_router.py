@@ -290,6 +290,63 @@ class TestDismissContractorPaymentRecord:
         assert resp.status_code == 422
 
 
+class TestUndismissContractorPaymentRecord:
+    async def test_undismisses_record(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        project = await _seed_project(db_session)
+        contractor = await seed_contractor(db_session)
+        record = await _seed_cpr(
+            db_session,
+            project.id,
+            contractor.id,
+            dismissed_at=datetime(2025, 12, 1),
+            dismissed_by_id=1,
+            dismissal_reason="Was not needed",
+        )
+
+        resp = await auth_client.post(f"/cprs/{record.id}/undismiss")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["dismissed_at"] is None
+        assert data["dismissed_by_id"] is None
+        assert data["dismissal_reason"] is None
+        assert data["is_dismissed"] is False
+
+    async def test_not_dismissed_returns_422(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        project = await _seed_project(db_session)
+        contractor = await seed_contractor(db_session)
+        record = await _seed_cpr(db_session, project.id, contractor.id)
+
+        resp = await auth_client.post(f"/cprs/{record.id}/undismiss")
+        assert resp.status_code == 422
+
+    async def test_collision_returns_409(
+        self, auth_client: AsyncClient, db_session: AsyncSession
+    ):
+        project = await _seed_project(db_session)
+        contractor = await seed_contractor(db_session)
+        # dismissed row
+        dismissed = await _seed_cpr(
+            db_session,
+            project.id,
+            contractor.id,
+            dismissed_at=datetime(2025, 12, 1),
+            dismissal_reason="Temp dismiss",
+        )
+        # active row for same (project, contractor) — allowed because partial index excludes dismissed
+        await _seed_cpr(db_session, project.id, contractor.id)
+
+        resp = await auth_client.post(f"/cprs/{dismissed.id}/undismiss")
+        assert resp.status_code == 409
+
+    async def test_404_unknown_id(self, auth_client: AsyncClient):
+        resp = await auth_client.post("/cprs/99999/undismiss")
+        assert resp.status_code == 404
+
+
 class TestDeleteContractorPaymentRecord:
     async def test_delete_pristine_record_succeeds(
         self, auth_client: AsyncClient, db_session: AsyncSession

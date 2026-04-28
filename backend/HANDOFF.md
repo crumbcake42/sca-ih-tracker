@@ -6,7 +6,7 @@ This file captures decisions made and work completed in the most recent session.
 
 ## Where Things Stand
 
-**Phase 6.6 Session A complete** (FE regen drift cleanup — contract polish, 2026-04-28). **~825 passing** (+7 new tests). Phase 6.5 remains fully complete; Session A adds no migrations.
+**Phase 6.6 Session B complete** (undismiss symmetry, 2026-04-28). **~840 passing** (+15 new tests). Phase 6.5 remains fully complete; Session B adds no migrations.
 
 Full arc through this phase:
 
@@ -21,8 +21,34 @@ Full arc through this phase:
 | E2 | Silo 4 `lab_reports` — retire `is_report` | 803 |
 | F | Closure-gate integration + project status surface | 817 |
 | **6.6A** | **FE regen drift — close 409 docs + Deliverables CRUD + cross-side note** | **~825** |
+| **6.6B** | **Undismiss symmetry across all four silos + lab_reports parity fix** | **~840** |
 
-**Phase 6.5 is complete.** Phase 6.6 Session A is complete.
+**Phase 6.5 is complete.** Phase 6.6 Sessions A and B are complete.
+
+---
+
+## Phase 6.6 Session B — What Was Built
+
+### Undismiss endpoints — CPRs, document-requirements, DEP filings
+
+Added `POST /{id}/undismiss` to three routers:
+- `app/cprs/router.py` — `POST /cprs/{cpr_id}/undismiss` → `ContractorPaymentRecordRead`; collision check on `(project_id, contractor_id)`
+- `app/required_docs/router.py` — `POST /document-requirements/{req_id}/undismiss` → `ProjectDocumentRequirementRead`; collision check on `(project_id, document_type, employee_id, date, school_id)`
+- `app/dep_filings/router.py` — `POST /dep-filings/{filing_id}/undismiss` → `ProjectDEPFilingRead`; collision check on `(project_id, dep_filing_form_id)`
+
+All three: 404 if not found, 422 if not dismissed, 409 if a live row already exists for the same key tuple (pre-empts `IntegrityError` 500 from the partial unique index). Requires `PROJECT_EDIT`. Clears `dismissed_at`, `dismissed_by_id`, `dismissal_reason`; sets `updated_by_id`.
+
+### Lab-reports parity fix
+
+Added the same uniqueness pre-check to `app/lab_reports/router.py` undismiss handler (previously missing — would have surfaced as `IntegrityError` 500 on collision). Collision check on `(sample_batch_id)`.
+
+### Tests
+
+4 new tests per silo (undismisses, 422-not-dismissed, 409-collision, 404-unknown) across:
+- `app/cprs/tests/test_router.py` — `TestUndismissContractorPaymentRecord`
+- `app/required_docs/tests/test_router.py` — `TestUndismissDocumentRequirement`
+- `app/dep_filings/tests/test_router_items.py` — `TestUndismissDEPFiling`
+- `app/lab_reports/tests/test_router.py` — collision test added to `TestUndismissLabReport`
 
 ---
 

@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -76,6 +77,21 @@ async def undismiss_lab_report(
         raise HTTPException(status_code=404, detail="Lab report requirement not found")
     if req.dismissed_at is None:
         raise HTTPException(status_code=422, detail="Lab report requirement is not dismissed")
+
+    collision = (
+        await db.execute(
+            select(LabReportRequirement).where(
+                LabReportRequirement.sample_batch_id == req.sample_batch_id,
+                LabReportRequirement.dismissed_at.is_(None),
+                LabReportRequirement.id != req.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if collision:
+        raise HTTPException(
+            status_code=409,
+            detail="A live lab report requirement already exists for this batch",
+        )
 
     req.dismissed_at = None
     req.dismissed_by_id = None
