@@ -14,13 +14,19 @@ This file captures decisions made and work completed in the most recent session.
 
 **Session E0b-refactor complete** (router code move). Project-scoped list/create routes for CPRs and required docs moved out of child modules and into `app/projects/router/cprs.py` + `app/projects/router/required_docs.py`. Child module router files now export item-level ops only. 693 passing.
 
+**Session E0c complete** (protocol & schema hygiene, 2026-04-27). 705 passing (+12 new tests).
+- E0c.1: dropped `requirement_key` from protocol, schema, aggregator, adapters, and models.
+- E0c.2: removed duplicate `@computed_field` for `label`/`is_fulfilled`/`is_dismissed` from `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead`. Made `is_fulfilled` a `@property` on both ORM models so `from_attributes=True` serializes it correctly. CPR `label` now includes contractor name (closes Session-D follow-up). Updated PATTERNS.md #16.
+- E0c.3: added `validate_template_params` classmethod to all handler classes. `POST /requirement-triggers` now rejects handlers that don't subscribe to `WA_CODE_ADDED` (deliverable, contractor_payment_record) and validates `template_params` shape before persistence. Note: `validate_template_params` belongs to the handler interface, not the `ProjectRequirement` protocol (which covers row-level attributes, not handler-class-level config).
+- E0c.4: added `test_registry_coverage.py` — walks SQLAlchemy mappers, asserts every model with `requirement_type: ClassVar` has a registered handler.
+
 **Three reviews on 2026-04-27**, no code written:
 
 1. **Path-finalization review** — surfaced module-layering (`app/project_requirements/` mixes contract with specific config) and router-pattern (`/projects` prefix declared from inside child modules) problems. Produced Sessions E0a + E0b. Plan: `../.claude/plans/review-the-current-phase-cached-wilkes.md`.
 2. **Architecture evaluation** — confirmed the `ProjectRequirement` abstraction is worth keeping, gutted the speculative Phase 6.7 framework, and surfaced four protocol/schema hygiene items. Produced Sessions E0c + E0d. Plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
 3. **Lab-report silo design** — proposed retiring the standalone `SampleBatch.is_report` boolean by modeling the typed lab report as a per-batch `ProjectRequirement` materialized on `BATCH_CREATED`. Produced Session E2 (Silo 4 `lab_reports`). Plan: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 
-**Next: E0c → E0d → {E, E2 — independent} → F.** The remaining E0 sub-sessions must each complete with a green test suite before silo work (E and/or E2) starts. Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
+**Next: E0d → {E, E2 — independent} → F.** Session E0d (drop `is_required` columns) must land before silo work (E and/or E2) starts. Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
 
 > Plans + key memory entries for the E0a–F + E2 arc are checkpointed in `../.claude/{plans,memory}/` so this context travels across machines. See `../.claude/README.md`.
 

@@ -1,5 +1,6 @@
+
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Index, Integer, Text, text
 from sqlalchemy import Enum as SQLEnum
@@ -9,6 +10,8 @@ from app.common.enums import CPRStageStatus
 from app.database import AuditMixin, Base
 from app.common.requirements import DismissibleMixin, ManualTerminalMixin
 
+if TYPE_CHECKING:
+    from app.contractors.models import Contractor
 
 class ContractorPaymentRecord(Base, AuditMixin, DismissibleMixin, ManualTerminalMixin):
     __tablename__ = "contractor_payment_records"

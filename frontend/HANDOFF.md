@@ -2,6 +2,15 @@
 
 ## Backend changes pending frontend pickup
 
+**Session E0c landed (2026-04-27) — regen OpenAPI client before next FE session.**
+
+- `UnfulfilledRequirementRead` loses `requirement_key` field. FE does not currently consume this field, so no code changes needed — just regen.
+- `ContractorPaymentRecordRead.label` value changes: now includes the contractor name (e.g. `"CPR — ACME Corp"` instead of `"CPR — Contractor #7"`). Any FE component that displays this label verbatim now shows the correct contractor name automatically after regen. No schema shape change (still `label: string`).
+- `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` schema shapes are otherwise unchanged — `label`, `is_fulfilled`, `is_dismissed` still present as same types.
+- `POST /requirement-triggers/` now rejects `requirement_type_name` values that don't subscribe to `WA_CODE_ADDED` (e.g. `"deliverable"`, `"contractor_payment_record"`). If FE has any code creating triggers with those types, update to `"project_document"` with `template_params: {"document_type": "<value>"}`.
+
+---
+
 **`*Connections` schemas now typed — regen the OpenAPI client.** Six reference entities (`Contractor`, `Hygienist`, `School`, `Employee`, `Deliverable`, `WACode`) previously returned `unknown` from their `/connections` endpoints. The backend now emits named Pydantic schemas (`ContractorConnections`, `HygienistConnections`, `SchoolConnections`, `EmployeeConnections`, `DeliverableConnections`, `WACodeConnections`) with typed integer counts. After regenerating the client, the `hasConnections(unknown)` cast in `WaCodeFormDialog.tsx` can be removed.
 
 **Add single-item Deliverables endpoints** — need `POST /deliverables/` and `PATCH /deliverables/{id}` to mirror the admin CRUD surface on other entities (name, description, internal_status, sca_status). Current API has list, delete, batch-import, and trigger management but no standalone create/update. Blocks Session 2.3b (Deliverables admin). Regenerate the OpenAPI client after backend ships.
