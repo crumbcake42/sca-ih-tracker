@@ -20,13 +20,20 @@ This file captures decisions made and work completed in the most recent session.
 - E0c.3: added `validate_template_params` classmethod to all handler classes. `POST /requirement-triggers` now rejects handlers that don't subscribe to `WA_CODE_ADDED` (deliverable, contractor_payment_record) and validates `template_params` shape before persistence. Note: `validate_template_params` belongs to the handler interface, not the `ProjectRequirement` protocol (which covers row-level attributes, not handler-class-level config).
 - E0c.4: added `test_registry_coverage.py` — walks SQLAlchemy mappers, asserts every model with `requirement_type: ClassVar` has a registered handler.
 
+**Session E0d complete** (drop `is_required` columns, 2026-04-27). 705 passing (unchanged).
+- Removed `is_required: Mapped[bool]` column from `ContractorPaymentRecord` and `ProjectDocumentRequirement` ORM models.
+- Removed `is_required` from `ContractorPaymentRecordRead`, `ContractorPaymentRecordUpdate`, and `ProjectDocumentRequirementRead` schemas.
+- Dropped `is_required=True` from all three materializer call sites and the two manual-create router handlers.
+- Dropped `is_required.is_(True)` predicate from both `get_unfulfilled_for_project` classmethod queries.
+- Migration pending (user generates): `ALTER TABLE contractor_payment_records DROP COLUMN is_required; ALTER TABLE project_document_requirements DROP COLUMN is_required;`
+
 **Three reviews on 2026-04-27**, no code written:
 
 1. **Path-finalization review** — surfaced module-layering (`app/project_requirements/` mixes contract with specific config) and router-pattern (`/projects` prefix declared from inside child modules) problems. Produced Sessions E0a + E0b. Plan: `../.claude/plans/review-the-current-phase-cached-wilkes.md`.
 2. **Architecture evaluation** — confirmed the `ProjectRequirement` abstraction is worth keeping, gutted the speculative Phase 6.7 framework, and surfaced four protocol/schema hygiene items. Produced Sessions E0c + E0d. Plan: `../.claude/plans/confirm-you-have-a-transient-bengio.md`. Comparison doc: `backend/PLANNING-peer-navigation.md`.
 3. **Lab-report silo design** — proposed retiring the standalone `SampleBatch.is_report` boolean by modeling the typed lab report as a per-batch `ProjectRequirement` materialized on `BATCH_CREATED`. Produced Session E2 (Silo 4 `lab_reports`). Plan: `../.claude/plans/i-want-to-revisit-refactored-valley.md`.
 
-**Next: E0d → {E, E2 — independent} → F.** Session E0d (drop `is_required` columns) must land before silo work (E and/or E2) starts. Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
+**Next: {E, E2 — independent} → F.** Session E (silo 3 `dep_filings`) and Session E2 (silo 4 `lab_reports`) are independent and may land in either order.
 
 > Plans + key memory entries for the E0a–F + E2 arc are checkpointed in `../.claude/{plans,memory}/` so this context travels across machines. See `../.claude/README.md`.
 
@@ -243,8 +250,8 @@ Single `app/dep_filings/` module (mirrors `lab_results/` precedent — confirmed
 - `wa_code_requirement_triggers` (from Session B)
 - `project_document_requirements` (from Session C)
 - `contractor_payment_records` (from Session D — DDL in prior HANDOFF revision; recover from git history if needed)
-
-Session E0a/E0b/E0c add no new migrations. **Session E0d** adds: drop `is_required` from `contractor_payment_records` and from `project_document_requirements`.
+- `ALTER TABLE contractor_payment_records DROP COLUMN is_required;` (from Session E0d)
+- `ALTER TABLE project_document_requirements DROP COLUMN is_required;` (from Session E0d)
 
 ---
 
@@ -253,7 +260,7 @@ Session E0a/E0b/E0c add no new migrations. **Session E0d** adds: drop `is_requir
 Nothing new for FE this session (no code written). Regen points across the upcoming sub-sessions:
 
 - After **E0c** lands: regen the OpenAPI client. `UnfulfilledRequirementRead` loses `requirement_key`. `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` `label` / `is_fulfilled` shapes are unchanged in OpenAPI (still computed at serialization, just from the model property now), but the CPR `label` value will start including the contractor name correctly.
-- After **E0d** lands: regen again. `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lose `is_required`.
+- After **E0d** lands (now complete): regen again. `ContractorPaymentRecordRead` and `ProjectDocumentRequirementRead` lose `is_required`. **Regen now.**
 - After **Session E2** lands (independent of E): regen. `SampleBatchRead` / `SampleBatchCreate` / `SampleBatchUpdate` / `SampleBatchQuickAdd` lose `is_report`; new `LabReportRequirementRead` schemas appear; new endpoints `GET /projects/{id}/lab-reports`, `PATCH /lab-reports/{id}/save`, `POST /lab-reports/{id}/dismiss`, `POST /lab-reports/{id}/undismiss`. Frontend that reads or writes `is_report` must move to the new lab-report endpoints.
 - After **Session F** lands: final regen — new schemas include `WACodeRequirementTriggerCreate`, `WACodeRequirementTriggerRead`, plus Silo 1–4 schemas (incl. `LabReportRequirement`); `UnfulfilledRequirement` from `app.common.requirements.schemas`.
 
