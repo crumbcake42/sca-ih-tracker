@@ -196,7 +196,6 @@ class TestCloseProject:
     async def test_close_succeeds_when_requirements_fulfilled(
         self, auth_client: AsyncClient, db_session: AsyncSession
     ):
-        from datetime import datetime
 
         from app.cprs.models import ContractorPaymentRecord
 
